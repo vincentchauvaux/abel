@@ -34,8 +34,10 @@ export type BottleFeed = Stamp & {
   id: string;
   babyId: string;
   milkType: MilkType;
-  amountMl: number | null;
+  amountMl: number;
   fedAt: string;
+  /** Tirage consommé (lait maternel en stock). */
+  pumpingSessionId: string | null;
 };
 export type DiaperEvent = Stamp & {
   id: string;
@@ -48,6 +50,8 @@ export type PumpingSession = Stamp & {
   babyId: string;
   startedAt: string;
   amountMl: number | null;
+  /** Quantité encore disponible en stock (après prélèvements biberon). */
+  remainingMl: number | null;
   durationMinutes: number | null;
   side: Side | null;
 };

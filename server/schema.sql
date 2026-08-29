@@ -37,8 +37,9 @@ CREATE TABLE IF NOT EXISTS bottle_feeds (
   id UUID PRIMARY KEY,
   baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
   milk_type TEXT NOT NULL,
-  amount_ml INTEGER,
+  amount_ml INTEGER NOT NULL,
   fed_at TIMESTAMPTZ NOT NULL,
+  pumping_session_id UUID,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   deleted_at TIMESTAMPTZ
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS pumping_sessions (
   baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
   started_at TIMESTAMPTZ NOT NULL,
   amount_ml INTEGER,
+  remaining_ml INTEGER,
   duration_minutes INTEGER,
   side TEXT,
   created_at TIMESTAMPTZ NOT NULL,
@@ -145,4 +147,6 @@ ALTER TABLE babies ADD COLUMN IF NOT EXISTS born_on DATE;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS bottle_ml INTEGER;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS bottle_minutes INTEGER;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS diaper_minutes INTEGER;
+ALTER TABLE bottle_feeds ADD COLUMN IF NOT EXISTS pumping_session_id UUID;
+ALTER TABLE pumping_sessions ADD COLUMN IF NOT EXISTS remaining_ml INTEGER;
 ALTER TABLE bottle_feeds ALTER COLUMN amount_ml DROP NOT NULL;

@@ -57,12 +57,14 @@ a {
   flex-direction: column;
   background: var(--bg);
   overflow-x: hidden;
+  position: relative;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .screen {
   flex: 1;
   min-width: 0;
-  padding: 16px 16px 96px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -219,8 +221,12 @@ h2 {
 }
 
 .tabbar {
-  position: sticky;
+  position: fixed;
   bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, 100%);
+  z-index: 40;
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   align-items: end;
@@ -470,4 +476,116 @@ h2 {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+
+.consent-banner {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(76px + env(safe-area-inset-bottom));
+  width: min(480px, 100%);
+  z-index: 35;
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  box-shadow: 0 -6px 24px rgba(42, 36, 33, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.88rem;
+}
+
+.consent-banner p {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.legal-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  font-size: 0.84rem;
+}
+
+.legal-footer a {
+  color: var(--text-muted);
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.legal-prose h2 {
+  margin: 1.25em 0 0.35em;
+  font-size: 1rem;
+}
+
+.legal-prose h2:first-of-type {
+  margin-top: 0;
+}
+
+.legal-prose p,
+.legal-prose li {
+  line-height: 1.55;
+  font-size: 0.92rem;
+}
+
+.legal-prose ul {
+  padding-left: 1.2em;
+  margin: 0.5em 0;
+}
+
+.legal-prose code {
+  font-size: 0.85em;
+}
+
+.log-line {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 10px 0;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border-bottom: 1px solid var(--border);
+}
+
+.log-line:last-child {
+  border-bottom: 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.linkish {
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.info-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.info-line:last-child {
+  border-bottom: 0;
+}
+
+.info-line strong {
+  font-size: 1rem;
 }

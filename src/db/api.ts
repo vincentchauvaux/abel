@@ -108,22 +108,21 @@ export async function startFeeding(babyId: string, side: Side) {
   return sessionId;
 }
 
-export async function logFeedingNow(babyId: string, side: Side) {
-  const now = nowIso();
+export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
   const sessionId = createId();
   await db.feedingSessions.add({
     id: sessionId,
     babyId,
-    startedAt: now,
-    endedAt: now,
+    startedAt: at,
+    endedAt: at,
     ...stamp(),
   });
   await db.feedingSegments.add({
     id: createId(),
     feedingSessionId: sessionId,
     side,
-    startedAt: now,
-    endedAt: now,
+    startedAt: at,
+    endedAt: at,
     ...stamp(),
   });
   notifyDb();
@@ -159,19 +158,23 @@ export async function stopFeeding(sessionId: string) {
   return now;
 }
 
-export async function addDiaper(babyId: string, kind: DiaperKind) {
+export async function addDiaper(babyId: string, kind: DiaperKind, occurredAt = nowIso()) {
   await db.diaperEvents.add({
     id: createId(),
     babyId,
     kind,
-    occurredAt: nowIso(),
+    occurredAt,
     ...stamp(),
   });
   notifyDb();
 }
 
-export async function updateDiaper(id: string, kind: DiaperKind) {
-  await db.diaperEvents.update(id, { kind, ...touch() });
+export async function updateDiaper(id: string, kind: DiaperKind, occurredAt?: string) {
+  await db.diaperEvents.update(id, {
+    kind,
+    ...(occurredAt !== undefined ? { occurredAt } : {}),
+    ...touch(),
+  });
   notifyDb();
 }
 
@@ -187,6 +190,7 @@ export async function startPumping(babyId: string) {
     babyId,
     startedAt: nowIso(),
     amountMl: null,
+    remainingMl: null,
     durationMinutes: null,
     side: null,
     ...stamp(),
@@ -195,27 +199,145 @@ export async function startPumping(babyId: string) {
   return id;
 }
 
-export async function updatePumping(
-  id: string,
-  values: { amountMl: number; durationMinutes?: number | null; side?: Side | null },
+export async function addPumping(
+  babyId: string,
+  values: {
+    amountMl: number;
+    startedAt: string;
+    durationMinutes?: number | null;
+    side?: Side | null;
+  },
 ) {
-  await db.pumpingSessions.update(id, {
+  const id = createId();
+  await db.pumpingSessions.add({
+    id,
+    babyId,
+    startedAt: values.startedAt,
     amountMl: values.amountMl,
+    remainingMl: values.amountMl,
     durationMinutes: values.durationMinutes ?? null,
     side: values.side ?? null,
-    ...touch(),
+    ...stamp(),
+  });
+  notifyDb();
+  return id;
+}
+
+export async function updatePumping(
+  id: string,
+  values: {
+    amountMl?: number;
+    remainingMl?: number | null;
+    durationMinutes?: number | null;
+    side?: Side | null;
+    startedAt?: string;
+  },
+) {
+  const row = await db.pumpingSessions.get(id);
+  if (!row) return;
+  const next: Record<string, unknown> = { ...touch() };
+  if (values.startedAt !== undefined) next.startedAt = values.startedAt;
+  if (values.durationMinutes !== undefined) next.durationMinutes = values.durationMinutes;
+  if (values.side !== undefined) next.side = values.side;
+  if (values.amountMl !== undefined) {
+    next.amountMl = values.amountMl;
+    if (values.remainingMl !== undefined) {
+      next.remainingMl = values.remainingMl;
+    } else if (row.remainingMl == null || row.remainingMl === row.amountMl) {
+      next.remainingMl = values.amountMl;
+    } else {
+      const used = (row.amountMl ?? 0) - row.remainingMl;
+      next.remainingMl = Math.max(0, values.amountMl - used);
+    }
+  } else if (values.remainingMl !== undefined) {
+    next.remainingMl = values.remainingMl;
+  }
+  await db.pumpingSessions.update(id, next);
+  notifyDb();
+}
+
+export async function deletePumping(id: string) {
+  await db.pumpingSessions.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function listMilkStock(babyId: string): Promise<PumpingSession[]> {
+  return (await listPumps(babyId)).filter((row) => (row.remainingMl ?? 0) > 0);
+}
+
+export async function addBottle(
+  babyId: string,
+  milkType: MilkType,
+  amountMl: number,
+  fedAt: string,
+  pumpingSessionId: string | null = null,
+) {
+  await db.transaction('rw', db.bottleFeeds, db.pumpingSessions, async () => {
+    if (pumpingSessionId) {
+      const pump = await db.pumpingSessions.get(pumpingSessionId);
+      const left = pump?.remainingMl ?? 0;
+      if (!pump || left < amountMl) throw new Error('stock');
+      await db.pumpingSessions.update(pumpingSessionId, {
+        remainingMl: left - amountMl,
+        ...touch(),
+      });
+    }
+    await db.bottleFeeds.add({
+      id: createId(),
+      babyId,
+      milkType,
+      amountMl,
+      fedAt,
+      pumpingSessionId,
+      ...stamp(),
+    });
   });
   notifyDb();
 }
 
-export async function addBottle(babyId: string, milkType: MilkType, amountMl: number | null, fedAt: string) {
-  await db.bottleFeeds.add({
-    id: createId(),
-    babyId,
-    milkType,
-    amountMl,
-    fedAt,
-    ...stamp(),
+export async function updateBottle(
+  id: string,
+  values: { amountMl?: number; milkType?: MilkType; fedAt?: string },
+) {
+  const row = await db.bottleFeeds.get(id);
+  if (!row) return;
+  await db.transaction('rw', db.bottleFeeds, db.pumpingSessions, async () => {
+    if (row.pumpingSessionId && values.amountMl !== undefined && values.amountMl !== row.amountMl) {
+      const pump = await db.pumpingSessions.get(row.pumpingSessionId);
+      if (pump) {
+        const restored = (pump.remainingMl ?? 0) + row.amountMl;
+        const need = values.amountMl;
+        if (restored < need) throw new Error('stock');
+        await db.pumpingSessions.update(row.pumpingSessionId, {
+          remainingMl: restored - need,
+          ...touch(),
+        });
+      }
+    }
+    await db.bottleFeeds.update(id, {
+      ...(values.amountMl !== undefined ? { amountMl: values.amountMl } : {}),
+      ...(values.milkType !== undefined ? { milkType: values.milkType } : {}),
+      ...(values.fedAt !== undefined ? { fedAt: values.fedAt } : {}),
+      ...touch(),
+    });
+  });
+  notifyDb();
+}
+
+export async function deleteBottle(id: string) {
+  const row = await db.bottleFeeds.get(id);
+  if (!row) return;
+  await db.transaction('rw', db.bottleFeeds, db.pumpingSessions, async () => {
+    if (row.pumpingSessionId) {
+      const pump = await db.pumpingSessions.get(row.pumpingSessionId);
+      if (pump) {
+        await db.pumpingSessions.update(row.pumpingSessionId, {
+          remainingMl: (pump.remainingMl ?? 0) + row.amountMl,
+          ...touch(),
+        });
+      }
+    }
+    await db.bottleFeeds.update(id, { deletedAt: nowIso(), ...touch() });
   });
   notifyDb();
 }
@@ -326,12 +448,12 @@ export async function linkBabyUser(babyId: string, userId: string | null) {
   notifyDb();
 }
 
-export async function addSolidFood(babyId: string, food: string) {
+export async function addSolidFood(babyId: string, food: string, eatenAt = nowIso()) {
   await db.solidFoods.add({
     id: createId(),
     babyId,
     food: food.trim(),
-    eatenAt: nowIso(),
+    eatenAt,
     ...stamp(),
   });
   notifyDb();
@@ -343,12 +465,22 @@ export async function listSolidFoods(babyId: string): Promise<SolidFood[]> {
   );
 }
 
-export async function addSupplement(babyId: string, name: string) {
+export async function updateSolidFood(id: string, values: { food?: string; eatenAt?: string }) {
+  await db.solidFoods.update(id, { ...values, ...(values.food !== undefined ? { food: values.food.trim() } : {}), ...touch() });
+  notifyDb();
+}
+
+export async function deleteSolidFood(id: string) {
+  await db.solidFoods.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function addSupplement(babyId: string, name: string, givenAt = nowIso()) {
   await db.supplements.add({
     id: createId(),
     babyId,
     name: name.trim(),
-    givenAt: nowIso(),
+    givenAt,
     ...stamp(),
   });
   notifyDb();
@@ -360,14 +492,32 @@ export async function listSupplements(babyId: string): Promise<Supplement[]> {
   );
 }
 
-export async function startSleep(babyId: string) {
+export async function updateSupplement(id: string, values: { name?: string; givenAt?: string }) {
+  await db.supplements.update(id, {
+    ...values,
+    ...(values.name !== undefined ? { name: values.name.trim() } : {}),
+    ...touch(),
+  });
+  notifyDb();
+}
+
+export async function deleteSupplement(id: string) {
+  await db.supplements.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function startSleep(babyId: string, startedAt = nowIso()) {
   const open = alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
-  if (open) return open.id;
+  if (open) {
+    await db.sleepSessions.update(open.id, { startedAt, ...touch() });
+    notifyDb();
+    return open.id;
+  }
   const id = createId();
   await db.sleepSessions.add({
     id,
     babyId,
-    startedAt: nowIso(),
+    startedAt,
     endedAt: null,
     ...stamp(),
   });
@@ -386,12 +536,12 @@ export async function listSleep(babyId: string): Promise<SleepSession[]> {
   );
 }
 
-export async function addTemperature(babyId: string, celsius: number) {
+export async function addTemperature(babyId: string, celsius: number, measuredAt = nowIso()) {
   await db.temperatures.add({
     id: createId(),
     babyId,
     celsius,
-    measuredAt: nowIso(),
+    measuredAt,
     ...stamp(),
   });
   notifyDb();
@@ -403,12 +553,22 @@ export async function listTemperatures(babyId: string): Promise<Temperature[]> {
   );
 }
 
-export async function addNote(babyId: string, body: string) {
+export async function updateTemperature(id: string, values: { celsius?: number; measuredAt?: string }) {
+  await db.temperatures.update(id, { ...values, ...touch() });
+  notifyDb();
+}
+
+export async function deleteTemperature(id: string) {
+  await db.temperatures.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function addNote(babyId: string, body: string, notedAt = nowIso()) {
   await db.notes.add({
     id: createId(),
     babyId,
     body: body.trim(),
-    notedAt: nowIso(),
+    notedAt,
     ...stamp(),
   });
   notifyDb();
@@ -418,6 +578,72 @@ export async function listNotes(babyId: string): Promise<Note[]> {
   return alive(await db.notes.where('babyId').equals(babyId).toArray()).sort((a, b) =>
     b.notedAt.localeCompare(a.notedAt),
   );
+}
+
+export async function updateNote(id: string, values: { body?: string; notedAt?: string }) {
+  await db.notes.update(id, {
+    ...values,
+    ...(values.body !== undefined ? { body: values.body.trim() } : {}),
+    ...touch(),
+  });
+  notifyDb();
+}
+
+export async function deleteNote(id: string) {
+  await db.notes.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function updateFeedingSession(
+  id: string,
+  values: { startedAt?: string; endedAt?: string | null },
+) {
+  await db.feedingSessions.update(id, { ...values, ...touch() });
+  notifyDb();
+}
+
+export async function deleteFeeding(id: string) {
+  const now = nowIso();
+  const segments = alive(await db.feedingSegments.where('feedingSessionId').equals(id).toArray());
+  await Promise.all(segments.map((row) => db.feedingSegments.update(row.id, { deletedAt: now, ...touch() })));
+  await db.feedingSessions.update(id, { deletedAt: now, ...touch() });
+  notifyDb();
+}
+
+export async function updateSleep(
+  id: string,
+  values: { startedAt?: string; endedAt?: string | null },
+) {
+  await db.sleepSessions.update(id, { ...values, ...touch() });
+  notifyDb();
+}
+
+export async function deleteSleep(id: string) {
+  await db.sleepSessions.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function updateMeasurement(id: string, values: { value?: number; measuredAt?: string }) {
+  await db.measurements.update(id, { ...values, ...touch() });
+  notifyDb();
+}
+
+export async function deleteMeasurement(id: string) {
+  await db.measurements.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function addMeasurementAt(babyId: string, type: MeasurementType, value: number, measuredAt: string) {
+  await db.measurements.add({
+    id: createId(),
+    babyId,
+    type,
+    value,
+    unit: measurementUnit[type],
+    measuredAt,
+    ...stamp(),
+  });
+  notifyDb();
 }
 
 export const SYNC_TABLES = [

@@ -14,12 +14,14 @@ Fonctionne dans le **navigateur** (téléphone ou ordinateur), y compris hors li
 ## Navigation
 
 ```
-Bébé | Dashboard ↔ Outils (bouton central) | Profil (Google)
-                  ├── APPORTS | SUIVI  (switch)
+Bébé | Outils (accueil) ↔ Dashboard (bouton central) | Profil (Google)
+                  ├── APPORTS | SUIVI  (mémorisé en localStorage)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (identité, objectifs, horoscope, alertes) | bouton central (Dashboard ↔ Outils) | **Profil** (compte Google, sync).
+Tab bar : **Bébé** (identité, objectifs, horoscope, alertes, **journal éditable**) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (compte Google, sync).
+
+Menu du bas en **position fixed** (sticky bottom). Les en-têtes de module (`←`) ramènent toujours à Outils. L’onglet Apports/Suivi est **conservé** au retour depuis un module.
 
 ## Arborescence
 
@@ -47,16 +49,17 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Module | Rôle |
 |---|---|
 | Allaitement | Un appui = tétée notée (heure, côté, **sans ml**). Minuteur optionnel pour la durée. |
-| Biberon | Type + heure. Quantité ml **facultative**. |
+| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
+| Entrée manuelle | Formulaire date/heure + type, même données que les modules 1 tap. |
 
 ### Suivi
 
 | Module | Rôle |
 |---|---|
 | Couche | Un appui = pipi, caca ou les deux. |
-| Tire-lait | Appui = timestamp, puis fiche (ml, durée optionnelle, côté). |
+| Tire-lait | Quantité + date → **stock** (`remainingMl`). Consommé via Biberon lait maternel. |
 | Croissance | Poids (kg), taille (cm), périmètre crânien (cm). |
 | Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. |
 | Température | Saisie °C uniquement. |
@@ -74,9 +77,9 @@ Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordem
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon toutes les X h, ml/cl par repas, couches), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
+Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon toutes les X h, ml/cl par repas, **couche X min après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
 
-Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon accepte un enregistrement sans ml.
+Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml. Le rappel couche (`diaperMinutes`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
 
 ## Auth Google
 
@@ -96,13 +99,37 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
 - URL : `https://vps-e09ed6db.vps.ovh.net/abel/api/`
 - Horoscope du jour : `GET /horoscope?sign=taurus` (proxy public, cache 1 jour, hors connexion = texte local)
+- Suppression compte : `DELETE /account` (auth Google, soft-delete toutes les données liées)
 - Auth : jeton Google Identity Services (même Client ID que le front)
 - Offline-first : IndexedDB d’abord, envoi dès qu’il y a réseau + session Google
 - Un bébé par compte Google (dernier écrit gagne sur `updatedAt`)
 
-Déploiement : `deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, Postgres, PM2, Nginx). Snippet : `deploy/nginx-abel.conf.example`.
+Déploiement : `GOOGLE_CLIENT_ID=... deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, Postgres, PM2, Nginx). Snippet : `deploy/nginx-abel.conf.example` (déclarer `limit_req_zone` dans `http {}`).
 
 La session Google est stockée localement. Sans jeton valide, l’app continue hors ligne.
+
+## Légal et confidentialité
+
+Pages accessibles depuis **Profil** ou `/legal/*` :
+
+- **Mentions légales** — éditeur, hébergeurs (GitHub Pages + OVH).
+- **Politique de confidentialité** — RGPD, finalités, droits, export/suppression.
+- **CGU** — conditions d’utilisation.
+- **Avertissement santé** — pas un dispositif médical.
+
+Bandeau de consentement à la première visite (stockage local). Connexion Google = acceptation explicite de la sync vers le VPS.
+
+**Profil** : export JSON, effacement local, `DELETE /account` pour suppression serveur.
+
+## Sécurité
+
+- API en écoute `127.0.0.1` uniquement, derrière Nginx HTTPS.
+- CORS restreint aux origines Abel.
+- Auth Google obligatoire pour `/sync` et `DELETE /account`.
+- Rate limiting API (`/horoscope`, `/sync`, `/account`) + Nginx `limit_req`.
+- En-têtes : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (nginx).
+- `VITE_GOOGLE_CLIENT_ID` via secrets — pas de Client ID en dur dans le code.
+- Pas de cookies de traçage tiers.
 
 ## Stack
 
@@ -124,11 +151,11 @@ Pas d’app native Expo. Pas de Next.js pour la V1 web.
 ```
 babies (name, bornOn)
  ├── feeding_sessions → feeding_segments
- ├── bottle_feeds
+ ├── bottle_feeds (amountMl, pumpingSessionId?)
  ├── solid_foods
  ├── supplements
  ├── diaper_events
- ├── pumping_sessions
+ ├── pumping_sessions (amountMl, remainingMl)
  ├── measurements
  ├── sleep_sessions
  ├── temperatures
@@ -137,6 +164,8 @@ babies (name, bornOn)
 ```
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.
+
+Page **Bébé** : identité et objectifs en **lecture** une fois renseignés (bouton Modifier), journal chronologique éditable.
 
 ## Conventions agent
 

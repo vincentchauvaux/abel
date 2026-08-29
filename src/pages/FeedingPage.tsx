@@ -19,6 +19,7 @@ import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatFeedLabel, formatMinutes, formatTime, startOfLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
 import { sideLabel } from '@/lib/labels';
+import { notifyIn } from '@/lib/reminders';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
 
@@ -27,6 +28,7 @@ export function FeedingPage() {
   const [sessions, setSessions] = useState<FeedingSession[]>([]);
   const [segments, setSegments] = useState<FeedingSegment[]>([]);
   const [delay, setDelay] = useState(0);
+  const [diaperAfter, setDiaperAfter] = useState(0);
   const [custom, setCustom] = useState('');
   const babyId = baby?.id ?? '';
 
@@ -36,6 +38,7 @@ export function FeedingPage() {
       setSessions(s);
       setSegments(g);
       setDelay(r?.delayMinutes ?? 0);
+      setDiaperAfter(r?.diaperMinutes ?? 0);
     });
   }, [babyId, tick]);
 
@@ -68,12 +71,8 @@ export function FeedingPage() {
   };
 
   const afterStop = async () => {
-    if (delay > 0 && 'Notification' in window) {
-      const ok = await Notification.requestPermission();
-      if (ok === 'granted') {
-        window.setTimeout(() => new Notification('Abel', { body: 'Rappel tétée' }), delay * 60_000);
-      }
-    }
+    await notifyIn(delay, 'Rappel tétée');
+    await notifyIn(diaperAfter, 'Rappel couche après le repas');
   };
 
   return (

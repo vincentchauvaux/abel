@@ -85,6 +85,7 @@ const TABLES = {
       milkType: 'milk_type',
       amountMl: 'amount_ml',
       fedAt: 'fed_at',
+      pumpingSessionId: 'pumping_session_id',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -109,6 +110,7 @@ const TABLES = {
       babyId: 'baby_id',
       startedAt: 'started_at',
       amountMl: 'amount_ml',
+      remainingMl: 'remaining_ml',
       durationMinutes: 'duration_minutes',
       side: 'side',
       createdAt: 'created_at',
@@ -271,8 +273,44 @@ function cors(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
   }
+}
+
+const RATE_LIMITS = {
+  horoscope: { max: 40, windowMs: 60_000 },
+  sync: { max: 30, windowMs: 60_000 },
+  account: { max: 5, windowMs: 60_000 },
+};
+
+const rateBuckets = new Map();
+
+function clientIp(req) {
+  const fwd = req.headers['x-forwarded-for'];
+  if (typeof fwd === 'string') return fwd.split(',')[0].trim();
+  return req.socket?.remoteAddress || 'unknown';
+}
+
+function overRateLimit(req, route) {
+  const cfg = RATE_LIMITS[route];
+  if (!cfg) return false;
+  const key = `${clientIp(req)}:${route}`;
+  const now = Date.now();
+  let bucket = rateBuckets.get(key);
+  if (!bucket || now > bucket.reset) {
+    bucket = { count: 0, reset: now + cfg.windowMs };
+  }
+  bucket.count += 1;
+  rateBuckets.set(key, bucket);
+  return bucket.count > cfg.max;
+}
+
+function securityHeaders(res) {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  res.setHeader('Cache-Control', 'no-store');
 }
 
 async function verifyUser(req) {
@@ -393,17 +431,61 @@ async function dumpUser(babyId) {
       result = await pool.query(
         `SELECT s.* FROM feeding_segments s
          JOIN feeding_sessions f ON f.id = s.feeding_session_id
-         WHERE f.baby_id = $1`,
+         WHERE f.baby_id = $1 AND s.deleted_at IS NULL`,
         [babyId],
       );
     } else if (key === 'babies') {
-      result = await pool.query(`SELECT * FROM babies WHERE id = $1`, [babyId]);
+      result = await pool.query(`SELECT * FROM babies WHERE id = $1 AND deleted_at IS NULL`, [babyId]);
     } else {
-      result = await pool.query(`SELECT * FROM ${def.sql} WHERE baby_id = $1`, [babyId]);
+      result = await pool.query(`SELECT * FROM ${def.sql} WHERE baby_id = $1 AND deleted_at IS NULL`, [babyId]);
     }
     records[key] = result.rows.map((row) => fromRow(def.fields, row));
   }
   return records;
+}
+
+async function deleteAccount(sub) {
+  const client = await pool.connect();
+  const ts = new Date().toISOString();
+  try {
+    await client.query('BEGIN');
+    const babyId = await canonicalBabyId(client, sub);
+    if (!babyId) {
+      await client.query('COMMIT');
+      return;
+    }
+    await client.query(`UPDATE babies SET deleted_at = $2, updated_at = $2, user_id = NULL WHERE id = $1`, [
+      babyId,
+      ts,
+    ]);
+    const babyTables = [
+      'feeding_sessions',
+      'bottle_feeds',
+      'diaper_events',
+      'pumping_sessions',
+      'measurements',
+      'reminder_rules',
+      'solid_foods',
+      'supplements',
+      'sleep_sessions',
+      'temperatures',
+      'notes',
+    ];
+    for (const table of babyTables) {
+      await client.query(`UPDATE ${table} SET deleted_at = $2, updated_at = $2 WHERE baby_id = $1`, [babyId, ts]);
+    }
+    await client.query(
+      `UPDATE feeding_segments s SET deleted_at = $2, updated_at = $2
+       FROM feeding_sessions f WHERE f.id = s.feeding_session_id AND f.baby_id = $1`,
+      [babyId, ts],
+    );
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 async function ensureSchema() {
@@ -413,12 +495,17 @@ async function ensureSchema() {
 
 function send(res, status, body) {
   const json = JSON.stringify(body);
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': Buffer.byteLength(json) });
+  securityHeaders(res);
+  res.writeHead(status, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Content-Length': Buffer.byteLength(json),
+  });
   res.end(json);
 }
 
 const server = createServer(async (req, res) => {
   cors(req, res);
+  securityHeaders(res);
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
@@ -432,6 +519,10 @@ const server = createServer(async (req, res) => {
       return;
     }
     if (req.method === 'GET' && url.pathname === '/horoscope') {
+      if (overRateLimit(req, 'horoscope')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
       const payload = await dailyHoroscope(url.searchParams.get('sign'));
       if (!payload) {
         send(res, 400, { error: 'sign' });
@@ -441,6 +532,10 @@ const server = createServer(async (req, res) => {
       return;
     }
     if (req.method === 'POST' && url.pathname === '/sync') {
+      if (overRateLimit(req, 'sync')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
       const user = await verifyUser(req);
       if (!user) {
         send(res, 401, { error: 'auth' });
@@ -449,6 +544,20 @@ const server = createServer(async (req, res) => {
       const body = await readBody(req);
       const result = await handleSync(user, body);
       send(res, 200, result);
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/account') {
+      if (overRateLimit(req, 'account')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      await deleteAccount(user.sub);
+      send(res, 200, { ok: true });
       return;
     }
     send(res, 404, { error: 'not_found' });

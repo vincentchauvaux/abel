@@ -6,6 +6,15 @@ export const INTERVAL_PRESETS = [
   { label: '4 h', minutes: 240 },
 ];
 
+/** Rappel couche : délai après le dernier repas (tétée ou biberon). */
+export const DIAPER_AFTER_MEAL_PRESETS = [
+  { label: 'Aucun', minutes: 0 },
+  { label: '15 min', minutes: 15 },
+  { label: '30 min', minutes: 30 },
+  { label: '45 min', minutes: 45 },
+  { label: '1 h', minutes: 60 },
+];
+
 export const ML_PRESETS = [
   { label: '90 ml', ml: 90 },
   { label: '120 ml', ml: 120 },

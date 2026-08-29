@@ -4,12 +4,17 @@
 #   sudo cp deploy/nginx-abel.conf.example /etc/nginx/snippets/abel.conf
 #   include snippets/abel.conf;
 #   sudo nginx -t && sudo systemctl reload nginx
+#
+# Rate limit (à déclarer une fois dans http {} si absent) :
+#   limit_req_zone $binary_remote_addr zone=abel_api:10m rate=30r/m;
 
 location = /abel/api {
     return 301 $scheme://$host/abel/api/;
 }
 
 location /abel/api/ {
+    limit_req zone=abel_api burst=20 nodelay;
+
     proxy_pass http://127.0.0.1:3030/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -17,4 +22,10 @@ location /abel/api/ {
     proxy_set_header X-Forwarded-For $remote_addr;
     proxy_read_timeout 60s;
     client_max_body_size 2m;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
 }

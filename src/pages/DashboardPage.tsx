@@ -85,7 +85,7 @@ export function DashboardPage() {
   const bottleBars = days.map((day) => ({
     key: day,
     label: compact ? day.slice(8) : weekdayShort(day),
-    value: bottles.filter((row) => localDateKey(row.fedAt) === day).reduce((sum, row) => sum + (row.amountMl ?? 0), 0),
+    value: bottles.filter((row) => localDateKey(row.fedAt) === day).reduce((sum, row) => sum + row.amountMl, 0),
   }));
   const diaperBars = days.map((day) => ({
     key: day,

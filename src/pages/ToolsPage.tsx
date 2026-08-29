@@ -1,10 +1,18 @@
-import { Apple, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer } from 'lucide-react';
+import { Apple, ClipboardPen, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
+
 export function ToolsPage() {
-  const [section, setSection] = useState<'apports' | 'suivi'>('apports');
+  const [section, setSection] = useState<ToolsSection>(() => readToolsSection());
   const navigate = useNavigate();
+
+  const choose = (next: ToolsSection) => {
+    setSection(next);
+    writeToolsSection(next);
+  };
+
   const items =
     section === 'apports'
       ? [
@@ -12,6 +20,7 @@ export function ToolsPage() {
           { key: 'bottle', label: 'Biberon', icon: Milk, to: '/bottle' },
           { key: 'solids', label: 'Diversification', icon: Apple, to: '/solids' },
           { key: 'supplements', label: 'Compléments', icon: Pill, to: '/supplements' },
+          { key: 'manual', label: 'Entrée manuelle', icon: ClipboardPen, to: '/manual' },
         ]
       : [
           { key: 'diapers', label: 'Couche', icon: Droplets, to: '/diapers' },
@@ -20,16 +29,17 @@ export function ToolsPage() {
           { key: 'sleep', label: 'Sommeil', icon: Moon, to: '/sleep' },
           { key: 'temp', label: 'Température', icon: Thermometer, to: '/temperature' },
           { key: 'notes', label: 'Notes', icon: NotebookPen, to: '/notes' },
+          { key: 'manual', label: 'Entrée manuelle', icon: ClipboardPen, to: '/manual' },
         ];
 
   return (
     <div className="screen">
       <h1>Outils</h1>
       <div className="switch">
-        <button type="button" className={section === 'apports' ? 'on' : ''} onClick={() => setSection('apports')}>
+        <button type="button" className={section === 'apports' ? 'on' : ''} onClick={() => choose('apports')}>
           Apports
         </button>
-        <button type="button" className={section === 'suivi' ? 'on' : ''} onClick={() => setSection('suivi')}>
+        <button type="button" className={section === 'suivi' ? 'on' : ''} onClick={() => choose('suivi')}>
           Suivi
         </button>
       </div>
