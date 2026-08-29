@@ -1,0 +1,50 @@
+name: EAS Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Plateforme
+        type: choice
+        options:
+          - all
+          - ios
+          - android
+        default: all
+      profile:
+        description: Profil EAS (eas.json)
+        type: choice
+        options:
+          - development
+          - preview
+          - production
+        default: preview
+
+jobs:
+  build:
+    name: Déclencher EAS (${{ inputs.platform }} / ${{ inputs.profile }})
+    runs-on: ubuntu-latest
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: npm ci
+
+      - name: Lancer le build EAS (cloud Expo)
+        run: >
+          npx eas-cli build
+          --platform ${{ inputs.platform }}
+          --profile ${{ inputs.profile }}
+          --non-interactive
+          --no-wait

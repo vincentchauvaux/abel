@@ -7,4 +7,4 @@ npm install
 npx expo start
 ```
 
-Google Sign-In et la sync Supabase demandent un development build EAS (pas Expo Go) et un fichier `.env` d’après `.env.example`. Schéma distant : `supabase/schema.sql`.
+Backend prévu sur le VPS OVH `vps-e09ed6db.vps.ovh.net`. Les builds iOS/Android se lancent depuis GitHub Actions (EAS). Secret `EXPO_TOKEN` + compte [expo.dev](https://expo.dev) (`npx eas init` une fois).

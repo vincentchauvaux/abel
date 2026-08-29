@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Abel — le suivi du bébé, un appui à la fois</title>
+    <meta
+      name="description"
+      content="Abel aide les mamans à noter tétées, couches, biberons et croissance, même au milieu de la nuit, sans réseau."
+    />
+    <style>
+      :root {
+        --bg: #f6f1ea;
+        --text: #2a2421;
+        --muted: #7a716b;
+        --primary: #c45c4a;
+        --surface: #ffffff;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: Georgia, "Times New Roman", serif;
+        background: var(--bg);
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 20px;
+      }
+      main {
+        max-width: 420px;
+        text-align: center;
+      }
+      .mark {
+        width: 72px;
+        height: 72px;
+        margin: 0 auto 24px;
+        border-radius: 36px;
+        background: var(--primary);
+        color: #fff;
+        font-family: system-ui, sans-serif;
+        font-weight: 800;
+        font-size: 28px;
+        display: grid;
+        place-items: center;
+      }
+      h1 {
+        font-size: 2.4rem;
+        font-weight: 500;
+        margin: 0 0 12px;
+      }
+      p {
+        font-size: 1.15rem;
+        line-height: 1.5;
+        color: var(--muted);
+        margin: 0 0 28px;
+      }
+      .card {
+        background: var(--surface);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: left;
+        font-family: system-ui, sans-serif;
+        font-size: 0.95rem;
+        color: var(--text);
+      }
+      .card strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--primary);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark" aria-hidden="true">A</div>
+      <h1>Abel</h1>
+      <p>
+        Une app pour noter tétées, couches, biberons et croissance. Un appui, une
+        donnée. Même à 3&nbsp;h du matin, sans réseau.
+      </p>
+      <div class="card">
+        <strong>Bientôt sur iPhone et Android</strong>
+        Cette page est la vitrine. L’app se téléchargera ici quand le premier
+        build sera prêt.
+      </div>
+    </main>
+  </body>
+</html>

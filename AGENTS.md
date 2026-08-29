@@ -47,6 +47,13 @@ supabase/schema.sql           # PostgreSQL + RLS (à coller dans Supabase)
 
 Lancer : `npx expo start`. Google Sign-In et la sync nécessitent un **development build EAS** (pas Expo Go) et un fichier `.env` (voir `.env.example`). Schéma distant : exécuter `supabase/schema.sql`.
 
+## Hébergement et builds
+
+- **Site vitrine** : GitHub Pages (comme hakou) — `index.html` à la racine, URL `https://vincentchauvaux.github.io/abel/` une fois Pages activé.
+- **Backend / sync** : uniquement le VPS OVH `vps-e09ed6db.vps.ovh.net` (`51.178.44.114`, SSH `root`). Nginx, préfixe public prévu `/abel/`.
+- **App iOS/Android** : GitHub Actions déclenche **EAS Build** (compilation chez Expo, pas sur le VPS). Secret repo `EXPO_TOKEN`. Workflow manuel : Actions → *EAS Build*.
+- Premier lien Expo : une fois, en local, `npx eas init` (compte expo.dev) pour remplir `extra.eas.projectId` dans `app.json`.
+
 ## Modules
 
 ### Apports (ce qu’on donne)
@@ -91,12 +98,12 @@ Charts : **react-native-gifted-charts** (V1). Victory Native XL plus tard si l�
 | UI | StyleSheet React Native (NativeWind 4 possible plus tard ; pas NativeWind 5 pre-release) |
 | Icônes | lucide-react-native |
 | Charts | react-native-gifted-charts |
-| Backend | Supabase (Auth + PostgreSQL + RLS) |
-| Google | `@react-native-google-signin/google-signin` → token → Supabase Auth (dev build, pas Expo Go) |
+| Backend | PostgreSQL + Auth sur le VPS OVH (`vps-e09ed6db.vps.ovh.net`) |
+| Google | `@react-native-google-signin/google-signin` → token → Auth VPS (dev build, pas Expo Go) |
 | Local | expo-sqlite + Drizzle ORM (`useLiveQuery`) |
 | Secrets | Expo SecureStore |
 | Notifs | expo-notifications |
-| Build | EAS Build |
+| Build | EAS Build, déclenché depuis GitHub Actions |
 
 Pas de Next.js / PWA comme app principale (notifs, offline, timer en arrière-plan).
 
@@ -148,3 +155,4 @@ V3 : multi-parents, multi-bébés, Health, export PDF.
 - Privilégier un tap = une donnée. Formulaires uniquement pour ml / mesures / édition.
 - Dates toujours UTC en base.
 - Ne pas committer sauf demande explicite.
+- Abel n’utilise que le VPS OVH `vps-e09ed6db.vps.ovh.net`. Aucun autre serveur.
