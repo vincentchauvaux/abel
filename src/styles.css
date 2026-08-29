@@ -586,6 +586,14 @@ h2 {
   border-bottom: 0;
 }
 
-.info-line strong {
-  font-size: 1rem;
+.ok-flash {
+  margin: 0;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.smart-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }

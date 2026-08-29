@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
+import { SmartEntryForm } from '@/components/SmartEntryForm';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import {
   getReminder,
@@ -211,6 +212,10 @@ export function BabyPage() {
   return (
     <div className="screen">
       <h1>{baby?.name || 'Bébé'}</h1>
+      <Card>
+        <h2>Noter une entrée</h2>
+        <SmartEntryForm />
+      </Card>
       <Card>
         <div className="card-head">
           <h2>Identité</h2>

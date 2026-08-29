@@ -12,6 +12,8 @@ import {
   deleteSolidFood,
   deleteSupplement,
   deleteTemperature,
+  listSessionSides,
+  setFeedingSide,
   updateBottle,
   updateDiaper,
   updateFeedingSession,
@@ -24,6 +26,7 @@ import {
   updateTemperature,
 } from '@/db/api';
 import { db } from '@/db/client';
+import type { Side } from '@/db/types';
 import type { ActivityItem } from '@/lib/activity';
 import {
   formatDateTime,
@@ -31,18 +34,22 @@ import {
   parseDecimal,
   toDatetimeLocalValue,
 } from '@/lib/dates';
-import { diaperLabel, milkLabel } from '@/lib/labels';
+import { diaperLabel, milkLabel, sideLabel } from '@/lib/labels';
 
 type Props = {
   item: ActivityItem;
   onClose: () => void;
 };
 
+type FeedStatus = 'noted' | 'open' | 'done';
+
 export function ActivityEditor({ item, onClose }: Props) {
   const [when, setWhen] = useState(toDatetimeLocalValue(item.at));
   const [amount, setAmount] = useState('');
   const [text, setText] = useState('');
   const [kind, setKind] = useState('');
+  const [side, setSide] = useState<Side>('LEFT');
+  const [feedStatus, setFeedStatus] = useState<FeedStatus>('noted');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -66,10 +73,18 @@ export function ActivityEditor({ item, onClose }: Props) {
         if (!cancelled && row) {
           setAmount(row.amountMl != null ? String(row.amountMl) : '');
           setWhen(toDatetimeLocalValue(row.startedAt));
+          if (row.side) setSide(row.side);
         }
       } else if (item.kind === 'feeding') {
         const row = await db.feedingSessions.get(item.id);
-        if (!cancelled && row) setWhen(toDatetimeLocalValue(row.startedAt));
+        const sides = await listSessionSides(item.id);
+        if (!cancelled && row) {
+          setWhen(toDatetimeLocalValue(row.startedAt));
+          if (sides.length) setSide(sides[sides.length - 1]);
+          if (!row.endedAt) setFeedStatus('open');
+          else if (row.endedAt === row.startedAt) setFeedStatus('noted');
+          else setFeedStatus('done');
+        }
       } else if (item.kind === 'solid') {
         const row = await db.solidFoods.get(item.id);
         if (!cancelled && row) {
@@ -134,9 +149,11 @@ export function ActivityEditor({ item, onClose }: Props) {
           setError('Quantité invalide.');
           return;
         }
-        await updatePumping(item.id, { amountMl: Math.round(ml), startedAt: at });
+        await updatePumping(item.id, { amountMl: Math.round(ml), startedAt: at, side });
       } else if (item.kind === 'feeding') {
-        await updateFeedingSession(item.id, { startedAt: at, endedAt: at });
+        const endedAt = feedStatus === 'open' ? null : at;
+        await updateFeedingSession(item.id, { startedAt: at, endedAt });
+        await setFeedingSide(item.id, side);
       } else if (item.kind === 'solid') {
         await updateSolidFood(item.id, { food: text, eatenAt: at });
       } else if (item.kind === 'supplement') {
@@ -191,6 +208,36 @@ export function ActivityEditor({ item, onClose }: Props) {
           <span>Date et heure</span>
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
+
+        {item.kind === 'feeding' ? (
+          <>
+            <p className="goal-label">Sein</p>
+            <div className="row">
+              {(['LEFT', 'RIGHT', 'BOTH'] as const).map((s) => (
+                <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />
+              ))}
+            </div>
+            <p className="goal-label">État</p>
+            <div className="row">
+              <Chip label="Notée" selected={feedStatus === 'noted'} onClick={() => setFeedStatus('noted')} />
+              <Chip label="En cours" selected={feedStatus === 'open'} onClick={() => setFeedStatus('open')} />
+              <Chip label="Terminée" selected={feedStatus === 'done'} onClick={() => setFeedStatus('done')} />
+            </div>
+            <p className="muted">Changer le sein remplace les côtés de cette tétée.</p>
+          </>
+        ) : null}
+
+        {item.kind === 'pumping' ? (
+          <>
+            <p className="goal-label">Côté</p>
+            <div className="row">
+              {(['LEFT', 'RIGHT', 'BOTH'] as const).map((s) => (
+                <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />
+              ))}
+            </div>
+          </>
+        ) : null}
+
         {item.kind === 'bottle' ||
         item.kind === 'pumping' ||
         item.kind === 'temperature' ||

@@ -602,6 +602,31 @@ export async function updateFeedingSession(
   notifyDb();
 }
 
+/** Remplace le(s) côté(s) d’une tétée par un seul côté (édition journal). */
+export async function setFeedingSide(sessionId: string, side: Side) {
+  const session = await db.feedingSessions.get(sessionId);
+  if (!session) return;
+  const now = nowIso();
+  const segments = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray());
+  await Promise.all(segments.map((row) => db.feedingSegments.update(row.id, { deletedAt: now, ...touch() })));
+  await db.feedingSegments.add({
+    id: createId(),
+    feedingSessionId: sessionId,
+    side,
+    startedAt: session.startedAt,
+    endedAt: session.endedAt,
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listSessionSides(sessionId: string): Promise<Side[]> {
+  const segments = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray()).sort((a, b) =>
+    a.startedAt.localeCompare(b.startedAt),
+  );
+  return [...new Set(segments.map((row) => row.side))];
+}
+
 export async function deleteFeeding(id: string) {
   const now = nowIso();
   const segments = alive(await db.feedingSegments.where('feedingSessionId').equals(id).toArray());

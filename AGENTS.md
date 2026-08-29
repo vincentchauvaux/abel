@@ -19,7 +19,7 @@ Bébé | Outils (accueil) ↔ Dashboard (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (identité, objectifs, horoscope, alertes, **journal éditable**) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (compte Google, sync).
+Tab bar : **Bébé** (identité, objectifs, horoscope, alertes, **formulaire intelligent pour noter tout outil**, **journal éditable**) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (compte Google, sync).
 
 Menu du bas en **position fixed** (sticky bottom). Les en-têtes de module (`←`) ramènent toujours à Outils. L’onglet Apports/Suivi est **conservé** au retour depuis un module.
 
@@ -52,7 +52,9 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
-| Entrée manuelle | Formulaire date/heure + type, même données que les modules 1 tap. |
+| Entrée manuelle | Formulaire intelligent (même composant que sur Bébé) : choix de l’outil + options adaptées. |
+
+Sur **Bébé**, la carte « Noter une entrée » permet de saisir n’importe quel module (tétée 1 tap Gauche/Droit/Les deux, couche, biberon, etc.) sans quitter l’espace Bébé. Les modules Outils gardent le flux 1 tap dédié (ex. Allaitement).
 
 ### Suivi
 
