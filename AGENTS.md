@@ -94,7 +94,7 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - Offline-first : IndexedDB d’abord, envoi dès qu’il y a réseau + session Google
 - Un bébé par compte Google (dernier écrit gagne sur `updatedAt`)
 
-Déploiement : clone `/opt/abel`, `server/.env` (`DATABASE_URL`, `GOOGLE_CLIENT_ID`), `pm2 start --name abel index.mjs`, snippet `deploy/nginx-abel.conf.example`.
+Déploiement : `deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, Postgres, PM2, Nginx). Snippet : `deploy/nginx-abel.conf.example`.
 
 La session Google est stockée localement. Sans jeton valide, l’app continue hors ligne.
 
