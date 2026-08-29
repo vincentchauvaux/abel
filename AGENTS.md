@@ -48,13 +48,13 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 
 | Module | Rôle |
 |---|---|
-| Allaitement | Un appui = tétée notée (heure, côté, **sans ml**). Minuteur optionnel pour la durée. |
+| Allaitement | Une carte « Noter une tétée » + case **Minuteur** : sans case = notée immédiatement ; avec case = démarre le timer. |
 | Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 | Entrée manuelle | Formulaire intelligent (même composant que sur Bébé) : choix de l’outil + options adaptées. |
 
-Sur **Bébé**, la carte « Noter une entrée » permet de saisir n’importe quel module (tétée 1 tap Gauche/Droit/Les deux, couche, biberon, etc.) sans quitter l’espace Bébé. Les modules Outils gardent le flux 1 tap dédié (ex. Allaitement).
+Sur **Bébé**, la carte « Noter une entrée » commence par **Apports | Suivi**, puis l’outil (tétée 1 tap, couche, biberon, etc.). Case **Minuteur** sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
 
 ### Suivi
 

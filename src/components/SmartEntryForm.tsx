@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button, Chip, Field } from '@/components/ui';
 import {
@@ -13,6 +14,7 @@ import {
   getReminder,
   listMilkStock,
   logFeedingNow,
+  startFeeding,
   startSleep,
 } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
@@ -20,6 +22,7 @@ import type { DiaperKind, MeasurementType, MilkType, PumpingSession, Side } from
 import { formatTime, fromDatetimeLocalValue, parseDecimal, toDatetimeLocalValue } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
 import { notifyIn } from '@/lib/reminders';
+import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
 
 export type SmartEntryType =
   | 'feeding'
@@ -33,13 +36,16 @@ export type SmartEntryType =
   | 'note'
   | 'measurement';
 
-const TYPES: { key: SmartEntryType; label: string }[] = [
+const APPORTS: { key: SmartEntryType; label: string }[] = [
   { key: 'feeding', label: 'Tétée' },
   { key: 'bottle', label: 'Biberon' },
-  { key: 'diaper', label: 'Couche' },
-  { key: 'pumping', label: 'Tire-lait' },
   { key: 'solid', label: 'Diversif.' },
   { key: 'supplement', label: 'Complément' },
+];
+
+const SUIVI: { key: SmartEntryType; label: string }[] = [
+  { key: 'diaper', label: 'Couche' },
+  { key: 'pumping', label: 'Tire-lait' },
   { key: 'sleep', label: 'Sommeil' },
   { key: 'temperature', label: 'Température' },
   { key: 'measurement', label: 'Croissance' },
@@ -53,6 +59,11 @@ type Props = {
 
 export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
+  const [section, setSection] = useState<ToolsSection>(() => {
+    if (SUIVI.some((t) => t.key === defaultType)) return 'suivi';
+    return readToolsSection();
+  });
   const [type, setType] = useState<SmartEntryType>(defaultType);
   const [when, setWhen] = useState(toDatetimeLocalValue());
   const [side, setSide] = useState<Side>('LEFT');
@@ -66,8 +77,16 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [stockId, setStockId] = useState<string | null>(null);
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [diaperAfter, setDiaperAfter] = useState(0);
+  const [useTimer, setUseTimer] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
+
+  const tools = section === 'apports' ? APPORTS : SUIVI;
+
+  useEffect(() => {
+    const list = section === 'apports' ? APPORTS : SUIVI;
+    if (!list.some((t) => t.key === type)) setType(list[0].key);
+  }, [section, type]);
 
   useEffect(() => {
     if (!baby) return;
@@ -77,6 +96,14 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
       setDiaperAfter(goals?.diaperMinutes ?? 0);
     });
   }, [baby, tick]);
+
+  const chooseSection = (next: ToolsSection) => {
+    setSection(next);
+    writeToolsSection(next);
+    setError('');
+    setOk('');
+    setType((next === 'apports' ? APPORTS : SUIVI)[0].key);
+  };
 
   const resetSoft = () => {
     setAmount('');
@@ -99,6 +126,12 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
 
   const saveFeeding = async (chosen: Side) => {
     if (!baby) return;
+    if (useTimer) {
+      await startFeeding(baby.id, chosen);
+      onSaved?.();
+      navigate('/feeding');
+      return;
+    }
     await logFeedingNow(baby.id, chosen, atIso());
     await notifyIn(diaperAfter, 'Rappel couche après le repas');
     await finish(`Tétée ${sideLabel[chosen].toLowerCase()} notée`);
@@ -204,9 +237,17 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
 
   return (
     <div className="smart-entry">
-      <p className="muted">Choisis un outil : les options s’adaptent (comme dans le module).</p>
+      <div className="switch">
+        <button type="button" className={section === 'apports' ? 'on' : ''} onClick={() => chooseSection('apports')}>
+          Apports
+        </button>
+        <button type="button" className={section === 'suivi' ? 'on' : ''} onClick={() => chooseSection('suivi')}>
+          Suivi
+        </button>
+      </div>
+      <p className="muted">{section === 'apports' ? 'Ce que l’on donne' : 'Ce que l’on observe'}</p>
       <div className="row">
-        {TYPES.map((item) => (
+        {tools.map((item) => (
           <Chip
             key={item.key}
             label={item.label}
@@ -220,14 +261,29 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         ))}
       </div>
 
-      <label className="field">
-        <span>Date et heure</span>
-        <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-      </label>
+      {type !== 'feeding' || !useTimer ? (
+        <label className="field">
+          <span>Date et heure</span>
+          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+        </label>
+      ) : null}
 
       {type === 'feeding' ? (
         <>
-          <p className="muted">Un appui = tétée notée (sans ml), comme dans Allaitement.</p>
+          <div className="card-head">
+            <p className="goal-label" style={{ margin: 0 }}>
+              Noter une tétée
+            </p>
+            <label className="check-inline">
+              <input type="checkbox" checked={useTimer} onChange={(e) => setUseTimer(e.target.checked)} />
+              Minuteur
+            </label>
+          </div>
+          <p className="muted">
+            {useTimer
+              ? 'Un appui démarre le minuteur et ouvre Allaitement.'
+              : 'Un appui = tétée notée (sans ml).'}
+          </p>
           <div className="row">
             {(['LEFT', 'RIGHT', 'BOTH'] as const).map((s) => (
               <button

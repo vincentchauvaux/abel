@@ -30,6 +30,7 @@ export function FeedingPage() {
   const [delay, setDelay] = useState(0);
   const [diaperAfter, setDiaperAfter] = useState(0);
   const [custom, setCustom] = useState('');
+  const [useTimer, setUseTimer] = useState(false);
   const babyId = baby?.id ?? '';
 
   useEffect(() => {
@@ -106,46 +107,40 @@ export function FeedingPage() {
           </Button>
         </Card>
       ) : (
-        <>
-          <Card>
+        <Card>
+          <div className="card-head">
             <h2>Noter une tétée</h2>
-            <p className="muted">
-              Au sein, on ne connaît pas les ml. Un appui enregistre l’heure, sans quantité.
-            </p>
-            <div className="row">
-              {SIDES.map((side) => (
-                <button
-                  key={side}
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ flex: 1 }}
-                  onClick={async () => {
-                    if (!babyId) return;
+            <label className="check-inline">
+              <input type="checkbox" checked={useTimer} onChange={(e) => setUseTimer(e.target.checked)} />
+              Minuteur
+            </label>
+          </div>
+          <p className="muted">
+            {useTimer
+              ? 'Un appui démarre le minuteur (sans ml). Change de côté puis termine.'
+              : 'Au sein, on ne connaît pas les ml. Un appui enregistre l’heure, sans quantité.'}
+          </p>
+          <div className="row">
+            {SIDES.map((side) => (
+              <button
+                key={side}
+                type="button"
+                className="btn btn-primary"
+                style={{ flex: 1 }}
+                onClick={async () => {
+                  if (!babyId) return;
+                  if (useTimer) {
+                    await startFeeding(babyId, side);
+                  } else {
                     await logFeedingNow(babyId, side);
                     await afterStop();
-                  }}>
-                  {sideLabel[side]}
-                </button>
-              ))}
-            </div>
-          </Card>
-          <Card>
-            <h2>Minuteur</h2>
-            <p className="muted">Si tu veux la durée. Toujours sans ml.</p>
-            <div className="row">
-              {SIDES.map((side) => (
-                <button
-                  key={side}
-                  type="button"
-                  className="btn btn-muted"
-                  style={{ flex: 1 }}
-                  onClick={() => babyId && startFeeding(babyId, side)}>
-                  {sideLabel[side]}
-                </button>
-              ))}
-            </div>
-          </Card>
-        </>
+                  }
+                }}>
+                {sideLabel[side]}
+              </button>
+            ))}
+          </div>
+        </Card>
       )}
       <Card>
         <h2>Aujourd’hui</h2>
