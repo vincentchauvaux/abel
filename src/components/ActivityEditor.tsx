@@ -29,6 +29,8 @@ import { db } from '@/db/client';
 import type { Side } from '@/db/types';
 import type { ActivityItem } from '@/lib/activity';
 import {
+  addMinutesIso,
+  elapsedMs,
   formatDateTime,
   fromDatetimeLocalValue,
   parseDecimal,
@@ -50,6 +52,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [kind, setKind] = useState('');
   const [side, setSide] = useState<Side>('LEFT');
   const [feedStatus, setFeedStatus] = useState<FeedStatus>('noted');
+  const [feedMinutes, setFeedMinutes] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -81,9 +84,17 @@ export function ActivityEditor({ item, onClose }: Props) {
         if (!cancelled && row) {
           setWhen(toDatetimeLocalValue(row.startedAt));
           if (sides.length) setSide(sides[sides.length - 1]);
-          if (!row.endedAt) setFeedStatus('open');
-          else if (row.endedAt === row.startedAt) setFeedStatus('noted');
-          else setFeedStatus('done');
+          if (!row.endedAt) {
+            setFeedStatus('open');
+            const mins = Math.max(1, Math.round(elapsedMs(row.startedAt, null) / 60_000));
+            setFeedMinutes(String(mins));
+          } else if (row.endedAt === row.startedAt || elapsedMs(row.startedAt, row.endedAt) < 15_000) {
+            setFeedStatus('noted');
+            setFeedMinutes('');
+          } else {
+            setFeedStatus('done');
+            setFeedMinutes(String(Math.max(1, Math.round(elapsedMs(row.startedAt, row.endedAt) / 60_000))));
+          }
         }
       } else if (item.kind === 'solid') {
         const row = await db.solidFoods.get(item.id);
@@ -151,7 +162,29 @@ export function ActivityEditor({ item, onClose }: Props) {
         }
         await updatePumping(item.id, { amountMl: Math.round(ml), startedAt: at, side });
       } else if (item.kind === 'feeding') {
-        const endedAt = feedStatus === 'open' ? null : at;
+        let endedAt: string | null;
+        if (feedStatus === 'open') {
+          const session = await db.feedingSessions.get(item.id);
+          if (session) {
+            const otherOpen = (await db.feedingSessions.where('babyId').equals(session.babyId).toArray()).find(
+              (row) => row.id !== item.id && !row.deletedAt && !row.endedAt,
+            );
+            if (otherOpen) {
+              setError('Une autre tétée est déjà en minuteur. Termine-la d’abord.');
+              return;
+            }
+          }
+          endedAt = null;
+        } else if (feedStatus === 'noted') {
+          endedAt = at;
+        } else {
+          const mins = parseDecimal(feedMinutes);
+          if (mins === null || mins <= 0) {
+            setError('Indique la durée en minutes.');
+            return;
+          }
+          endedAt = addMinutesIso(at, Math.round(mins));
+        }
         await updateFeedingSession(item.id, { startedAt: at, endedAt });
         await setFeedingSide(item.id, side);
       } else if (item.kind === 'solid') {
@@ -219,11 +252,45 @@ export function ActivityEditor({ item, onClose }: Props) {
             </div>
             <p className="goal-label">État</p>
             <div className="row">
-              <Chip label="Notée" selected={feedStatus === 'noted'} onClick={() => setFeedStatus('noted')} />
-              <Chip label="En cours" selected={feedStatus === 'open'} onClick={() => setFeedStatus('open')} />
-              <Chip label="Terminée" selected={feedStatus === 'done'} onClick={() => setFeedStatus('done')} />
+              <Chip
+                label="Notée"
+                selected={feedStatus === 'noted'}
+                onClick={() => {
+                  setFeedStatus('noted');
+                  setFeedMinutes('');
+                }}
+              />
+              <Chip
+                label="Minuteur"
+                selected={feedStatus === 'open'}
+                onClick={() => {
+                  setFeedStatus('open');
+                  if (!feedMinutes.trim()) setFeedMinutes('1');
+                }}
+              />
+              <Chip
+                label="Terminée"
+                selected={feedStatus === 'done'}
+                onClick={() => {
+                  setFeedStatus('done');
+                  if (!feedMinutes.trim()) setFeedMinutes('10');
+                }}
+              />
             </div>
-            <p className="muted">Changer le sein remplace les côtés de cette tétée.</p>
+            {feedStatus === 'done' ? (
+              <Field
+                label="Durée (min)"
+                value={feedMinutes}
+                onChange={setFeedMinutes}
+                placeholder="15"
+                inputMode="decimal"
+              />
+            ) : null}
+            {feedStatus === 'open' ? (
+              <p className="muted">Le minuteur continue sur Allaitement. Tu pourras terminer là-bas ou saisir une durée ici en passant en Terminée.</p>
+            ) : (
+              <p className="muted">Changer le sein remplace les côtés de cette tétée.</p>
+            )}
           </>
         ) : null}
 

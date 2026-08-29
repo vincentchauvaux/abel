@@ -167,7 +167,7 @@ babies (name, bornOn)
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.
 
-Page **Bébé** : identité et objectifs en **lecture** une fois renseignés (bouton Modifier), journal chronologique éditable.
+Page **Bébé** : identité et objectifs en **lecture** une fois renseignés (bouton Modifier), journal chronologique éditable. Édition tétée : Notée | Minuteur | Terminée (+ durée en minutes).
 
 ## Conventions agent
 
