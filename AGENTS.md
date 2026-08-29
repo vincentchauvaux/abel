@@ -46,8 +46,8 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 
 | Module | Rôle |
 |---|---|
-| Allaitement | Session avec segments Gauche / Droit / Les deux. Timer basé sur `startedAt` / `endedAt`. |
-| Biberon | ml + type (lait maternel / lait infantile) + heure. |
+| Allaitement | Un appui = tétée notée (heure, côté, **sans ml**). Minuteur optionnel pour la durée. |
+| Biberon | Type + heure. Quantité ml **facultative**. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 
@@ -74,9 +74,9 @@ Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordem
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon toutes les X h, ml/cl par repas, couches), petit horoscope (pour le plaisir), alertes calculées à partir de ces règles. Pas un conseil médical.
+Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon toutes les X h, ml/cl par repas, couches), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
 
-Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Le biberon préremplit la quantité si un objectif ml est défini.
+Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon accepte un enregistrement sans ml.
 
 ## Auth Google
 
@@ -95,6 +95,7 @@ Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus
 API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
 - URL : `https://vps-e09ed6db.vps.ovh.net/abel/api/`
+- Horoscope du jour : `GET /horoscope?sign=taurus` (proxy public, cache 1 jour, hors connexion = texte local)
 - Auth : jeton Google Identity Services (même Client ID que le front)
 - Offline-first : IndexedDB d’abord, envoi dès qu’il y a réseau + session Google
 - Un bébé par compte Google (dernier écrit gagne sur `updatedAt`)

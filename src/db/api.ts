@@ -108,6 +108,28 @@ export async function startFeeding(babyId: string, side: Side) {
   return sessionId;
 }
 
+export async function logFeedingNow(babyId: string, side: Side) {
+  const now = nowIso();
+  const sessionId = createId();
+  await db.feedingSessions.add({
+    id: sessionId,
+    babyId,
+    startedAt: now,
+    endedAt: now,
+    ...stamp(),
+  });
+  await db.feedingSegments.add({
+    id: createId(),
+    feedingSessionId: sessionId,
+    side,
+    startedAt: now,
+    endedAt: now,
+    ...stamp(),
+  });
+  notifyDb();
+  return sessionId;
+}
+
 export async function switchFeedingSide(sessionId: string, side: Side) {
   const now = nowIso();
   const open = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray()).find(
@@ -186,7 +208,7 @@ export async function updatePumping(
   notifyDb();
 }
 
-export async function addBottle(babyId: string, milkType: MilkType, amountMl: number, fedAt: string) {
+export async function addBottle(babyId: string, milkType: MilkType, amountMl: number | null, fedAt: string) {
   await db.bottleFeeds.add({
     id: createId(),
     babyId,
@@ -293,6 +315,10 @@ export async function getReminder(babyId: string): Promise<ReminderRule | undefi
 
 export async function lastEndedFeeding(babyId: string) {
   return (await listSessions(babyId)).find((row) => row.endedAt);
+}
+
+export async function lastFeeding(babyId: string) {
+  return (await listSessions(babyId))[0];
 }
 
 export async function linkBabyUser(babyId: string, userId: string | null) {

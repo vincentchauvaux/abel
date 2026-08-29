@@ -7,6 +7,7 @@ import {
   lastEndedFeeding,
   listSegments,
   listSessions,
+  logFeedingNow,
   startFeeding,
   stopFeeding,
   switchFeedingSide,
@@ -15,7 +16,7 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatMinutes, formatTime, startOfLocalDay } from '@/lib/dates';
+import { elapsedMs, formatDuration, formatFeedLabel, formatMinutes, formatTime, startOfLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
 import { sideLabel } from '@/lib/labels';
 
@@ -66,50 +67,51 @@ export function FeedingPage() {
     }
   };
 
+  const afterStop = async () => {
+    if (delay > 0 && 'Notification' in window) {
+      const ok = await Notification.requestPermission();
+      if (ok === 'granted') {
+        window.setTimeout(() => new Notification('Abel', { body: 'Rappel tétée' }), delay * 60_000);
+      }
+    }
+  };
+
   return (
     <div className="screen">
       <ModuleHeader title="Allaitement" />
-      <Card>
-        {active ? (
-          <>
-            <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
-            <p className="muted" style={{ textAlign: 'center' }}>
-              Début {formatTime(active.startedAt)}
-            </p>
-            <p style={{ textAlign: 'center', fontWeight: 700 }}>
-              Gauche {formatDuration(sideMs('LEFT'))} · Droit {formatDuration(sideMs('RIGHT'))}
-            </p>
-            <div className="row" style={{ justifyContent: 'center' }}>
-              {SIDES.map((side) => (
-                <Chip
-                  key={side}
-                  label={sideLabel[side]}
-                  selected={open?.side === side}
-                  onClick={() => switchFeedingSide(active.id, side)}
-                />
-              ))}
-            </div>
-            <Button
-              onClick={async () => {
-                const endedAt = await stopFeeding(active.id);
-                if (delay > 0 && 'Notification' in window) {
-                  const ok = await Notification.requestPermission();
-                  if (ok === 'granted') {
-                    window.setTimeout(
-                      () => new Notification('Abel', { body: 'Rappel tétée' }),
-                      delay * 60_000,
-                    );
-                  }
-                }
-                void endedAt;
-              }}>
-              Terminer
-            </Button>
-          </>
-        ) : (
-          <>
-            <p className="muted" style={{ textAlign: 'center' }}>
-              Choisis un côté, puis appuie pour démarrer.
+      {active ? (
+        <Card>
+          <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
+          <p className="muted" style={{ textAlign: 'center' }}>
+            Début {formatTime(active.startedAt)}
+          </p>
+          <p style={{ textAlign: 'center', fontWeight: 700 }}>
+            Gauche {formatDuration(sideMs('LEFT'))} · Droit {formatDuration(sideMs('RIGHT'))}
+          </p>
+          <div className="row" style={{ justifyContent: 'center' }}>
+            {SIDES.map((side) => (
+              <Chip
+                key={side}
+                label={sideLabel[side]}
+                selected={open?.side === side}
+                onClick={() => switchFeedingSide(active.id, side)}
+              />
+            ))}
+          </div>
+          <Button
+            onClick={async () => {
+              await stopFeeding(active.id);
+              await afterStop();
+            }}>
+            Terminer
+          </Button>
+        </Card>
+      ) : (
+        <>
+          <Card>
+            <h2>Noter une tétée</h2>
+            <p className="muted">
+              Au sein, on ne connaît pas les ml. Un appui enregistre l’heure, sans quantité.
             </p>
             <div className="row">
               {SIDES.map((side) => (
@@ -118,30 +120,58 @@ export function FeedingPage() {
                   type="button"
                   className="btn btn-primary"
                   style={{ flex: 1 }}
+                  onClick={async () => {
+                    if (!babyId) return;
+                    await logFeedingNow(babyId, side);
+                    await afterStop();
+                  }}>
+                  {sideLabel[side]}
+                </button>
+              ))}
+            </div>
+          </Card>
+          <Card>
+            <h2>Minuteur</h2>
+            <p className="muted">Si tu veux la durée. Toujours sans ml.</p>
+            <div className="row">
+              {SIDES.map((side) => (
+                <button
+                  key={side}
+                  type="button"
+                  className="btn btn-muted"
+                  style={{ flex: 1 }}
                   onClick={() => babyId && startFeeding(babyId, side)}>
                   {sideLabel[side]}
                 </button>
               ))}
             </div>
-          </>
-        )}
-      </Card>
+          </Card>
+        </>
+      )}
       <Card>
         <h2>Aujourd’hui</h2>
         <p>
           <strong>
-            {today.length} tétées · {formatMinutes(todayMs)}
+            {today.length} tétée{today.length > 1 ? 's' : ''}
+            {todayMs > 0 ? ` · ${formatMinutes(todayMs)}` : ''}
           </strong>
         </p>
-        {today.map((session) => (
-          <div className="line" key={session.id}>
-            <span>{formatTime(session.startedAt)}</span>
-            <span className="muted">
-              {formatDuration(elapsedMs(session.startedAt, session.endedAt, now))}
-              {session.endedAt ? '' : ' · en cours'}
-            </span>
-          </div>
-        ))}
+        {today.map((session) => {
+          const sides = [
+            ...new Set(
+              segments.filter((row) => row.feedingSessionId === session.id).map((row) => sideLabel[row.side]),
+            ),
+          ].join(' · ');
+          return (
+            <div className="line" key={session.id}>
+              <span>{formatTime(session.startedAt)}</span>
+              <span className="muted">
+                {session.endedAt ? formatFeedLabel(session.startedAt, session.endedAt, now) : 'en cours'}
+                {sides ? ` · ${sides}` : ''}
+              </span>
+            </div>
+          );
+        })}
       </Card>
       <Card>
         <h2>Rappel après la dernière tétée</h2>

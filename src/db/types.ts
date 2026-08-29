@@ -34,7 +34,7 @@ export type BottleFeed = Stamp & {
   id: string;
   babyId: string;
   milkType: MilkType;
-  amountMl: number;
+  amountMl: number | null;
   fedAt: string;
 };
 export type DiaperEvent = Stamp & {

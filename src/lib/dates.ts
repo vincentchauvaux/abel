@@ -74,6 +74,13 @@ export function elapsedMs(startedAt: string, endedAt?: string | null, now = Date
   return Math.max(0, end - new Date(startedAt).getTime());
 }
 
+export function formatFeedLabel(startedAt: string, endedAt?: string | null, now = Date.now()): string {
+  if (endedAt && endedAt === startedAt) return 'notée';
+  const ms = elapsedMs(startedAt, endedAt, now);
+  if (endedAt && ms < 15_000) return 'notée';
+  return formatDuration(ms);
+}
+
 export function parseDecimal(input: string): number | null {
   const n = Number.parseFloat(input.replace(',', '.').trim());
   return Number.isFinite(n) ? n : null;

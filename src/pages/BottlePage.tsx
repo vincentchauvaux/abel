@@ -19,14 +19,13 @@ export function BottlePage() {
     if (!baby) return;
     Promise.all([listBottles(baby.id), getReminder(baby.id)]).then(([rows, goals]) => {
       setFeeds(rows);
-      const ml = goals?.bottleMl ?? null;
-      setGoalMl(ml);
-      setAmount((current) => (current === '' && ml ? String(ml) : current));
+      setGoalMl(goals?.bottleMl ?? null);
     });
   }, [baby, tick]);
 
   const today = feeds.filter((row) => row.fedAt >= startOfLocalDay().toISOString());
-  const todayMl = today.reduce((sum, row) => sum + row.amountMl, 0);
+  const todayMl = today.reduce((sum, row) => sum + (row.amountMl ?? 0), 0);
+  const todayUnknown = today.filter((row) => row.amountMl == null).length;
 
   return (
     <div className="screen">
@@ -39,30 +38,35 @@ export function BottlePage() {
           ))}
         </div>
         <Field
-          label="Quantité (ml)"
+          label="Quantité (ml), facultatif"
           value={amount}
           onChange={setAmount}
           placeholder={goalMl ? String(goalMl) : '120'}
         />
-        {goalMl ? <p className="muted">Objectif : {goalMl} ml par repas (réglé sur Bébé).</p> : null}
+        <p className="muted">
+          Tu peux enregistrer sans quantité si tu n’as pas mesuré. L’objectif ml ne bloque rien. Au sein, utilise Allaitement.
+        </p>
         <Button
-          disabled={!amount}
           onClick={() => {
-            const ml = parseDecimal(amount);
-            if (!baby || ml === null || ml <= 0) return;
-            addBottle(baby.id, milkType, Math.round(ml), nowIso());
-            setAmount(goalMl ? String(goalMl) : '');
+            if (!baby) return;
+            const ml = amount.trim() ? parseDecimal(amount) : null;
+            if (amount.trim() && (ml === null || ml <= 0)) return;
+            addBottle(baby.id, milkType, ml === null ? null : Math.round(ml), nowIso());
+            setAmount('');
           }}>
           Enregistrer
         </Button>
       </Card>
       <Card>
-        <h2>Aujourd’hui · {todayMl} ml</h2>
+        <h2>
+          Aujourd’hui · {today.length} · {todayMl} ml
+          {todayUnknown ? ` · ${todayUnknown} sans quantité` : ''}
+        </h2>
         {today.map((row) => (
           <div className="line" key={row.id}>
             <strong>{formatTime(row.fedAt)}</strong>
             <span className="muted">
-              {row.amountMl} ml · {milkLabel[row.milkType]}
+              {row.amountMl == null ? 'quantité inconnue' : `${row.amountMl} ml`} · {milkLabel[row.milkType]}
             </span>
           </div>
         ))}

@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Card, Chip } from '@/components/ui';
 import {
   getReminder,
-  lastEndedFeeding,
   listBottles,
   listDiapers,
   listMeasurements,
@@ -16,6 +15,7 @@ import {
   eachLocalDay,
   elapsedMs,
   formatDateTime,
+  formatFeedLabel,
   formatMinutes,
   formatTime,
   localDateKey,
@@ -33,7 +33,6 @@ export function DashboardPage() {
   const [pumps, setPumps] = useState<PumpingSession[]>([]);
   const [weights, setWeights] = useState<Measurement[]>([]);
   const [delay, setDelay] = useState(0);
-  const [last, setLast] = useState<FeedingSession | undefined>();
 
   useEffect(() => {
     if (!baby) return;
@@ -44,21 +43,20 @@ export function DashboardPage() {
       listPumps(baby.id),
       listMeasurements(baby.id),
       getReminder(baby.id),
-      lastEndedFeeding(baby.id),
-    ]).then(([s, b, d, p, m, r, ended]) => {
+    ]).then(([s, b, d, p, m, r]) => {
       setSessions(s);
       setBottles(b);
       setDiapers(d);
       setPumps(p);
       setWeights(m.filter((row) => row.type === 'WEIGHT'));
       setDelay(r?.delayMinutes ?? 0);
-      setLast(ended);
     });
   }, [baby, tick]);
 
   const from = periodRange(period).from;
   const inRange = (iso: string) => !from || iso >= from;
   const sessionsRange = sessions.filter((row) => inRange(row.startedAt));
+  const last = sessions[0];
   const feedingMs = sessionsRange.reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0);
   const pumpedMl = pumps.filter((row) => inRange(row.startedAt)).reduce((sum, row) => sum + (row.amountMl ?? 0), 0);
 
@@ -87,7 +85,7 @@ export function DashboardPage() {
   const bottleBars = days.map((day) => ({
     key: day,
     label: compact ? day.slice(8) : weekdayShort(day),
-    value: bottles.filter((row) => localDateKey(row.fedAt) === day).reduce((sum, row) => sum + row.amountMl, 0),
+    value: bottles.filter((row) => localDateKey(row.fedAt) === day).reduce((sum, row) => sum + (row.amountMl ?? 0), 0),
   }));
   const diaperBars = days.map((day) => ({
     key: day,
@@ -119,7 +117,7 @@ export function DashboardPage() {
         </div>
         <div className="stat">
           <span className="muted">Allaitement</span>
-          <b>{formatMinutes(feedingMs)}</b>
+          <b>{feedingMs > 0 ? formatMinutes(feedingMs) : '—'}</b>
         </div>
         <div className="stat">
           <span className="muted">Tirage</span>
@@ -131,13 +129,21 @@ export function DashboardPage() {
         {last ? (
           <>
             <strong>{formatDateTime(last.startedAt)}</strong>
-            <p className="muted">{formatMinutes(elapsedMs(last.startedAt, last.endedAt))}</p>
+            <p className="muted">
+              {last.endedAt ? formatFeedLabel(last.startedAt, last.endedAt) : 'en cours'}
+            </p>
           </>
         ) : (
           <p className="muted">Pas encore de tétée.</p>
         )}
         <h2>Prochain rappel</h2>
-        <p className="muted">{nextReminder ? formatTime(nextReminder) : 'Aucun rappel programmé'}</p>
+        <p className="muted">
+          {last && !last.endedAt
+            ? 'Tétée en cours'
+            : nextReminder
+              ? formatTime(nextReminder)
+              : 'Aucun rappel programmé'}
+        </p>
       </Card>
       <Bars title="Durée d’allaitement (min)" data={feedingBars} />
       <Bars title="Biberons (ml)" data={bottleBars} tone="accent" />

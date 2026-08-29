@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import {
   getReminder,
-  lastEndedFeeding,
+  lastFeeding,
   listBottles,
   listDiapers,
   listSleep,
@@ -15,7 +15,8 @@ import type { BottleFeed, DiaperEvent, FeedingSession, ReminderRule, SleepSessio
 import { useNow } from '@/hooks/use-now';
 import { formatAge, formatFromNow, formatLongDate, formatTime, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import { formatGoalMl, INTERVAL_PRESETS, ML_PRESETS } from '@/lib/goals';
-import { horoscopeFor } from '@/lib/horoscope';
+import { fetchDailyHoroscope } from '@/lib/horoscope-api';
+import { HOROSCOPE_DISCLAIMER, horoscopeFor } from '@/lib/horoscope';
 
 export function BabyPage() {
   const { baby, tick } = useDb();
@@ -29,6 +30,7 @@ export function BabyPage() {
   const [bottles, setBottles] = useState<BottleFeed[]>([]);
   const [diapers, setDiapers] = useState<DiaperEvent[]>([]);
   const [sleeps, setSleeps] = useState<SleepSession[]>([]);
+  const [daily, setDaily] = useState('');
   const now = useNow(true, 30_000);
 
   useEffect(() => {
@@ -40,7 +42,7 @@ export function BabyPage() {
     if (!baby) return;
     Promise.all([
       getReminder(baby.id),
-      lastEndedFeeding(baby.id),
+      lastFeeding(baby.id),
       listBottles(baby.id),
       listDiapers(baby.id),
       listSleep(baby.id),
@@ -54,6 +56,20 @@ export function BabyPage() {
   }, [baby, tick]);
 
   const horoscope = bornOn ? horoscopeFor(bornOn) : null;
+
+  useEffect(() => {
+    if (!bornOn) {
+      setDaily('');
+      return;
+    }
+    let cancelled = false;
+    fetchDailyHoroscope(bornOn).then((reading) => {
+      if (!cancelled) setDaily(reading.text);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [bornOn]);
   const lastBottle = bottles[0];
   const lastDiaper = diapers[0];
   const activeSleep = sleeps.find((row) => !row.endedAt);
@@ -63,10 +79,11 @@ export function BabyPage() {
   const diaperEvery = goals?.diaperMinutes ?? 0;
   const todayMl = bottles
     .filter((row) => row.fedAt >= startOfLocalDay().toISOString())
-    .reduce((sum, row) => sum + row.amountMl, 0);
+    .reduce((sum, row) => sum + (row.amountMl ?? 0), 0);
 
   const feedingAlert = useMemo(() => {
-    if (!lastFeed?.endedAt) return 'Pas encore de tétée.';
+    if (!lastFeed) return 'Pas encore de tétée.';
+    if (!lastFeed.endedAt) return `Tétée en cours depuis ${formatTime(lastFeed.startedAt)}.`;
     if (delay <= 0) return `Dernière tétée à ${formatTime(lastFeed.endedAt)}.`;
     const fire = new Date(lastFeed.endedAt);
     fire.setMinutes(fire.getMinutes() + delay);
@@ -79,9 +96,11 @@ export function BabyPage() {
     const parts: string[] = [];
     if (lastBottle) {
       const qty =
-        bottleMl && lastBottle.amountMl !== bottleMl
-          ? `${lastBottle.amountMl} ml (objectif ${formatGoalMl(bottleMl)})`
-          : `${lastBottle.amountMl} ml`;
+        lastBottle.amountMl == null
+          ? 'quantité non notée'
+          : bottleMl && lastBottle.amountMl !== bottleMl
+            ? `${lastBottle.amountMl} ml (objectif ${formatGoalMl(bottleMl)})`
+            : `${lastBottle.amountMl} ml`;
       parts.push(`Dernier à ${formatTime(lastBottle.fedAt)} · ${qty}.`);
       if (bottleEvery > 0) {
         const fire = new Date(lastBottle.fedAt);
@@ -94,7 +113,7 @@ export function BabyPage() {
     } else {
       parts.push('Pas encore de biberon.');
     }
-    if (bottleMl) parts.push(`Aujourd’hui ${todayMl} ml · ${formatGoalMl(bottleMl)} par repas.`);
+    if (bottleMl) parts.push(`Aujourd’hui ${todayMl} ml · ${formatGoalMl(bottleMl)} par repas (si noté).`);
     else if (todayMl) parts.push(`Aujourd’hui ${todayMl} ml.`);
     return parts.join(' ');
   }, [lastBottle, bottleMl, bottleEvery, todayMl, now]);
@@ -252,16 +271,21 @@ export function BabyPage() {
           <p className="zodiac">
             <span className="zodiac-symbol">{horoscope.symbol}</span>
             <strong>
-              {horoscope.sign} · {horoscope.chinese}
+              {horoscope.sign} · {horoscope.animal} · {horoscope.element}
             </strong>
           </p>
-          <p>{horoscope.line}</p>
-          <p className="muted">Pour le plaisir, ce n’est pas un conseil.</p>
+          <p className="goal-label">Horoscope du jour</p>
+          <p>{daily || horoscope.line}</p>
+          <p className="goal-label">Médecine occidentale</p>
+          <p>{horoscope.western}</p>
+          <p className="goal-label">Médecine chinoise</p>
+          <p>{horoscope.chinese}</p>
+          <p className="muted">{HOROSCOPE_DISCLAIMER}</p>
         </Card>
       ) : (
         <Card>
           <h2>Petit horoscope</h2>
-          <p className="muted">Ajoute la date de naissance pour afficher le signe.</p>
+          <p className="muted">Ajoute la date de naissance pour afficher le signe, les lectures et l’horoscope du jour.</p>
         </Card>
       )}
       <Card>

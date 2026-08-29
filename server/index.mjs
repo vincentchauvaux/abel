@@ -6,6 +6,8 @@ import { dirname, join } from 'node:path';
 import { OAuth2Client } from 'google-auth-library';
 import pg from 'pg';
 
+import { dailyHoroscope } from './horoscope.mjs';
+
 const root = dirname(fileURLToPath(import.meta.url));
 const envFile = join(root, '.env');
 if (existsSync(envFile)) {
@@ -427,6 +429,15 @@ const server = createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
       send(res, 200, { ok: true });
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/horoscope') {
+      const payload = await dailyHoroscope(url.searchParams.get('sign'));
+      if (!payload) {
+        send(res, 400, { error: 'sign' });
+        return;
+      }
+      send(res, 200, payload);
       return;
     }
     if (req.method === 'POST' && url.pathname === '/sync') {
