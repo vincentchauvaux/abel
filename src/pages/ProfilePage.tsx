@@ -25,7 +25,7 @@ const SYNC_LABEL: Record<SyncState, string> = {
   idle: 'Pas encore synchronisé',
   syncing: 'Synchronisation…',
   ok: 'À jour sur le VPS',
-  auth: 'Reconnecte-toi pour synchroniser',
+  auth: 'Session sync expirée',
   offline: 'Hors ligne — les données restent ici',
   error: 'Sync impossible pour le moment',
 };
@@ -33,23 +33,31 @@ const SYNC_LABEL: Record<SyncState, string> = {
 export function ProfilePage() {
   const { baby } = useDb();
   const [user, setUser] = useState<GoogleUser | null>(readGoogleUser);
+  const [hasToken, setHasToken] = useState(() => Boolean(readGoogleToken()));
   const [googleError, setGoogleError] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [busy, setBusy] = useState('');
   const buttonHost = useRef<HTMLDivElement>(null);
+  const needsReconnect = Boolean(user && !hasToken);
 
   useEffect(() => subscribeSync(setSyncState), []);
 
   useEffect(() => {
-    if (user || !GOOGLE_CLIENT_ID || !buttonHost.current) return;
+    setHasToken(Boolean(readGoogleToken()));
+  }, [syncState, user]);
+
+  useEffect(() => {
+    const showButton = (!user || needsReconnect) && GOOGLE_CLIENT_ID && hasLegalConsent();
+    if (!showButton || !buttonHost.current) return;
     renderGoogleButton(buttonHost.current, async (next, credential) => {
       if (!hasLegalConsent()) return;
       writeGoogleSession(next, credential);
       setUser(next);
+      setHasToken(true);
       if (baby) await linkBabyUser(baby.id, next.sub);
       await runSync();
     }).catch(() => setGoogleError('Impossible de charger Google pour le moment.'));
-  }, [user, baby]);
+  }, [user, baby, needsReconnect]);
 
   const exportData = async () => {
     setBusy('export');
@@ -75,6 +83,7 @@ export function ProfilePage() {
       await wipeLocalData();
       await ensureBaby();
       setUser(null);
+      setHasToken(false);
       window.location.hash = '#/';
       window.location.reload();
     } finally {
@@ -94,7 +103,8 @@ export function ProfilePage() {
     try {
       const result = await deleteRemoteAccount();
       if (result === 'auth') {
-        window.alert('Session expirée. Reconnecte-toi puis réessaie.');
+        setHasToken(false);
+        window.alert('Session expirée. Appuie sur le bouton Google ci-dessus puis réessaie.');
       } else if (result === 'error') {
         window.alert('Suppression impossible pour le moment.');
       } else {
@@ -121,19 +131,33 @@ export function ProfilePage() {
                 </p>
               </div>
             </div>
-            <p className="muted">{SYNC_LABEL[syncState]}</p>
-            {!readGoogleToken() ? (
-              <p className="muted">La session Google a expiré. Reconnecte-toi pour envoyer les données.</p>
+            {needsReconnect ? (
+              <>
+                <p className="muted">
+                  Ton compte est mémorisé ici, mais le jeton Google pour la sync expire (~1 h). Ce n’est pas une
+                  déconnexion : appuie à nouveau sur Google pour renvoyer les données.
+                </p>
+                {hasLegalConsent() ? (
+                  <div ref={buttonHost} className="google-btn-host" />
+                ) : (
+                  <p className="muted">Accepte d’abord le bandeau d’information en bas de l’écran.</p>
+                )}
+                {googleError ? <p className="muted">{googleError}</p> : null}
+              </>
             ) : (
-              <Button tone="muted" onClick={() => void runSync()}>
-                Synchroniser maintenant
-              </Button>
+              <>
+                <p className="muted">{SYNC_LABEL[syncState]}</p>
+                <Button tone="muted" onClick={() => void runSync()}>
+                  Synchroniser maintenant
+                </Button>
+              </>
             )}
             <Button
               tone="muted"
               onClick={() => {
                 signOutGoogle();
                 setUser(null);
+                setHasToken(false);
                 if (baby) linkBabyUser(baby.id, null);
               }}>
               Se déconnecter
@@ -187,7 +211,7 @@ export function ProfilePage() {
           {busy === 'wipe' ? 'Effacement…' : 'Effacer les données sur cet appareil'}
         </Button>
         {user ? (
-          <Button tone="danger" disabled={busy !== ''} onClick={() => void wipeRemote()}>
+          <Button tone="danger" disabled={busy !== '' || needsReconnect} onClick={() => void wipeRemote()}>
             {busy === 'remote' ? 'Suppression…' : 'Supprimer mes données sur le VPS'}
           </Button>
         ) : null}

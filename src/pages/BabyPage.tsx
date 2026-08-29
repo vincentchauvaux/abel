@@ -55,6 +55,7 @@ export function BabyPage() {
   const [editIdentity, setEditIdentity] = useState(true);
   const [editGoals, setEditGoals] = useState(true);
   const [goalsReady, setGoalsReady] = useState(false);
+  const [showEntry, setShowEntry] = useState(false);
   const now = useNow(true, 30_000);
 
   useEffect(() => {
@@ -212,10 +213,19 @@ export function BabyPage() {
   return (
     <div className="screen">
       <h1>{baby?.name || 'Bébé'}</h1>
-      <Card>
-        <h2>Noter une entrée</h2>
-        <SmartEntryForm />
-      </Card>
+      {showEntry ? (
+        <Card>
+          <div className="card-head">
+            <h2>Noter une entrée</h2>
+            <button type="button" className="linkish" onClick={() => setShowEntry(false)}>
+              Fermer
+            </button>
+          </div>
+          <SmartEntryForm onSaved={() => setShowEntry(false)} />
+        </Card>
+      ) : (
+        <Button onClick={() => setShowEntry(true)}>Noter une entrée</Button>
+      )}
       <Card>
         <div className="card-head">
           <h2>Identité</h2>
