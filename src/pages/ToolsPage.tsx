@@ -10,16 +10,16 @@ export function ToolsPage() {
       ? [
           { key: 'feeding', label: 'Allaitement', icon: Heart, to: '/feeding' },
           { key: 'bottle', label: 'Biberon', icon: Milk, to: '/bottle' },
-          { key: 'solids', label: 'Diversification', icon: Apple, soon: true },
-          { key: 'supplements', label: 'Compléments', icon: Pill, soon: true },
+          { key: 'solids', label: 'Diversification', icon: Apple, to: '/solids' },
+          { key: 'supplements', label: 'Compléments', icon: Pill, to: '/supplements' },
         ]
       : [
           { key: 'diapers', label: 'Couche', icon: Droplets, to: '/diapers' },
           { key: 'pumping', label: 'Tire-lait', icon: Milk, to: '/pumping' },
           { key: 'growth', label: 'Croissance', icon: Scale, to: '/growth' },
-          { key: 'sleep', label: 'Sommeil', icon: Moon, soon: true },
-          { key: 'temp', label: 'Température', icon: Thermometer, soon: true },
-          { key: 'notes', label: 'Notes', icon: NotebookPen, soon: true },
+          { key: 'sleep', label: 'Sommeil', icon: Moon, to: '/sleep' },
+          { key: 'temp', label: 'Température', icon: Thermometer, to: '/temperature' },
+          { key: 'notes', label: 'Notes', icon: NotebookPen, to: '/notes' },
         ];
 
   return (
@@ -38,17 +38,11 @@ export function ToolsPage() {
         {items.map((item) => {
           const Icon = item.icon;
           return (
-            <button
-              key={item.key}
-              type="button"
-              className={`tile ${item.soon ? 'soon' : ''}`}
-              disabled={item.soon}
-              onClick={() => item.to && navigate(item.to)}>
+            <button key={item.key} type="button" className="tile" onClick={() => navigate(item.to)}>
               <span className="icon-wrap">
                 <Icon size={28} />
               </span>
               {item.label}
-              {item.soon ? <small className="muted">bientôt</small> : null}
             </button>
           );
         })}

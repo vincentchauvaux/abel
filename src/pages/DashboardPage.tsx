@@ -73,9 +73,11 @@ export function DashboardPage() {
   const days = eachLocalDay(
     period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
   );
+  const compact = days.length > 10;
 
   const feedingBars = days.map((day) => ({
-    label: weekdayShort(day),
+    key: day,
+    label: compact ? day.slice(8) : weekdayShort(day),
     value: Math.round(
       sessions
         .filter((row) => localDateKey(row.startedAt) === day)
@@ -83,11 +85,13 @@ export function DashboardPage() {
     ),
   }));
   const bottleBars = days.map((day) => ({
-    label: weekdayShort(day),
+    key: day,
+    label: compact ? day.slice(8) : weekdayShort(day),
     value: bottles.filter((row) => localDateKey(row.fedAt) === day).reduce((sum, row) => sum + row.amountMl, 0),
   }));
   const diaperBars = days.map((day) => ({
-    label: weekdayShort(day),
+    key: day,
+    label: compact ? day.slice(8) : weekdayShort(day),
     value: diapers.filter((row) => localDateKey(row.occurredAt) === day).length,
   }));
 
@@ -161,23 +165,26 @@ function Bars({
   tone,
 }: {
   title: string;
-  data: { label: string; value: number }[];
+  data: { key: string; label: string; value: number }[];
   tone?: 'accent' | 'pee';
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
+  const compact = data.length > 10;
   return (
     <Card>
       <h2>{title}</h2>
-      <div className="bars">
-        {data.map((d) => (
-          <div className="bar-col" key={d.label + d.value}>
-            <div
-              className={`bar ${tone ?? ''}`}
-              style={{ height: `${Math.max(6, (d.value / max) * 100)}%` }}
-            />
-            <span>{d.label}</span>
-          </div>
-        ))}
+      <div className="bars-wrap">
+        <div className={`bars ${compact ? 'compact' : ''}`}>
+          {data.map((d) => (
+            <div className="bar-col" key={d.key}>
+              <div
+                className={`bar ${tone ?? ''}`}
+                style={{ height: `${Math.max(6, (d.value / max) * 100)}%` }}
+              />
+              <span>{d.label}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </Card>
   );

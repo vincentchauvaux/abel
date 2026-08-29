@@ -7,8 +7,13 @@ import type {
   FeedingSegment,
   FeedingSession,
   Measurement,
+  Note,
   PumpingSession,
   ReminderRule,
+  SleepSession,
+  SolidFood,
+  Supplement,
+  Temperature,
 } from '@/db/types';
 
 class AbelDB extends Dexie {
@@ -20,6 +25,11 @@ class AbelDB extends Dexie {
   pumpingSessions!: Table<PumpingSession, string>;
   measurements!: Table<Measurement, string>;
   reminderRules!: Table<ReminderRule, string>;
+  solidFoods!: Table<SolidFood, string>;
+  supplements!: Table<Supplement, string>;
+  sleepSessions!: Table<SleepSession, string>;
+  temperatures!: Table<Temperature, string>;
+  notes!: Table<Note, string>;
 
   constructor() {
     super('abel');
@@ -32,6 +42,21 @@ class AbelDB extends Dexie {
       pumpingSessions: 'id, babyId, startedAt',
       measurements: 'id, babyId, type, measuredAt',
       reminderRules: 'id, babyId',
+    });
+    this.version(2).stores({
+      babies: 'id',
+      feedingSessions: 'id, babyId, startedAt',
+      feedingSegments: 'id, feedingSessionId, startedAt',
+      bottleFeeds: 'id, babyId, fedAt',
+      diaperEvents: 'id, babyId, occurredAt',
+      pumpingSessions: 'id, babyId, startedAt',
+      measurements: 'id, babyId, type, measuredAt',
+      reminderRules: 'id, babyId',
+      solidFoods: 'id, babyId, eatenAt',
+      supplements: 'id, babyId, givenAt',
+      sleepSessions: 'id, babyId, startedAt',
+      temperatures: 'id, babyId, measuredAt',
+      notes: 'id, babyId, notedAt',
     });
   }
 }

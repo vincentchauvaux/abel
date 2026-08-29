@@ -60,3 +60,33 @@ export type ReminderRule = Stamp & {
   enabled: boolean;
   delayMinutes: number;
 };
+export type SolidFood = Stamp & {
+  id: string;
+  babyId: string;
+  food: string;
+  eatenAt: string;
+};
+export type Supplement = Stamp & {
+  id: string;
+  babyId: string;
+  name: string;
+  givenAt: string;
+};
+export type SleepSession = Stamp & {
+  id: string;
+  babyId: string;
+  startedAt: string;
+  endedAt: string | null;
+};
+export type Temperature = Stamp & {
+  id: string;
+  babyId: string;
+  celsius: number;
+  measuredAt: string;
+};
+export type Note = Stamp & {
+  id: string;
+  babyId: string;
+  body: string;
+  notedAt: string;
+};

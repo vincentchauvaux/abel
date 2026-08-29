@@ -46,22 +46,28 @@ export function Field({
   onChange,
   placeholder,
   inputMode = 'decimal',
+  multiline = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
   inputMode?: 'decimal' | 'numeric' | 'text';
+  multiline?: boolean;
 }) {
   return (
     <label className="field">
       <span>{label}</span>
-      <input
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        inputMode={inputMode}
-      />
+      {multiline ? (
+        <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} rows={4} />
+      ) : (
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          inputMode={inputMode}
+        />
+      )}
     </label>
   );
 }

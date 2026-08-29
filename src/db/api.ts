@@ -9,9 +9,14 @@ import type {
   Measurement,
   MeasurementType,
   MilkType,
+  Note,
   PumpingSession,
   ReminderRule,
   Side,
+  SleepSession,
+  SolidFood,
+  Supplement,
+  Temperature,
 } from '@/db/types';
 import { nowIso } from '@/lib/dates';
 import { measurementUnit } from '@/lib/labels';
@@ -253,4 +258,103 @@ export async function getReminder(babyId: string): Promise<ReminderRule | undefi
 
 export async function lastEndedFeeding(babyId: string) {
   return (await listSessions(babyId)).find((row) => row.endedAt);
+}
+
+export async function linkBabyUser(babyId: string, userId: string | null) {
+  await db.babies.update(babyId, { userId, ...touch() });
+  notifyDb();
+}
+
+export async function addSolidFood(babyId: string, food: string) {
+  await db.solidFoods.add({
+    id: createId(),
+    babyId,
+    food: food.trim(),
+    eatenAt: nowIso(),
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listSolidFoods(babyId: string): Promise<SolidFood[]> {
+  return alive(await db.solidFoods.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.eatenAt.localeCompare(a.eatenAt),
+  );
+}
+
+export async function addSupplement(babyId: string, name: string) {
+  await db.supplements.add({
+    id: createId(),
+    babyId,
+    name: name.trim(),
+    givenAt: nowIso(),
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listSupplements(babyId: string): Promise<Supplement[]> {
+  return alive(await db.supplements.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.givenAt.localeCompare(a.givenAt),
+  );
+}
+
+export async function startSleep(babyId: string) {
+  const open = alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
+  if (open) return open.id;
+  const id = createId();
+  await db.sleepSessions.add({
+    id,
+    babyId,
+    startedAt: nowIso(),
+    endedAt: null,
+    ...stamp(),
+  });
+  notifyDb();
+  return id;
+}
+
+export async function stopSleep(id: string) {
+  await db.sleepSessions.update(id, { endedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function listSleep(babyId: string): Promise<SleepSession[]> {
+  return alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.startedAt.localeCompare(a.startedAt),
+  );
+}
+
+export async function addTemperature(babyId: string, celsius: number) {
+  await db.temperatures.add({
+    id: createId(),
+    babyId,
+    celsius,
+    measuredAt: nowIso(),
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listTemperatures(babyId: string): Promise<Temperature[]> {
+  return alive(await db.temperatures.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.measuredAt.localeCompare(a.measuredAt),
+  );
+}
+
+export async function addNote(babyId: string, body: string) {
+  await db.notes.add({
+    id: createId(),
+    babyId,
+    body: body.trim(),
+    notedAt: nowIso(),
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listNotes(babyId: string): Promise<Note[]> {
+  return alive(await db.notes.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.notedAt.localeCompare(a.notedAt),
+  );
 }
