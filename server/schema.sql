@@ -2,6 +2,7 @@ CREATE TABLE IF NOT EXISTS babies (
   id UUID PRIMARY KEY,
   name TEXT NOT NULL,
   user_id TEXT NOT NULL,
+  born_on DATE,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   deleted_at TIMESTAMPTZ
@@ -136,3 +137,5 @@ CREATE TABLE IF NOT EXISTS notes (
   updated_at TIMESTAMPTZ NOT NULL,
   deleted_at TIMESTAMPTZ
 );
+
+ALTER TABLE babies ADD COLUMN IF NOT EXISTS born_on DATE;

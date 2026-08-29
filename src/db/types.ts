@@ -11,7 +11,12 @@ export type Stamp = {
   syncStatus: SyncStatus;
 };
 
-export type Baby = Stamp & { id: string; name: string; userId: string | null };
+export type Baby = Stamp & {
+  id: string;
+  name: string;
+  userId: string | null;
+  bornOn: string | null;
+};
 export type FeedingSession = Stamp & {
   id: string;
   babyId: string;

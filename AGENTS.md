@@ -14,19 +14,18 @@ Fonctionne dans le **navigateur** (téléphone ou ordinateur), y compris hors li
 ## Navigation
 
 ```
-Dashboard  ←→  Outils (bouton central)
+Bébé | Dashboard ↔ Outils (bouton central) | Profil (Google)
                   ├── APPORTS | SUIVI  (switch)
                   └── grille d’icônes → pages module
-Profil (Google)
 ```
 
-Tab bar : bouton central (gros, Dashboard ↔ Outils) | Profil. Pas de troisième onglet Dashboard à gauche.
+Tab bar : **Bébé** (identité, naissance, horoscope, alertes) | bouton central (Dashboard ↔ Outils) | **Profil** (compte Google, sync).
 
 ## Arborescence
 
 ```
 src/
-  pages/          Dashboard, Outils, Profil, modules
+  pages/          Dashboard, Outils, Bébé, Profil, modules
   components/     Layout (tab bar), ui
   db/             Dexie (IndexedDB) + api
   lib/            dates UTC, libellés FR, Google Identity Services
@@ -73,6 +72,10 @@ Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
 Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordement).
 
+## Page Bébé
+
+Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, petit horoscope (signe + animal chinois, pour le plaisir), alertes (prochaine tétée selon le rappel, dernier biberon, sieste en cours, dernière couche).
+
 ## Auth Google
 
 Google Identity Services (bouton « Se connecter avec Google » sur Profil). Client ID via `VITE_GOOGLE_CLIENT_ID`.
@@ -116,7 +119,7 @@ Pas d’app native Expo. Pas de Next.js pour la V1 web.
 ## Modèle de données
 
 ```
-babies
+babies (name, bornOn)
  ├── feeding_sessions → feeding_segments
  ├── bottle_feeds
  ├── solid_foods

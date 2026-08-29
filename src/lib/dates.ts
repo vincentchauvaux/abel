@@ -78,3 +78,48 @@ export function parseDecimal(input: string): number | null {
   const n = Number.parseFloat(input.replace(',', '.').trim());
   return Number.isFinite(n) ? n : null;
 }
+
+export function formatAge(bornOn: string, now = new Date()): string {
+  const birth = startOfLocalDay(new Date(`${bornOn}T12:00:00`));
+  const today = startOfLocalDay(now);
+  if (birth > today) return 'Date à venir';
+  let months = (today.getFullYear() - birth.getFullYear()) * 12 + (today.getMonth() - birth.getMonth());
+  let days = today.getDate() - birth.getDate();
+  if (days < 0) {
+    months -= 1;
+    const prev = new Date(today.getFullYear(), today.getMonth(), 0).getDate();
+    days += prev;
+  }
+  const totalDays = Math.round((today.getTime() - birth.getTime()) / 86_400_000);
+  if (totalDays === 0) return 'Né aujourd’hui';
+  if (totalDays === 1) return '1 jour';
+  if (months < 1) return `${totalDays} jours`;
+  if (months < 24) {
+    if (days === 0) return months === 1 ? '1 mois' : `${months} mois`;
+    return `${months} mois et ${days} jour${days > 1 ? 's' : ''}`;
+  }
+  const years = Math.floor(months / 12);
+  const rest = months % 12;
+  if (rest === 0) return years === 1 ? '1 an' : `${years} ans`;
+  return `${years} an${years > 1 ? 's' : ''} et ${rest} mois`;
+}
+
+export function formatFromNow(iso: string, now = Date.now()): string {
+  const diff = new Date(iso).getTime() - now;
+  const abs = Math.abs(diff);
+  const minutes = Math.round(abs / 60_000);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const label =
+    hours >= 1 ? `${hours} h${mins ? ` ${mins}` : ''}` : minutes <= 1 ? '1 min' : `${minutes} min`;
+  return diff >= 0 ? `dans ${label}` : `il y a ${label}`;
+}
+
+export function formatLongDate(bornOn: string): string {
+  return new Date(`${bornOn}T12:00:00`).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}

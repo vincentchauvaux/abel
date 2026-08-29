@@ -44,6 +44,7 @@ const TABLES = {
       id: 'id',
       name: 'name',
       userId: 'user_id',
+      bornOn: 'born_on',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -217,11 +218,27 @@ const PUSH_ORDER = [
   'notes',
 ];
 
+function dateOnly(value) {
+  if (value == null) return null;
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value instanceof Date) {
+    const y = value.getUTCFullYear();
+    const m = String(value.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(value.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  return null;
+}
+
 function toRow(fields, record) {
   const row = {};
   for (const [camel, sql] of Object.entries(fields)) {
     let value = record[camel];
     if (value === undefined) continue;
+    if (sql === 'born_on') {
+      row[sql] = value ? String(value).slice(0, 10) : null;
+      continue;
+    }
     if (typeof value === 'string' && (sql.endsWith('_at') || sql === 'created_at')) {
       value = value ? new Date(value) : null;
     }
@@ -234,7 +251,11 @@ function fromRow(fields, pgRow) {
   const record = { syncStatus: 'synced' };
   for (const [camel, sql] of Object.entries(fields)) {
     const value = pgRow[sql];
-    record[camel] = value instanceof Date ? value.toISOString() : value;
+    if (sql === 'born_on') {
+      record[camel] = dateOnly(value);
+    } else {
+      record[camel] = value instanceof Date ? value.toISOString() : value;
+    }
   }
   return record;
 }

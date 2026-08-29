@@ -418,6 +418,35 @@ h2 {
   border-radius: 24px;
 }
 
+.zodiac {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+}
+
+.zodiac-symbol {
+  font-size: 1.8rem;
+  line-height: 1;
+}
+
+.alert-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.alert-line:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.alert-line:first-of-type {
+  padding-top: 0;
+}
+
 .overlay {
   position: fixed;
   inset: 0;

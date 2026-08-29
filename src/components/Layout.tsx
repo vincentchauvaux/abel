@@ -1,16 +1,20 @@
-import { CircleUser, Home, LayoutGrid } from 'lucide-react';
+import { Baby, CircleUser, Home, LayoutGrid } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 export function Layout() {
   const path = useLocation().pathname;
   const onDashboard = path === '/';
+  const onBaby = path.startsWith('/baby');
   const onProfile = path.startsWith('/profile');
 
   return (
     <div className="app">
       <Outlet />
       <nav className="tabbar">
-        <span />
+        <Link to="/baby" className={`tab ${onBaby ? 'on' : ''}`}>
+          <Baby size={22} />
+          Bébé
+        </Link>
         <Link to={onDashboard ? '/tools' : '/'} className="tab tab-center">
           <span className="orb">{onDashboard ? <LayoutGrid size={28} /> : <Home size={28} />}</span>
           {onDashboard ? 'Outils' : 'Dashboard'}

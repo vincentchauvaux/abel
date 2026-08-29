@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
 import { Button, Card } from '@/components/ui';
-import { linkBabyUser, renameBaby } from '@/db/api';
+import { linkBabyUser } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import {
   GOOGLE_CLIENT_CONSOLE_URL,
@@ -27,15 +27,10 @@ const SYNC_LABEL: Record<SyncState, string> = {
 
 export function ProfilePage() {
   const { baby } = useDb();
-  const [name, setName] = useState(baby?.name ?? '');
   const [user, setUser] = useState<GoogleUser | null>(readGoogleUser);
   const [googleError, setGoogleError] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const buttonHost = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (baby?.name) setName(baby.name);
-  }, [baby?.name]);
 
   useEffect(() => subscribeSync(setSyncState), []);
 
@@ -113,18 +108,6 @@ export function ProfilePage() {
             </p>
           </>
         )}
-      </Card>
-      <Card>
-        <h2>Prénom du bébé</h2>
-        <label className="field">
-          <span>Nom</span>
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => baby && renameBaby(baby.id, name)}
-          />
-        </label>
-        <Button onClick={() => baby && renameBaby(baby.id, name)}>Enregistrer</Button>
       </Card>
       <Card>
         <p className="muted">

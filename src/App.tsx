@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/Layout';
 import { DbProvider, useDb } from '@/db/DbProvider';
+import { BabyPage } from '@/pages/BabyPage';
 import { BottlePage } from '@/pages/BottlePage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { DiapersPage } from '@/pages/DiapersPage';
@@ -33,6 +34,7 @@ export default function App() {
               <Route path="/" element={<DashboardPage />} />
               <Route path="/tools" element={<ToolsPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/baby" element={<BabyPage />} />
               <Route path="/feeding" element={<FeedingPage />} />
               <Route path="/bottle" element={<BottlePage />} />
               <Route path="/solids" element={<SolidsPage />} />
