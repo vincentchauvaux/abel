@@ -1,10 +1,12 @@
 # Abel
 
-Suivi quotidien d’un nourrisson (iOS + Android).
+Suivi du bébé dans le navigateur (téléphone ou ordinateur).
 
 ```bash
 npm install
-npx expo start
+npm run dev
 ```
 
-Backend prévu sur le VPS OVH `vps-e09ed6db.vps.ovh.net`. Les builds iOS/Android se lancent depuis GitHub Actions (EAS). Secret `EXPO_TOKEN` + compte [expo.dev](https://expo.dev) (`npx eas init` une fois).
+Puis ouvrir [http://localhost:5173/abel/](http://localhost:5173/abel/).
+
+En ligne : [https://vincentchauvaux.github.io/abel/](https://vincentchauvaux.github.io/abel/) (après activation GitHub Pages → source **GitHub Actions**).

@@ -1,22 +1,19 @@
-import { and, desc, eq, isNull } from 'drizzle-orm';
-
-import { db } from '@/db/client';
-import {
-  babies,
-  bottleFeeds,
-  diaperEvents,
-  feedingSegments,
-  feedingSessions,
-  measurements,
-  pumpingSessions,
-  reminderRules,
-  type DiaperKind,
-  type MeasurementType,
-  type MilkType,
-  type Side,
-} from '@/db/schema';
+import { db, createId, notifyDb } from '@/db/client';
+import type {
+  Baby,
+  BottleFeed,
+  DiaperEvent,
+  DiaperKind,
+  FeedingSegment,
+  FeedingSession,
+  Measurement,
+  MeasurementType,
+  MilkType,
+  PumpingSession,
+  ReminderRule,
+  Side,
+} from '@/db/types';
 import { nowIso } from '@/lib/dates';
-import { createId } from '@/lib/ids';
 import { measurementUnit } from '@/lib/labels';
 
 function stamp() {
@@ -33,217 +30,227 @@ function touch() {
   return { updatedAt: nowIso(), syncStatus: 'pending' as const };
 }
 
-export function renameBaby(id: string, name: string) {
-  db.update(babies).set({ name: name.trim() || 'Bébé', ...touch() }).where(eq(babies.id, id)).run();
+function alive<T extends { deletedAt: string | null }>(rows: T[]): T[] {
+  return rows.filter((row) => !row.deletedAt);
 }
 
-export function setBabyUserId(id: string, userId: string) {
-  db.update(babies).set({ userId, ...touch() }).where(eq(babies.id, id)).run();
+export async function ensureBaby(): Promise<Baby> {
+  const existing = alive(await db.babies.toArray())[0];
+  if (existing) return existing;
+  const now = nowIso();
+  const baby: Baby = {
+    id: createId(),
+    name: 'Bébé',
+    userId: null,
+    ...stamp(),
+  };
+  await db.babies.add(baby);
+  await db.reminderRules.add({
+    id: createId(),
+    babyId: baby.id,
+    enabled: false,
+    delayMinutes: 0,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null,
+    syncStatus: 'pending',
+  });
+  notifyDb();
+  return baby;
 }
 
-export function startFeeding(babyId: string, side: Side) {
+export async function getBaby(): Promise<Baby | undefined> {
+  return alive(await db.babies.toArray())[0];
+}
+
+export async function renameBaby(id: string, name: string) {
+  await db.babies.update(id, { name: name.trim() || 'Bébé', ...touch() });
+  notifyDb();
+}
+
+export async function startFeeding(babyId: string, side: Side) {
   const now = nowIso();
   const sessionId = createId();
-  db.insert(feedingSessions)
-    .values({ id: sessionId, babyId, startedAt: now, endedAt: null, ...stamp() })
-    .run();
-  db.insert(feedingSegments)
-    .values({
-      id: createId(),
-      feedingSessionId: sessionId,
-      side,
-      startedAt: now,
-      endedAt: null,
-      ...stamp(),
-    })
-    .run();
+  await db.feedingSessions.add({
+    id: sessionId,
+    babyId,
+    startedAt: now,
+    endedAt: null,
+    ...stamp(),
+  });
+  await db.feedingSegments.add({
+    id: createId(),
+    feedingSessionId: sessionId,
+    side,
+    startedAt: now,
+    endedAt: null,
+    ...stamp(),
+  });
+  notifyDb();
   return sessionId;
 }
 
-export function switchFeedingSide(sessionId: string, side: Side) {
+export async function switchFeedingSide(sessionId: string, side: Side) {
   const now = nowIso();
-  const open = db
-    .select()
-    .from(feedingSegments)
-    .where(
-      and(
-        eq(feedingSegments.feedingSessionId, sessionId),
-        isNull(feedingSegments.endedAt),
-        isNull(feedingSegments.deletedAt),
-      ),
-    )
-    .all()[0];
+  const open = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray()).find(
+    (row) => !row.endedAt,
+  );
   if (open?.side === side) return;
-  if (open) {
-    db.update(feedingSegments)
-      .set({ endedAt: now, ...touch() })
-      .where(eq(feedingSegments.id, open.id))
-      .run();
-  }
-  db.insert(feedingSegments)
-    .values({
-      id: createId(),
-      feedingSessionId: sessionId,
-      side,
-      startedAt: now,
-      endedAt: null,
-      ...stamp(),
-    })
-    .run();
+  if (open) await db.feedingSegments.update(open.id, { endedAt: now, ...touch() });
+  await db.feedingSegments.add({
+    id: createId(),
+    feedingSessionId: sessionId,
+    side,
+    startedAt: now,
+    endedAt: null,
+    ...stamp(),
+  });
+  notifyDb();
 }
 
-export function stopFeeding(sessionId: string): string {
+export async function stopFeeding(sessionId: string) {
   const now = nowIso();
-  db.update(feedingSegments)
-    .set({ endedAt: now, ...touch() })
-    .where(
-      and(
-        eq(feedingSegments.feedingSessionId, sessionId),
-        isNull(feedingSegments.endedAt),
-        isNull(feedingSegments.deletedAt),
-      ),
-    )
-    .run();
-  db.update(feedingSessions)
-    .set({ endedAt: now, ...touch() })
-    .where(eq(feedingSessions.id, sessionId))
-    .run();
+  const open = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray()).filter(
+    (row) => !row.endedAt,
+  );
+  await Promise.all(open.map((row) => db.feedingSegments.update(row.id, { endedAt: now, ...touch() })));
+  await db.feedingSessions.update(sessionId, { endedAt: now, ...touch() });
+  notifyDb();
   return now;
 }
 
-export function addDiaper(babyId: string, kind: DiaperKind) {
-  const now = nowIso();
-  db.insert(diaperEvents)
-    .values({ id: createId(), babyId, kind, occurredAt: now, ...stamp() })
-    .run();
+export async function addDiaper(babyId: string, kind: DiaperKind) {
+  await db.diaperEvents.add({
+    id: createId(),
+    babyId,
+    kind,
+    occurredAt: nowIso(),
+    ...stamp(),
+  });
+  notifyDb();
 }
 
-export function updateDiaper(id: string, kind: DiaperKind) {
-  db.update(diaperEvents).set({ kind, ...touch() }).where(eq(diaperEvents.id, id)).run();
+export async function updateDiaper(id: string, kind: DiaperKind) {
+  await db.diaperEvents.update(id, { kind, ...touch() });
+  notifyDb();
 }
 
-export function deleteDiaper(id: string) {
-  db.update(diaperEvents)
-    .set({ deletedAt: nowIso(), ...touch() })
-    .where(eq(diaperEvents.id, id))
-    .run();
+export async function deleteDiaper(id: string) {
+  await db.diaperEvents.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
 }
 
-export function startPumping(babyId: string) {
-  const now = nowIso();
+export async function startPumping(babyId: string) {
   const id = createId();
-  db.insert(pumpingSessions)
-    .values({
-      id,
-      babyId,
-      startedAt: now,
-      amountMl: null,
-      durationMinutes: null,
-      side: null,
-      ...stamp(),
-    })
-    .run();
+  await db.pumpingSessions.add({
+    id,
+    babyId,
+    startedAt: nowIso(),
+    amountMl: null,
+    durationMinutes: null,
+    side: null,
+    ...stamp(),
+  });
+  notifyDb();
   return id;
 }
 
-export function updatePumping(
+export async function updatePumping(
   id: string,
   values: { amountMl: number; durationMinutes?: number | null; side?: Side | null },
 ) {
-  db.update(pumpingSessions)
-    .set({
-      amountMl: values.amountMl,
-      durationMinutes: values.durationMinutes ?? null,
-      side: values.side ?? null,
-      ...touch(),
-    })
-    .where(eq(pumpingSessions.id, id))
-    .run();
+  await db.pumpingSessions.update(id, {
+    amountMl: values.amountMl,
+    durationMinutes: values.durationMinutes ?? null,
+    side: values.side ?? null,
+    ...touch(),
+  });
+  notifyDb();
 }
 
-export function addBottle(babyId: string, milkType: MilkType, amountMl: number, fedAt: string) {
-  db.insert(bottleFeeds)
-    .values({ id: createId(), babyId, milkType, amountMl, fedAt, ...stamp() })
-    .run();
+export async function addBottle(babyId: string, milkType: MilkType, amountMl: number, fedAt: string) {
+  await db.bottleFeeds.add({
+    id: createId(),
+    babyId,
+    milkType,
+    amountMl,
+    fedAt,
+    ...stamp(),
+  });
+  notifyDb();
 }
 
-export function addMeasurement(babyId: string, type: MeasurementType, value: number) {
-  const now = nowIso();
-  db.insert(measurements)
-    .values({
-      id: createId(),
-      babyId,
-      type,
-      value,
-      unit: measurementUnit[type],
-      measuredAt: now,
-      ...stamp(),
-    })
-    .run();
+export async function addMeasurement(babyId: string, type: MeasurementType, value: number) {
+  await db.measurements.add({
+    id: createId(),
+    babyId,
+    type,
+    value,
+    unit: measurementUnit[type],
+    measuredAt: nowIso(),
+    ...stamp(),
+  });
+  notifyDb();
 }
 
-export function upsertReminderRule(babyId: string, delayMinutes: number) {
-  const existing = db
-    .select()
-    .from(reminderRules)
-    .where(and(eq(reminderRules.babyId, babyId), isNull(reminderRules.deletedAt)))
-    .limit(1)
-    .all()[0];
+export async function upsertReminderRule(babyId: string, delayMinutes: number) {
+  const existing = alive(await db.reminderRules.where('babyId').equals(babyId).toArray())[0];
   if (existing) {
-    db.update(reminderRules)
-      .set({ delayMinutes, enabled: delayMinutes > 0, ...touch() })
-      .where(eq(reminderRules.id, existing.id))
-      .run();
-    return;
-  }
-  db.insert(reminderRules)
-    .values({
+    await db.reminderRules.update(existing.id, {
+      delayMinutes,
+      enabled: delayMinutes > 0,
+      ...touch(),
+    });
+  } else {
+    await db.reminderRules.add({
       id: createId(),
       babyId,
       enabled: delayMinutes > 0,
       delayMinutes,
       ...stamp(),
-    })
-    .run();
+    });
+  }
+  notifyDb();
 }
 
-export function lastEndedFeeding(babyId: string) {
-  return db
-    .select()
-    .from(feedingSessions)
-    .where(
-      and(
-        eq(feedingSessions.babyId, babyId),
-        isNull(feedingSessions.deletedAt),
-      ),
-    )
-    .orderBy(desc(feedingSessions.startedAt))
-    .all()
-    .find((row) => row.endedAt);
+export async function listSessions(babyId: string): Promise<FeedingSession[]> {
+  return alive(await db.feedingSessions.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.startedAt.localeCompare(a.startedAt),
+  );
 }
 
-export function markSynced(
-  table:
-    | 'babies'
-    | 'feeding_sessions'
-    | 'feeding_segments'
-    | 'bottle_feeds'
-    | 'diaper_events'
-    | 'pumping_sessions'
-    | 'measurements'
-    | 'reminder_rules',
-  id: string,
-) {
-  const map = {
-    babies,
-    feeding_sessions: feedingSessions,
-    feeding_segments: feedingSegments,
-    bottle_feeds: bottleFeeds,
-    diaper_events: diaperEvents,
-    pumping_sessions: pumpingSessions,
-    measurements,
-    reminder_rules: reminderRules,
-  } as const;
-  const target = map[table as keyof typeof map];
-  db.update(target).set({ syncStatus: 'synced', updatedAt: nowIso() }).where(eq(target.id, id))    .run();
+export async function listSegments(): Promise<FeedingSegment[]> {
+  return alive(await db.feedingSegments.toArray());
+}
+
+export async function listBottles(babyId: string): Promise<BottleFeed[]> {
+  return alive(await db.bottleFeeds.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.fedAt.localeCompare(a.fedAt),
+  );
+}
+
+export async function listDiapers(babyId: string): Promise<DiaperEvent[]> {
+  return alive(await db.diaperEvents.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.occurredAt.localeCompare(a.occurredAt),
+  );
+}
+
+export async function listPumps(babyId: string): Promise<PumpingSession[]> {
+  return alive(await db.pumpingSessions.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.startedAt.localeCompare(a.startedAt),
+  );
+}
+
+export async function listMeasurements(babyId: string): Promise<Measurement[]> {
+  return alive(await db.measurements.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.measuredAt.localeCompare(a.measuredAt),
+  );
+}
+
+export async function getReminder(babyId: string): Promise<ReminderRule | undefined> {
+  return alive(await db.reminderRules.where('babyId').equals(babyId).toArray())[0];
+}
+
+export async function lastEndedFeeding(babyId: string) {
+  return (await listSessions(babyId)).find((row) => row.endedAt);
 }

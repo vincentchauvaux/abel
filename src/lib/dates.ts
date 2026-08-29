@@ -39,24 +39,17 @@ export function eachLocalDay(fromIso: string, to = new Date()): string[] {
 }
 
 export function weekdayShort(dateKey: string): string {
-  const label = new Date(`${dateKey}T12:00:00`).toLocaleDateString('fr-FR', {
-    weekday: 'short',
-  });
-  return label.replace('.', '');
+  return new Date(`${dateKey}T12:00:00`)
+    .toLocaleDateString('fr-FR', { weekday: 'short' })
+    .replace('.', '');
 }
 
 export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-  });
+  return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
 export function formatDateTime(iso: string): string {
@@ -68,9 +61,7 @@ export function formatDuration(ms: number): string {
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
   const s = totalSec % 60;
-  if (h > 0) {
-    return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
+  if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 

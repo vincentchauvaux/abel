@@ -1,4 +1,4 @@
-import type { DiaperKind, MeasurementType, MilkType, Side } from '@/db/schema';
+import type { DiaperKind, MeasurementType, MilkType, Side } from '@/db/types';
 
 export const sideLabel: Record<Side, string> = {
   LEFT: 'Gauche',
