@@ -363,7 +363,7 @@ h2 {
   display: flex;
   align-items: flex-end;
   gap: 4px;
-  height: 140px;
+  height: 160px;
   min-width: 100%;
 }
 
@@ -375,7 +375,18 @@ h2 {
   align-items: center;
   justify-content: flex-end;
   height: 100%;
-  gap: 6px;
+  gap: 4px;
+}
+
+.bar-stack {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
 }
 
 .bar {
@@ -384,6 +395,22 @@ h2 {
   background: var(--primary);
   border-radius: 6px 6px 0 0;
   min-height: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 3px;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.bar:not(.empty) {
+  min-height: 18px;
+}
+
+.bar.empty {
+  opacity: 0.25;
+  padding-top: 0;
 }
 
 .bar.accent {
@@ -394,7 +421,15 @@ h2 {
   background: var(--pee);
 }
 
-.bar-col span {
+.bar-value {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+}
+
+.bar-label {
   font-size: 10px;
   color: var(--text-muted);
   white-space: nowrap;
@@ -404,8 +439,12 @@ h2 {
   min-width: 18px;
 }
 
-.bars.compact .bar-col span {
-  font-size: 9px;
+.bars.compact .bar-value {
+  font-size: 7px;
+}
+
+.bars.compact .bar-label {
+  font-size: 8px;
 }
 
 .google-btn-host {

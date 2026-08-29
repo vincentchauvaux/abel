@@ -54,11 +54,22 @@ export function DashboardPage() {
   }, [baby, tick]);
 
   const from = periodRange(period).from;
-  const inRange = (iso: string) => !from || iso >= from;
+  const todayKey = localDateKey(new Date().toISOString());
+  const inRange = (iso: string) => {
+    if (period === 'today') return localDateKey(iso) === todayKey;
+    if (!from) return true;
+    return iso >= from;
+  };
   const sessionsRange = sessions.filter((row) => inRange(row.startedAt));
   const last = sessions[0];
   const feedingMs = sessionsRange.reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0);
-  const pumpedMl = pumps.filter((row) => inRange(row.startedAt)).reduce((sum, row) => sum + (row.amountMl ?? 0), 0);
+  const bottleMl = bottles
+    .filter((row) => inRange(row.fedAt))
+    .reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0);
+  const pumpedMl = pumps
+    .filter((row) => inRange(row.startedAt))
+    .reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0);
+  const stockMl = pumps.reduce((sum, row) => sum + (Number(row.remainingMl) || 0), 0);
 
   const nextReminder = useMemo(() => {
     if (!last?.endedAt || delay <= 0) return null;
@@ -85,7 +96,16 @@ export function DashboardPage() {
   const bottleBars = days.map((day) => ({
     key: day,
     label: compact ? day.slice(8) : weekdayShort(day),
-    value: bottles.filter((row) => localDateKey(row.fedAt) === day).reduce((sum, row) => sum + row.amountMl, 0),
+    value: bottles
+      .filter((row) => localDateKey(row.fedAt) === day)
+      .reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0),
+  }));
+  const pumpBars = days.map((day) => ({
+    key: day,
+    label: compact ? day.slice(8) : weekdayShort(day),
+    value: pumps
+      .filter((row) => localDateKey(row.startedAt) === day)
+      .reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0),
   }));
   const diaperBars = days.map((day) => ({
     key: day,
@@ -120,8 +140,16 @@ export function DashboardPage() {
           <b>{feedingMs > 0 ? formatMinutes(feedingMs) : '—'}</b>
         </div>
         <div className="stat">
-          <span className="muted">Tirage</span>
+          <span className="muted">Biberons</span>
+          <b>{bottleMl} ml</b>
+        </div>
+        <div className="stat">
+          <span className="muted">Tire-lait</span>
           <b>{pumpedMl} ml</b>
+        </div>
+        <div className="stat">
+          <span className="muted">Stock lait</span>
+          <b>{stockMl} ml</b>
         </div>
       </div>
       <Card>
@@ -147,11 +175,17 @@ export function DashboardPage() {
       </Card>
       <Bars title="Durée d’allaitement (min)" data={feedingBars} />
       <Bars title="Biberons (ml)" data={bottleBars} tone="accent" />
+      <Bars title="Tire-lait (ml)" data={pumpBars} tone="accent" />
       <Bars title="Couches" data={diaperBars} tone="pee" />
       <Card>
         <h2>Poids (kg)</h2>
-        {weights.length < 2 ? (
-          <p className="muted">Ajoute au moins deux pesées.</p>
+        {weights.length === 0 ? (
+          <p className="muted">Pas encore de pesée.</p>
+        ) : weights.length === 1 ? (
+          <p>
+            <strong>{`${weights[0].value}`.replace('.', ',')} kg</strong>
+            <span className="muted"> · {formatDateTime(weights[0].measuredAt)}</span>
+          </p>
         ) : (
           <p>
             {[...weights]
@@ -183,11 +217,14 @@ function Bars({
         <div className={`bars ${compact ? 'compact' : ''}`}>
           {data.map((d) => (
             <div className="bar-col" key={d.key}>
-              <div
-                className={`bar ${tone ?? ''}`}
-                style={{ height: `${Math.max(6, (d.value / max) * 100)}%` }}
-              />
-              <span>{d.label}</span>
+              <div className="bar-stack">
+                <div
+                  className={`bar ${tone ?? ''}${d.value <= 0 ? ' empty' : ''}`}
+                  style={{ height: `${d.value > 0 ? Math.max(14, (d.value / max) * 100) : 4}%` }}>
+                  {d.value > 0 ? <span className="bar-value">{d.value}</span> : null}
+                </div>
+              </div>
+              <span className="bar-label">{d.label}</span>
             </div>
           ))}
         </div>

@@ -107,14 +107,15 @@ export function PumpingPage() {
           </div>
           <Button
             disabled={!amount}
-            onClick={() => {
+            onClick={async () => {
               const ml = parseDecimal(amount);
               if (!editingId || ml === null || ml <= 0) return;
               const minutes = duration ? parseDecimal(duration) : null;
-              updatePumping(editingId, {
+              await updatePumping(editingId, {
                 amountMl: Math.round(ml),
                 durationMinutes: minutes === null ? null : Math.round(minutes),
                 side,
+                startedAt: when ? fromDatetimeLocalValue(when) : undefined,
               });
               resetForm();
             }}>

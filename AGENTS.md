@@ -75,7 +75,7 @@ Règle après la dernière tétée : aucun / 1 h / 2 h / 3 h / 4 h / personnalis
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordement).
+Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordement), valeur écrite dans chaque barre. Stats : tétées, couches, allaitement, biberons, tire-lait, stock lait. Poids affiché dès une pesée.
 
 ## Page Bébé
 
