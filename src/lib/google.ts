@@ -6,7 +6,12 @@ export type GoogleUser = {
 };
 
 const STORAGE_KEY = 'abel-google-user';
+const TOKEN_KEY = 'abel-google-token';
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
+export const SYNC_URL = (import.meta.env.VITE_SYNC_URL || 'https://vps-e09ed6db.vps.ovh.net/abel/api').replace(
+  /\/$/,
+  '',
+);
 export const GOOGLE_CLIENT_CONSOLE_URL = 'https://console.cloud.google.com/auth/clients';
 export const GOOGLE_CREDENTIALS_URL = 'https://console.cloud.google.com/apis/credentials';
 
@@ -61,6 +66,32 @@ export function writeGoogleUser(user: GoogleUser | null) {
   else localStorage.removeItem(STORAGE_KEY);
 }
 
+function payloadExp(credential: string): number | null {
+  try {
+    const payload = credential.split('.')[1];
+    const json = JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/'))) as { exp?: number };
+    return typeof json.exp === 'number' ? json.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeGoogleSession(user: GoogleUser, credential: string) {
+  writeGoogleUser(user);
+  localStorage.setItem(TOKEN_KEY, credential);
+}
+
+export function readGoogleToken(): string | null {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+  const exp = payloadExp(token);
+  if (exp && exp < Date.now() + 30_000) {
+    localStorage.removeItem(TOKEN_KEY);
+    return null;
+  }
+  return token;
+}
+
 function loadGis(): Promise<void> {
   if (window.google?.accounts.id) return Promise.resolve();
   return new Promise((resolve, reject) => {
@@ -82,7 +113,7 @@ function loadGis(): Promise<void> {
 
 export async function renderGoogleButton(
   host: HTMLElement,
-  onUser: (user: GoogleUser) => void,
+  onUser: (user: GoogleUser, credential: string) => void,
 ): Promise<void> {
   if (!GOOGLE_CLIENT_ID) return;
   await loadGis();
@@ -90,7 +121,7 @@ export async function renderGoogleButton(
   host.replaceChildren();
   window.google.accounts.id.initialize({
     client_id: GOOGLE_CLIENT_ID,
-    callback: (response) => onUser(decodeJwt(response.credential)),
+    callback: (response) => onUser(decodeJwt(response.credential), response.credential),
   });
   window.google.accounts.id.renderButton(host, {
     theme: 'outline',
@@ -103,5 +134,6 @@ export async function renderGoogleButton(
 
 export function signOutGoogle() {
   writeGoogleUser(null);
+  localStorage.removeItem(TOKEN_KEY);
   window.google?.accounts.id.disableAutoSelect();
 }

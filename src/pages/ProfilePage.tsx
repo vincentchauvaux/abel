@@ -8,29 +8,44 @@ import {
   GOOGLE_CLIENT_ID,
   GOOGLE_CREDENTIALS_URL,
   type GoogleUser,
+  readGoogleToken,
   readGoogleUser,
   renderGoogleButton,
   signOutGoogle,
-  writeGoogleUser,
+  writeGoogleSession,
 } from '@/lib/google';
+import { runSync, subscribeSync, type SyncState } from '@/lib/sync';
+
+const SYNC_LABEL: Record<SyncState, string> = {
+  idle: 'Pas encore synchronisé',
+  syncing: 'Synchronisation…',
+  ok: 'À jour sur le VPS',
+  auth: 'Reconnecte-toi pour synchroniser',
+  offline: 'Hors ligne — les données restent ici',
+  error: 'Sync impossible pour le moment',
+};
 
 export function ProfilePage() {
   const { baby } = useDb();
   const [name, setName] = useState(baby?.name ?? '');
   const [user, setUser] = useState<GoogleUser | null>(readGoogleUser);
   const [googleError, setGoogleError] = useState('');
+  const [syncState, setSyncState] = useState<SyncState>('idle');
   const buttonHost = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (baby?.name) setName(baby.name);
   }, [baby?.name]);
 
+  useEffect(() => subscribeSync(setSyncState), []);
+
   useEffect(() => {
     if (user || !GOOGLE_CLIENT_ID || !buttonHost.current) return;
-    renderGoogleButton(buttonHost.current, (next) => {
-      writeGoogleUser(next);
+    renderGoogleButton(buttonHost.current, async (next, credential) => {
+      writeGoogleSession(next, credential);
       setUser(next);
-      if (baby) linkBabyUser(baby.id, next.sub);
+      if (baby) await linkBabyUser(baby.id, next.sub);
+      await runSync();
     }).catch(() => setGoogleError('Impossible de charger Google pour le moment.'));
   }, [user, baby]);
 
@@ -50,6 +65,14 @@ export function ProfilePage() {
                 </p>
               </div>
             </div>
+            <p className="muted">{SYNC_LABEL[syncState]}</p>
+            {!readGoogleToken() ? (
+              <p className="muted">La session Google a expiré. Reconnecte-toi pour envoyer les données.</p>
+            ) : (
+              <Button tone="muted" onClick={() => void runSync()}>
+                Synchroniser maintenant
+              </Button>
+            )}
             <Button
               tone="muted"
               onClick={() => {
@@ -62,7 +85,9 @@ export function ProfilePage() {
           </>
         ) : GOOGLE_CLIENT_ID ? (
           <>
-            <p className="muted">Connexion pour lier ce navigateur à ton compte. Les données restent locales pour l’instant.</p>
+            <p className="muted">
+              Connecte-toi pour sauvegarder tétées et couches sur le VPS, et les retrouver sur un autre appareil.
+            </p>
             <div ref={buttonHost} className="google-btn-host" />
             {googleError ? <p className="muted">{googleError}</p> : null}
           </>
@@ -103,7 +128,8 @@ export function ProfilePage() {
       </Card>
       <Card>
         <p className="muted">
-          Les données restent dans ce navigateur (même hors ligne). La sync vers le VPS viendra ensuite.
+          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers{' '}
+          vps-e09ed6db.vps.ovh.net.
         </p>
       </Card>
     </div>

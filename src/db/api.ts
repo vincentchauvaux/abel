@@ -358,3 +358,87 @@ export async function listNotes(babyId: string): Promise<Note[]> {
     b.notedAt.localeCompare(a.notedAt),
   );
 }
+
+export const SYNC_TABLES = [
+  'babies',
+  'feedingSessions',
+  'feedingSegments',
+  'bottleFeeds',
+  'diaperEvents',
+  'pumpingSessions',
+  'measurements',
+  'reminderRules',
+  'solidFoods',
+  'supplements',
+  'sleepSessions',
+  'temperatures',
+  'notes',
+] as const;
+
+export type SyncTable = (typeof SYNC_TABLES)[number];
+export type SyncPayload = Record<SyncTable, Array<Record<string, unknown>>>;
+
+const BABY_ID_TABLES = SYNC_TABLES.filter((name) => name !== 'babies' && name !== 'feedingSegments');
+
+export async function collectPending(): Promise<SyncPayload> {
+  const changes = {} as SyncPayload;
+  for (const name of SYNC_TABLES) {
+    const rows = await db.table(name).toArray();
+    changes[name] = rows.filter((row) => row.syncStatus === 'pending');
+  }
+  return changes;
+}
+
+export async function remapBabyId(from: string, to: string) {
+  if (from === to) return;
+  await db.transaction('rw', SYNC_TABLES.map((name) => db.table(name)), async () => {
+    for (const name of BABY_ID_TABLES) {
+      const rows = await db.table(name).where('babyId').equals(from).toArray();
+      for (const row of rows) {
+        await db.table(name).put({ ...row, babyId: to });
+      }
+    }
+    const fromBaby = await db.babies.get(from);
+    const toBaby = await db.babies.get(to);
+    if (fromBaby && !toBaby) {
+      await db.babies.delete(from);
+      await db.babies.put({ ...fromBaby, id: to });
+    } else if (fromBaby) {
+      await db.babies.delete(from);
+    }
+  });
+}
+
+export async function applyRemoteRecords(records: SyncPayload, canonicalBabyId: string | null) {
+  const local = await getBaby();
+  if (local && canonicalBabyId && local.id !== canonicalBabyId) {
+    await remapBabyId(local.id, canonicalBabyId);
+  }
+  await db.transaction('rw', SYNC_TABLES.map((name) => db.table(name)), async () => {
+    for (const name of SYNC_TABLES) {
+      const rows = records[name] ?? [];
+      for (const row of rows) {
+        const id = String(row.id ?? '');
+        if (!id) continue;
+        const existing = await db.table(name).get(id);
+        if (!existing || String(row.updatedAt ?? '') >= String(existing.updatedAt)) {
+          await db.table(name).put({ ...row, syncStatus: 'synced' });
+        }
+      }
+    }
+  });
+}
+
+export async function markPushed(changes: SyncPayload) {
+  await db.transaction('rw', SYNC_TABLES.map((name) => db.table(name)), async () => {
+    for (const name of SYNC_TABLES) {
+      for (const row of changes[name] ?? []) {
+        const id = String(row.id ?? '');
+        const current = await db.table(name).get(id);
+        if (current && current.updatedAt === row.updatedAt && current.syncStatus === 'pending') {
+          await db.table(name).update(id, { syncStatus: 'synced' });
+        }
+      }
+    }
+  });
+}

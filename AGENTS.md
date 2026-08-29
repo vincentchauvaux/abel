@@ -83,9 +83,20 @@ Identifiants : https://console.cloud.google.com/apis/credentials
 
 Origines JS autorisées : `https://vincentchauvaux.github.io` et `http://localhost:5173`.
 
-Pour GitHub Pages : secret repo `VITE_GOOGLE_CLIENT_ID` (lu par `.github/workflows/pages.yml`).
+Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus par `.github/workflows/pages.yml`).
 
-La session est stockée localement ; la sync serveur n’existe pas encore.
+## Sync VPS
+
+API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
+
+- URL : `https://vps-e09ed6db.vps.ovh.net/abel/api/`
+- Auth : jeton Google Identity Services (même Client ID que le front)
+- Offline-first : IndexedDB d’abord, envoi dès qu’il y a réseau + session Google
+- Un bébé par compte Google (dernier écrit gagne sur `updatedAt`)
+
+Déploiement : clone `/opt/abel`, `server/.env` (`DATABASE_URL`, `GOOGLE_CLIENT_ID`), `pm2 start --name abel index.mjs`, snippet `deploy/nginx-abel.conf.example`.
+
+La session Google est stockée localement. Sans jeton valide, l’app continue hors ligne.
 
 ## Stack
 
@@ -97,7 +108,8 @@ La session est stockée localement ; la sync serveur n’existe pas encore.
 | Routing | react-router HashRouter (GitHub Pages) |
 | Auth | Google Identity Services |
 | Hébergement | GitHub Pages |
-| Backend | VPS plus tard |
+| Sync | VPS OVH `vps-e09ed6db.vps.ovh.net` (Node + Postgres) |
+| Backend | VPS OVH uniquement |
 
 Pas d’app native Expo. Pas de Next.js pour la V1 web.
 

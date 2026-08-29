@@ -1,0 +1,13 @@
+{
+  "name": "abel-api",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "google-auth-library": "^10.3.0",
+    "pg": "^8.16.3"
+  }
+}
