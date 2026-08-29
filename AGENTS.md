@@ -35,10 +35,11 @@ src/
 
 ## Hébergement
 
-- **App web** : GitHub Pages — `https://vincentchauvaux.github.io/abel/`
-- **Backend / sync (plus tard)** : VPS OVH `vps-e09ed6db.vps.ovh.net` uniquement.
+- **App web** : `https://abel.be/` (VPS OVH, Nginx + build statique)
+- **API / sync** : `https://abel.be/api/` (Node sur `127.0.0.1:3030`, PostgreSQL local)
+- **Miroir** : GitHub Pages `https://vincentchauvaux.github.io/abel/` (base `/abel/`, API legacy sur le hostname VPS)
 
-Pages se déploie via GitHub Actions (workflow `.github/workflows/pages.yml`). Dans le repo : Settings → Pages → **GitHub Actions**.
+Déploiement VPS : `deploy/bootstrap-vps.sh` (clone `/opt/abel`, build front → `/var/www/abel`, Certbot, PM2). Snippets : `deploy/nginx-abel.be.conf.example`, `deploy/nginx-abel.conf.example`.
 
 En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/`.
 
@@ -91,7 +92,7 @@ Créer le client OAuth « Application Web » : https://console.cloud.google.com/
 
 Identifiants : https://console.cloud.google.com/apis/credentials
 
-Origines JS autorisées : `https://vincentchauvaux.github.io` et `http://localhost:5173`.
+Origines JS autorisées : `https://abel.be`, `https://vincentchauvaux.github.io` et `http://localhost:5173`.
 
 Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus par `.github/workflows/pages.yml`).
 
@@ -99,7 +100,7 @@ Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus
 
 API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
-- URL : `https://vps-e09ed6db.vps.ovh.net/abel/api/`
+- URL : `https://abel.be/api/` (legacy : `https://vps-e09ed6db.vps.ovh.net/abel/api/`)
 - Horoscope du jour : `GET /horoscope?sign=taurus` (proxy public, cache 1 jour, hors connexion = texte local)
 - Suppression compte : `DELETE /account` (auth Google, soft-delete toutes les données liées)
 - Auth : jeton Google Identity Services (même Client ID que le front)

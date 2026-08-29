@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
-  base: '/abel/',
+  base: process.env.VITE_BASE_PATH || '/abel/',
   plugins: [react()],
   resolve: {
     alias: {

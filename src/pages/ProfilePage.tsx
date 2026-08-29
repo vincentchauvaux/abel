@@ -193,7 +193,7 @@ export function ProfilePage() {
               </a>
             </p>
             <p className="muted">
-              Origines autorisées : <code>https://vincentchauvaux.github.io</code> et{' '}
+              Origines autorisées : <code>https://abel.be</code>, <code>https://vincentchauvaux.github.io</code> et{' '}
               <code>http://localhost:5173</code>.
             </p>
           </>
@@ -224,8 +224,8 @@ export function ProfilePage() {
       </Card>
       <Card>
         <p className="muted">
-          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers{' '}
-          vps-e09ed6db.vps.ovh.net (France, OVH).
+          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers abel.be
+          (France, OVH).
         </p>
       </Card>
     </div>
