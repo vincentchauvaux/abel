@@ -38,7 +38,7 @@ export function ProfilePage() {
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [busy, setBusy] = useState('');
   const buttonHost = useRef<HTMLDivElement>(null);
-  const needsReconnect = Boolean(user && !hasToken);
+  const needsReconnect = Boolean(user && (!hasToken || syncState === 'auth'));
 
   useEffect(() => subscribeSync(setSyncState), []);
 
@@ -49,6 +49,7 @@ export function ProfilePage() {
   useEffect(() => {
     const showButton = (!user || needsReconnect) && GOOGLE_CLIENT_ID && hasLegalConsent();
     if (!showButton || !buttonHost.current) return;
+    setGoogleError('');
     renderGoogleButton(buttonHost.current, async (next, credential) => {
       if (!hasLegalConsent()) return;
       writeGoogleSession(next, credential);
@@ -133,12 +134,9 @@ export function ProfilePage() {
             </div>
             {needsReconnect ? (
               <>
-                <p className="muted">
-                  Ton compte est mémorisé ici, mais le jeton Google pour la sync expire (~1 h). Ce n’est pas une
-                  déconnexion : appuie à nouveau sur Google pour renvoyer les données.
-                </p>
+                <p className="muted">Reconnecte-toi pour synchroniser.</p>
                 {hasLegalConsent() ? (
-                  <div ref={buttonHost} className="google-btn-host" />
+                  <div ref={buttonHost} className="google-btn-host" aria-label="Se reconnecter avec Google" />
                 ) : (
                   <p className="muted">Accepte d’abord le bandeau d’information en bas de l’écran.</p>
                 )}

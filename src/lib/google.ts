@@ -126,7 +126,7 @@ export async function renderGoogleButton(
   window.google.accounts.id.renderButton(host, {
     theme: 'outline',
     size: 'large',
-    text: 'signin_with',
+    text: 'continue_with',
     locale: 'fr',
     width: Math.min(320, host.clientWidth || 280),
   });
