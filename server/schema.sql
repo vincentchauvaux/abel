@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS reminder_rules (
   baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
   enabled BOOLEAN NOT NULL,
   delay_minutes INTEGER NOT NULL,
+  bottle_ml INTEGER,
+  bottle_minutes INTEGER,
+  diaper_minutes INTEGER,
   created_at TIMESTAMPTZ NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL,
   deleted_at TIMESTAMPTZ
@@ -139,3 +142,6 @@ CREATE TABLE IF NOT EXISTS notes (
 );
 
 ALTER TABLE babies ADD COLUMN IF NOT EXISTS born_on DATE;
+ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS bottle_ml INTEGER;
+ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS bottle_minutes INTEGER;
+ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS diaper_minutes INTEGER;

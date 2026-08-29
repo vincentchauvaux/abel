@@ -56,6 +56,9 @@ export async function ensureBaby(): Promise<Baby> {
     babyId: baby.id,
     enabled: false,
     delayMinutes: 0,
+    bottleMl: null,
+    bottleMinutes: null,
+    diaperMinutes: null,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -209,19 +212,41 @@ export async function addMeasurement(babyId: string, type: MeasurementType, valu
 }
 
 export async function upsertReminderRule(babyId: string, delayMinutes: number) {
+  return upsertCareGoals(babyId, { delayMinutes });
+}
+
+export type CareGoalsPatch = {
+  delayMinutes?: number;
+  bottleMl?: number | null;
+  bottleMinutes?: number | null;
+  diaperMinutes?: number | null;
+};
+
+export async function upsertCareGoals(babyId: string, patch: CareGoalsPatch) {
   const existing = alive(await db.reminderRules.where('babyId').equals(babyId).toArray())[0];
+  const delayMinutes = patch.delayMinutes ?? existing?.delayMinutes ?? 0;
+  const bottleMl = patch.bottleMl !== undefined ? patch.bottleMl : (existing?.bottleMl ?? null);
+  const bottleMinutes = patch.bottleMinutes !== undefined ? patch.bottleMinutes : (existing?.bottleMinutes ?? null);
+  const diaperMinutes = patch.diaperMinutes !== undefined ? patch.diaperMinutes : (existing?.diaperMinutes ?? null);
+  const values = {
+    delayMinutes,
+    enabled: delayMinutes > 0 || (bottleMinutes ?? 0) > 0 || (diaperMinutes ?? 0) > 0,
+    bottleMl,
+    bottleMinutes,
+    diaperMinutes,
+    ...touch(),
+  };
   if (existing) {
-    await db.reminderRules.update(existing.id, {
-      delayMinutes,
-      enabled: delayMinutes > 0,
-      ...touch(),
-    });
+    await db.reminderRules.update(existing.id, values);
   } else {
     await db.reminderRules.add({
       id: createId(),
       babyId,
-      enabled: delayMinutes > 0,
       delayMinutes,
+      enabled: values.enabled,
+      bottleMl,
+      bottleMinutes,
+      diaperMinutes,
       ...stamp(),
     });
   }

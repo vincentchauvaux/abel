@@ -447,6 +447,12 @@ h2 {
   padding-top: 0;
 }
 
+.goal-label {
+  margin: 12px 0 0;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 .overlay {
   position: fixed;
   inset: 0;

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip, Field } from '@/components/ui';
-import { addBottle, listBottles } from '@/db/api';
+import { addBottle, getReminder, listBottles } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, MilkType } from '@/db/types';
 import { formatTime, nowIso, parseDecimal, startOfLocalDay } from '@/lib/dates';
@@ -13,10 +13,16 @@ export function BottlePage() {
   const [feeds, setFeeds] = useState<BottleFeed[]>([]);
   const [milkType, setMilkType] = useState<MilkType>('BREAST_MILK');
   const [amount, setAmount] = useState('');
+  const [goalMl, setGoalMl] = useState<number | null>(null);
 
   useEffect(() => {
     if (!baby) return;
-    listBottles(baby.id).then(setFeeds);
+    Promise.all([listBottles(baby.id), getReminder(baby.id)]).then(([rows, goals]) => {
+      setFeeds(rows);
+      const ml = goals?.bottleMl ?? null;
+      setGoalMl(ml);
+      setAmount((current) => (current === '' && ml ? String(ml) : current));
+    });
   }, [baby, tick]);
 
   const today = feeds.filter((row) => row.fedAt >= startOfLocalDay().toISOString());
@@ -32,14 +38,20 @@ export function BottlePage() {
             <Chip key={type} label={milkLabel[type]} selected={milkType === type} onClick={() => setMilkType(type)} />
           ))}
         </div>
-        <Field label="Quantité (ml)" value={amount} onChange={setAmount} placeholder="120" />
+        <Field
+          label="Quantité (ml)"
+          value={amount}
+          onChange={setAmount}
+          placeholder={goalMl ? String(goalMl) : '120'}
+        />
+        {goalMl ? <p className="muted">Objectif : {goalMl} ml par repas (réglé sur Bébé).</p> : null}
         <Button
           disabled={!amount}
           onClick={() => {
             const ml = parseDecimal(amount);
             if (!baby || ml === null || ml <= 0) return;
             addBottle(baby.id, milkType, Math.round(ml), nowIso());
-            setAmount('');
+            setAmount(goalMl ? String(goalMl) : '');
           }}>
           Enregistrer
         </Button>

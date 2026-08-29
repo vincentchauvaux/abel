@@ -19,7 +19,7 @@ Bébé | Dashboard ↔ Outils (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (identité, naissance, horoscope, alertes) | bouton central (Dashboard ↔ Outils) | **Profil** (compte Google, sync).
+Tab bar : **Bébé** (identité, objectifs, horoscope, alertes) | bouton central (Dashboard ↔ Outils) | **Profil** (compte Google, sync).
 
 ## Arborescence
 
@@ -64,7 +64,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 
 ### Rappels tétées
 
-Règle après la dernière tétée : aucun / 1 h / 2 h / 3 h / personnalisé. Notification navigateur si l’onglet reste ouvert.
+Règle après la dernière tétée : aucun / 1 h / 2 h / 3 h / 4 h / personnalisé (aussi sur Bébé). Notification navigateur si l’onglet reste ouvert.
 
 ## Dashboard
 
@@ -74,7 +74,9 @@ Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordem
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, petit horoscope (signe + animal chinois, pour le plaisir), alertes (prochaine tétée selon le rappel, dernier biberon, sieste en cours, dernière couche).
+Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon toutes les X h, ml/cl par repas, couches), petit horoscope (pour le plaisir), alertes calculées à partir de ces règles. Pas un conseil médical.
+
+Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Le biberon préremplit la quantité si un objectif ml est défini.
 
 ## Auth Google
 
@@ -130,7 +132,7 @@ babies (name, bornOn)
  ├── sleep_sessions
  ├── temperatures
  ├── notes
- └── reminder_rules
+ └── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes)
 ```
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.

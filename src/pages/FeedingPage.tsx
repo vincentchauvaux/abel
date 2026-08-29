@@ -16,15 +16,10 @@ import { useDb } from '@/db/DbProvider';
 import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatMinutes, formatTime, startOfLocalDay } from '@/lib/dates';
+import { INTERVAL_PRESETS } from '@/lib/goals';
 import { sideLabel } from '@/lib/labels';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
-const PRESETS = [
-  { label: 'Aucun', minutes: 0 },
-  { label: '1 h', minutes: 60 },
-  { label: '2 h', minutes: 120 },
-  { label: '3 h', minutes: 180 },
-];
 
 export function FeedingPage() {
   const { baby, tick } = useDb();
@@ -150,9 +145,9 @@ export function FeedingPage() {
       </Card>
       <Card>
         <h2>Rappel après la dernière tétée</h2>
-        <p className="muted">S’affiche si Abel reste ouvert dans le navigateur.</p>
+        <p className="muted">Même réglage que sur Bébé. S’affiche si Abel reste ouvert dans le navigateur.</p>
         <div className="row">
-          {PRESETS.map((item) => (
+          {INTERVAL_PRESETS.map((item) => (
             <Chip
               key={item.minutes}
               label={item.label}

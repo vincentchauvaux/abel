@@ -64,6 +64,9 @@ export type ReminderRule = Stamp & {
   babyId: string;
   enabled: boolean;
   delayMinutes: number;
+  bottleMl: number | null;
+  bottleMinutes: number | null;
+  diaperMinutes: number | null;
 };
 export type SolidFood = Stamp & {
   id: string;
