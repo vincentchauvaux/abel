@@ -9,8 +9,15 @@ WEB_ROOT=/var/www/abel
 if [ -d "$ROOT/.git" ]; then
   git -C "$ROOT" fetch origin
   git -C "$ROOT" reset --hard origin/main
+  # Re-exécuter le script après mise à jour (bash a déjà lu l’ancienne version).
+  if [ "${ABEL_BOOTSTRAP_REEXEC:-}" != 1 ]; then
+    export ABEL_BOOTSTRAP_REEXEC=1
+    exec bash "$ROOT/deploy/bootstrap-vps.sh"
+  fi
 else
   git clone "$REPO" "$ROOT"
+  export ABEL_BOOTSTRAP_REEXEC=1
+  exec bash "$ROOT/deploy/bootstrap-vps.sh"
 fi
 
 cd "$ROOT/server"
