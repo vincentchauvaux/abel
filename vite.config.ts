@@ -3,7 +3,8 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath, URL } from 'node:url';
 
 export default defineConfig({
-  base: process.env.VITE_BASE_PATH || '/abel/',
+  // Projet GitHub Pages : https://vincentchauvaux.github.io/abel/
+  base: '/abel/',
   plugins: [react()],
   resolve: {
     alias: {

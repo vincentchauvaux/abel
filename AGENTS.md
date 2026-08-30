@@ -38,7 +38,9 @@ src/
 - **App web** : GitHub Pages — `https://vincentchauvaux.github.io/abel/`
 - **API / sync** : VPS OVH `https://vps-e09ed6db.vps.ovh.net/abel/api/` (Node `127.0.0.1:3030`, PostgreSQL local)
 
-Pages se déploie via GitHub Actions (workflow `.github/workflows/pages.yml`). Déploiement API : `deploy/bootstrap-vps.sh` (snippet `deploy/nginx-abel.conf.example`).
+Pages se déploie via GitHub Actions (workflow `.github/workflows/pages.yml`). Dans le repo : **Settings → Pages → Source = GitHub Actions** (pas « Deploy from a branch », sinon écran blanc / 404 sur `main.tsx`).
+
+Déploiement API : `deploy/bootstrap-vps.sh` (snippet `deploy/nginx-abel.conf.example`).
 
 En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/`.
 
