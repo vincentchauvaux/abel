@@ -147,6 +147,7 @@ ALTER TABLE babies ADD COLUMN IF NOT EXISTS born_on DATE;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS bottle_ml INTEGER;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS bottle_minutes INTEGER;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS diaper_minutes INTEGER;
+ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS diaper_when TEXT;
 ALTER TABLE bottle_feeds ADD COLUMN IF NOT EXISTS pumping_session_id UUID;
 ALTER TABLE pumping_sessions ADD COLUMN IF NOT EXISTS remaining_ml INTEGER;
 ALTER TABLE bottle_feeds ALTER COLUMN amount_ml DROP NOT NULL;

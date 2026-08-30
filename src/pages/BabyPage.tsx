@@ -17,25 +17,20 @@ import type { BottleFeed, DiaperEvent, FeedingSession, ReminderRule, SleepSessio
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem } from '@/lib/activity';
 import { formatAge, formatDateTime, formatFromNow, formatLongDate, formatTime, parseDecimal, startOfLocalDay } from '@/lib/dates';
-import { formatGoalMl, DIAPER_AFTER_MEAL_PRESETS, INTERVAL_PRESETS, ML_PRESETS } from '@/lib/goals';
+import {
+  DIAPER_MEAL_PRESETS,
+  diaperReminderAt,
+  formatBottleGoal,
+  formatDiaperGoal,
+  formatEvery,
+  formatGoalMl,
+  INTERVAL_PRESETS,
+  ML_PRESETS,
+  type DiaperWhen,
+} from '@/lib/goals';
 import { fetchDailyHoroscope } from '@/lib/horoscope-api';
 import { HOROSCOPE_DISCLAIMER, horoscopeFor } from '@/lib/horoscope';
-import { lastMealAt, notifyAfterMs } from '@/lib/reminders';
-
-function formatEvery(minutes: number): string {
-  if (minutes <= 0) return 'aucun rappel';
-  if (minutes % 60 === 0) {
-    const h = minutes / 60;
-    return h === 1 ? 'toutes les 1 h' : `toutes les ${h} h`;
-  }
-  return `toutes les ${minutes} min`;
-}
-
-function formatDiaperAfter(minutes: number): string {
-  if (minutes <= 0) return 'aucun rappel';
-  if (minutes === 60) return '1 h après le repas';
-  return `${minutes} min après le repas`;
-}
+import { lastMealAt, notifyDiaperFromGoals } from '@/lib/reminders';
 
 export function BabyPage() {
   const { baby, tick } = useDb();
@@ -129,7 +124,8 @@ export function BabyPage() {
   const delay = goals?.delayMinutes ?? 0;
   const bottleMl = goals?.bottleMl ?? null;
   const bottleEvery = goals?.bottleMinutes === null || goals?.bottleMinutes === undefined ? delay : goals.bottleMinutes;
-  const diaperAfter = goals?.diaperMinutes ?? 0;
+  const diaperOffset = goals?.diaperMinutes ?? 0;
+  const diaperWhen: DiaperWhen = goals?.diaperWhen === 'before' ? 'before' : 'after';
   const todayMl = bottles
     .filter((row) => row.fedAt >= startOfLocalDay().toISOString())
     .reduce((sum, row) => sum + row.amountMl, 0);
@@ -175,19 +171,22 @@ export function BabyPage() {
     const lastLine = lastDiaper
       ? `Dernière couche à ${formatTime(lastDiaper.occurredAt)}.`
       : 'Pas encore de couche.';
-    if (diaperAfter <= 0) return lastLine;
+    if (diaperOffset <= 0) return lastLine;
     if (!mealAt) return `${lastLine} Pas encore de repas pour démarrer le rappel.`;
-    if (lastDiaper && lastDiaper.occurredAt >= mealAt) {
-      return `Couche déjà notée après le dernier repas · ${formatTime(lastDiaper.occurredAt)}.`;
+    if (diaperWhen === 'before' && delay <= 0) {
+      return `${lastLine} Définis un intervalle de tétées pour le rappel avant le repas.`;
     }
-    const fire = new Date(mealAt);
-    fire.setMinutes(fire.getMinutes() + diaperAfter);
+    const fire = diaperReminderAt(mealAt, delay, diaperWhen, diaperOffset);
     const iso = fire.toISOString();
-    if (fire.getTime() > now) {
-      return `Rappel couche ${formatFromNow(iso, now)} (après le repas de ${formatTime(mealAt)}).`;
+    if (lastDiaper && lastDiaper.occurredAt >= iso) {
+      return `Couche déjà notée · ${formatTime(lastDiaper.occurredAt)}.`;
     }
-    return `Rappel couche dépassé ${formatFromNow(iso, now)} (repas ${formatTime(mealAt)}).`;
-  }, [lastDiaper, diaperAfter, mealAt, now]);
+    const whenLabel = diaperWhen === 'before' ? 'avant le prochain repas' : 'après le repas';
+    if (fire.getTime() > now) {
+      return `Rappel couche ${formatFromNow(iso, now)} (${whenLabel}, repas ${formatTime(mealAt)}).`;
+    }
+    return `Rappel couche dépassé ${formatFromNow(iso, now)} (${whenLabel}).`;
+  }, [lastDiaper, diaperOffset, diaperWhen, mealAt, delay, now]);
 
   const saveIdentity = () => {
     if (!baby) return;
@@ -198,17 +197,10 @@ export function BabyPage() {
   const saveGoals = async (patch: Parameters<typeof upsertCareGoals>[1]) => {
     if (!baby) return;
     await upsertCareGoals(baby.id, patch);
-    const after = patch.diaperMinutes;
-    if (after != null && after > 0 && mealAt) {
-      const remaining = after * 60_000 - (Date.now() - new Date(mealAt).getTime());
-      if (remaining > 0 && (!lastDiaper || lastDiaper.occurredAt < mealAt)) {
-        await notifyAfterMs(remaining, 'Rappel couche après le repas');
-      }
-    }
+    const next = await getReminder(baby.id);
+    setGoals(next);
+    if (mealAt) await notifyDiaperFromGoals(next, mealAt);
   };
-
-  const bottleEveryLabel =
-    goals?.bottleMinutes == null ? `comme tétée (${formatEvery(delay)})` : formatEvery(goals.bottleMinutes);
 
   return (
     <div className="screen">
@@ -305,7 +297,9 @@ export function BabyPage() {
               }}>
               OK tétées
             </Button>
-            <p className="goal-label">Biberon toutes les</p>
+            <p className="goal-label">Biberon</p>
+            <p className="muted">Fréquence et quantité par repas (optionnel).</p>
+            <p className="goal-label">Toutes les</p>
             <div className="row">
               <Chip
                 label="Comme tétée"
@@ -336,11 +330,11 @@ export function BabyPage() {
                 const n = Number.parseInt(customBottle, 10);
                 if (Number.isFinite(n) && n >= 0) void saveGoals({ bottleMinutes: n });
               }}>
-              OK biberon
+              OK fréquence
             </Button>
-            <p className="goal-label">Lait par repas</p>
+            <p className="goal-label">Quantité par repas</p>
             <div className="row">
-              <Chip label="Aucun" selected={bottleMl == null} onClick={() => void saveGoals({ bottleMl: null })} />
+              <Chip label="Aucune" selected={bottleMl == null} onClick={() => void saveGoals({ bottleMl: null })} />
               {ML_PRESETS.map((item) => (
                 <Chip
                   key={item.ml}
@@ -359,15 +353,29 @@ export function BabyPage() {
               }}>
               OK quantité
             </Button>
-            <p className="goal-label">Couche après le repas</p>
-            <p className="muted">Rappel X minutes après la dernière tétée ou le dernier biberon (si Abel reste ouvert).</p>
+            <p className="goal-label">Couche</p>
             <div className="row">
-              {DIAPER_AFTER_MEAL_PRESETS.map((item) => (
+              <Chip
+                label="Après le repas"
+                selected={diaperWhen === 'after'}
+                onClick={() => void saveGoals({ diaperWhen: 'after' })}
+              />
+              <Chip
+                label="Avant le repas"
+                selected={diaperWhen === 'before'}
+                onClick={() => void saveGoals({ diaperWhen: 'before' })}
+              />
+            </div>
+            <p className="muted">
+              Rappel X minutes avant ou après la dernière tétée ou le dernier biberon (si Abel reste ouvert).
+            </p>
+            <div className="row">
+              {DIAPER_MEAL_PRESETS.map((item) => (
                 <Chip
                   key={`diap-${item.minutes}`}
                   label={item.label}
-                  selected={diaperAfter === item.minutes}
-                  onClick={() => void saveGoals({ diaperMinutes: item.minutes })}
+                  selected={diaperOffset === item.minutes}
+                  onClick={() => void saveGoals({ diaperMinutes: item.minutes, diaperWhen })}
                 />
               ))}
             </div>
@@ -387,15 +395,11 @@ export function BabyPage() {
             </div>
             <div className="info-line">
               <span className="muted">Biberon</span>
-              <strong>{bottleEveryLabel}</strong>
-            </div>
-            <div className="info-line">
-              <span className="muted">Lait par repas</span>
-              <strong>{bottleMl ? formatGoalMl(bottleMl) : 'non défini'}</strong>
+              <strong>{formatBottleGoal(goals?.bottleMinutes, delay, bottleMl)}</strong>
             </div>
             <div className="info-line">
               <span className="muted">Couche</span>
-              <strong>{formatDiaperAfter(diaperAfter)}</strong>
+              <strong>{formatDiaperGoal(diaperWhen, diaperOffset)}</strong>
             </div>
           </>
         )}

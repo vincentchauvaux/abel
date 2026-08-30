@@ -7,7 +7,7 @@ import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, MilkType, PumpingSession } from '@/db/types';
 import { formatDateTime, formatTime, nowIso, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import { milkLabel } from '@/lib/labels';
-import { notifyIn } from '@/lib/reminders';
+import { notifyDiaperFromGoals } from '@/lib/reminders';
 
 export function BottlePage() {
   const { baby, tick } = useDb();
@@ -16,7 +16,7 @@ export function BottlePage() {
   const [milkType, setMilkType] = useState<MilkType>('FORMULA');
   const [amount, setAmount] = useState('');
   const [goalMl, setGoalMl] = useState<number | null>(null);
-  const [diaperAfter, setDiaperAfter] = useState(0);
+  const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [stockId, setStockId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function BottlePage() {
       ([rows, goals, available]) => {
         setFeeds(rows);
         setGoalMl(goals?.bottleMl ?? null);
-        setDiaperAfter(goals?.diaperMinutes ?? 0);
+        setGoals(goals);
         setStock(available);
       },
     );
@@ -104,11 +104,12 @@ export function BottlePage() {
             if (ml === null || ml <= 0) return;
             const qty = Math.round(ml);
             if (stockId && selected && qty > (selected.remainingMl ?? 0)) return;
+            const fedAt = nowIso();
             try {
-              await addBottle(baby.id, milkType, qty, nowIso(), milkType === 'BREAST_MILK' ? stockId : null);
+              await addBottle(baby.id, milkType, qty, fedAt, milkType === 'BREAST_MILK' ? stockId : null);
               setAmount('');
               setStockId(null);
-              await notifyIn(diaperAfter, 'Rappel couche après le repas');
+              await notifyDiaperFromGoals(goals, fedAt);
             } catch {
               window.alert('Stock insuffisant pour cette quantité.');
             }

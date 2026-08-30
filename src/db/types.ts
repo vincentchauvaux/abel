@@ -63,6 +63,8 @@ export type Measurement = Stamp & {
   unit: string;
   measuredAt: string;
 };
+export type DiaperWhen = 'before' | 'after';
+
 export type ReminderRule = Stamp & {
   id: string;
   babyId: string;
@@ -71,6 +73,7 @@ export type ReminderRule = Stamp & {
   bottleMl: number | null;
   bottleMinutes: number | null;
   diaperMinutes: number | null;
+  diaperWhen: DiaperWhen | null;
 };
 export type SolidFood = Stamp & {
   id: string;

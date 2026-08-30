@@ -1,4 +1,5 @@
 import { SYNC_URL } from '@/lib/google';
+import { dailyLineFor, todayKey } from '@/lib/horoscope-daily';
 import { horoscopeFor } from '@/lib/horoscope';
 
 export type DailyHoroscope = {
@@ -6,19 +7,16 @@ export type DailyHoroscope = {
   source: 'api' | 'cache' | 'offline';
 };
 
-const cacheKey = (signEn: string, day: string) => `abel-horoscope:${signEn}:${day}`;
-
-function todayKey() {
-  return new Date().toISOString().slice(0, 10);
-}
+const cacheKey = (signEn: string, day: string) => `abel-horoscope-v2:${signEn}:${day}`;
 
 export async function fetchDailyHoroscope(bornOn: string): Promise<DailyHoroscope> {
   const { signEn } = horoscopeFor(bornOn);
   const day = todayKey();
   const stored = localStorage.getItem(cacheKey(signEn, day));
   if (stored) return { text: stored, source: 'cache' };
+  const localFallback = dailyLineFor(signEn, day) || horoscopeFor(bornOn).line;
   if (!navigator.onLine) {
-    return { text: horoscopeFor(bornOn).line, source: 'offline' };
+    return { text: localFallback, source: 'offline' };
   }
   try {
     const res = await fetch(`${SYNC_URL}/horoscope?sign=${encodeURIComponent(signEn)}`, {
@@ -31,6 +29,6 @@ export async function fetchDailyHoroscope(bornOn: string): Promise<DailyHoroscop
     localStorage.setItem(cacheKey(signEn, day), text);
     return { text, source: 'api' };
   } catch {
-    return { text: horoscopeFor(bornOn).line, source: 'offline' };
+    return { text: localFallback, source: 'offline' };
   }
 }

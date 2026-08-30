@@ -142,6 +142,7 @@ const TABLES = {
       bottleMl: 'bottle_ml',
       bottleMinutes: 'bottle_minutes',
       diaperMinutes: 'diaper_minutes',
+      diaperWhen: 'diaper_when',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',

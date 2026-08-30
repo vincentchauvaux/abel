@@ -21,7 +21,7 @@ import { useDb } from '@/db/DbProvider';
 import type { DiaperKind, MeasurementType, MilkType, PumpingSession, Side } from '@/db/types';
 import { formatTime, fromDatetimeLocalValue, parseDecimal, toDatetimeLocalValue } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
-import { notifyIn } from '@/lib/reminders';
+import { notifyDiaperFromGoals } from '@/lib/reminders';
 import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
 
 export type SmartEntryType =
@@ -76,7 +76,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [stock, setStock] = useState<PumpingSession[]>([]);
   const [stockId, setStockId] = useState<string | null>(null);
   const [goalMl, setGoalMl] = useState<number | null>(null);
-  const [diaperAfter, setDiaperAfter] = useState(0);
+  const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [useTimer, setUseTimer] = useState(false);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
@@ -93,7 +93,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     Promise.all([listMilkStock(baby.id), getReminder(baby.id)]).then(([available, goals]) => {
       setStock(available);
       setGoalMl(goals?.bottleMl ?? null);
-      setDiaperAfter(goals?.diaperMinutes ?? 0);
+      setGoals(goals);
     });
   }, [baby, tick]);
 
@@ -132,8 +132,9 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
       navigate('/feeding');
       return;
     }
-    await logFeedingNow(baby.id, chosen, atIso());
-    await notifyIn(diaperAfter, 'Rappel couche après le repas');
+    const at = atIso();
+    await logFeedingNow(baby.id, chosen, at);
+    await notifyDiaperFromGoals(goals, at);
     await finish(`Tétée ${sideLabel[chosen].toLowerCase()} notée`);
   };
 
@@ -165,7 +166,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           return;
         }
         await addBottle(baby.id, milkType, qty, at, milkType === 'BREAST_MILK' ? stockId : null);
-        await notifyIn(diaperAfter, 'Rappel couche après le repas');
+        await notifyDiaperFromGoals(goals, at);
         await finish(`Biberon ${qty} ml noté`);
         return;
       }

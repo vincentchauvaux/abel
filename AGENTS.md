@@ -83,9 +83,9 @@ Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordem
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon toutes les X h, ml/cl par repas, **couche X min après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
+Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon : fréquence + ml/cl par repas sur une ligne, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
 
-Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml. Le rappel couche (`diaperMinutes`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
+Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
 
 ## Auth Google
 
@@ -104,7 +104,7 @@ Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus
 API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
 - URL : `https://vps-e09ed6db.vps.ovh.net/abel/api/`
-- Horoscope du jour : `GET /horoscope?sign=taurus` (proxy public, cache 1 jour, hors connexion = texte local)
+- Horoscope du jour : `GET /horoscope?sign=taurus` (proxy ohmanda / viewbits, traduction FR, repli local par jour)
 - Suppression compte : `DELETE /account` (auth Google, soft-delete toutes les données liées)
 - Auth : jeton Google Identity Services (même Client ID que le front)
 - Offline-first : IndexedDB d’abord, envoi dès qu’il y a réseau + session Google
@@ -166,7 +166,7 @@ babies (name, bornOn)
  ├── sleep_sessions
  ├── temperatures
  ├── notes
- └── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes)
+ └── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes, diaperWhen)
 ```
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.

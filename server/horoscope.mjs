@@ -1,3 +1,5 @@
+import { dailyLineFor } from './horoscope-daily.mjs';
+
 const cache = new Map();
 
 const SIGNS = new Set([
@@ -28,33 +30,31 @@ async function readJson(res) {
   }
 }
 
-async function fromAztro(sign) {
-  const res = await fetch(`https://aztro.sameerkumar.website/?sign=${sign}&day=today`, {
-    method: 'POST',
+async function fromOhmanda(sign) {
+  const res = await fetch(`https://ohmanda.com/api/horoscope/${sign}`, {
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) throw new Error('aztro');
+  if (!res.ok) throw new Error('ohmanda');
   const data = await readJson(res);
-  const description = data?.description;
-  if (!description) throw new Error('aztro-empty');
-  return String(description);
+  const text = data?.horoscope;
+  if (!text) throw new Error('ohmanda-empty');
+  return String(text);
 }
 
-async function fromVercel(sign) {
-  const res = await fetch(
-    `https://horoscope-app-api.vercel.app/api/v1/get-horoscope/daily?sign=${sign}&day=TODAY`,
-    { signal: AbortSignal.timeout(8000) },
-  );
-  if (!res.ok) throw new Error('vercel');
+async function fromViewbits(sign) {
+  const res = await fetch(`https://api.viewbits.com/v1/horoscope?sign=${sign}`, {
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error('viewbits');
   const data = await readJson(res);
-  const text = data?.data?.horoscope_data || data?.horoscope_data || data?.horoscope;
-  if (!text) throw new Error('vercel-empty');
+  const text = data?.prediction;
+  if (!text) throw new Error('viewbits-empty');
   return String(text);
 }
 
 async function toFrench(text) {
   if (!text) return '';
-  const looksEnglish = /\b(the|and|you|your|today|energy)\b/i.test(text);
+  const looksEnglish = /\b(the|and|you|your|today|energy|dear)\b/i.test(text);
   if (!looksEnglish) return text;
   const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text.slice(0, 450))}&langpair=en|fr`;
   const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -67,23 +67,33 @@ async function toFrench(text) {
 export async function dailyHoroscope(sign) {
   const key = String(sign || '').toLowerCase();
   if (!SIGNS.has(key)) return null;
-  const cacheId = `${key}:${todayKey()}`;
+  const day = todayKey();
+  const cacheId = `${key}:${day}`;
   if (cache.has(cacheId)) return cache.get(cacheId);
+
   let raw = '';
-  let source = 'offline';
+  let source = 'local';
   try {
-    raw = await fromAztro(key);
-    source = 'aztro';
+    raw = await fromOhmanda(key);
+    source = 'ohmanda';
   } catch {
     try {
-      raw = await fromVercel(key);
-      source = 'vercel';
+      raw = await fromViewbits(key);
+      source = 'viewbits';
     } catch {
       raw = '';
     }
   }
-  const daily = raw ? await toFrench(raw) : '';
-  const payload = { sign: key, daily, source, day: todayKey() };
+
+  let daily = '';
+  if (raw) {
+    daily = await toFrench(raw);
+    source = `${source}-fr`;
+  } else {
+    daily = dailyLineFor(key, day);
+  }
+
+  const payload = { sign: key, daily, source, day };
   if (daily) cache.set(cacheId, payload);
   return payload;
 }

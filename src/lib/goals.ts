@@ -1,3 +1,5 @@
+export type DiaperWhen = 'before' | 'after';
+
 export const INTERVAL_PRESETS = [
   { label: 'Aucun', minutes: 0 },
   { label: '1 h', minutes: 60 },
@@ -6,14 +8,17 @@ export const INTERVAL_PRESETS = [
   { label: '4 h', minutes: 240 },
 ];
 
-/** Rappel couche : délai après le dernier repas (tétée ou biberon). */
-export const DIAPER_AFTER_MEAL_PRESETS = [
+/** Rappel couche : délai avant ou après le repas. */
+export const DIAPER_MEAL_PRESETS = [
   { label: 'Aucun', minutes: 0 },
   { label: '15 min', minutes: 15 },
   { label: '30 min', minutes: 30 },
   { label: '45 min', minutes: 45 },
   { label: '1 h', minutes: 60 },
 ];
+
+/** @deprecated utiliser DIAPER_MEAL_PRESETS */
+export const DIAPER_AFTER_MEAL_PRESETS = DIAPER_MEAL_PRESETS;
 
 export const ML_PRESETS = [
   { label: '90 ml', ml: 90 },
@@ -31,4 +36,48 @@ export function formatGoalMl(ml: number): string {
     if (cl % 1 === 0) return `${ml} ml (${cl} cl)`;
   }
   return `${ml} ml`;
+}
+
+export function formatEvery(minutes: number): string {
+  if (minutes <= 0) return 'aucun rappel';
+  if (minutes % 60 === 0) {
+    const h = minutes / 60;
+    return h === 1 ? 'toutes les 1 h' : `toutes les ${h} h`;
+  }
+  return `toutes les ${minutes} min`;
+}
+
+/** Libellé biberon : fréquence (+ quantité optionnelle). */
+export function formatBottleGoal(
+  bottleMinutes: number | null | undefined,
+  feedingMinutes: number,
+  bottleMl: number | null | undefined,
+): string {
+  const every =
+    bottleMinutes == null ? formatEvery(feedingMinutes) : formatEvery(bottleMinutes);
+  if (bottleMl && bottleMl > 0) return `${every} · ${formatGoalMl(bottleMl)}`;
+  return every;
+}
+
+export function formatDiaperGoal(when: DiaperWhen | null | undefined, minutes: number): string {
+  if (minutes <= 0) return 'aucun rappel';
+  const offset = minutes === 60 ? '1 h' : `${minutes} min`;
+  if (when === 'before') return `${offset} avant le repas`;
+  return `${offset} après le repas`;
+}
+
+/** Heure du rappel couche à partir du dernier repas et de l’intervalle repas (tétées). */
+export function diaperReminderAt(
+  mealAt: string,
+  mealIntervalMinutes: number,
+  when: DiaperWhen,
+  offsetMinutes: number,
+): Date {
+  const base = new Date(mealAt);
+  if (when === 'after') {
+    base.setMinutes(base.getMinutes() + offsetMinutes);
+    return base;
+  }
+  base.setMinutes(base.getMinutes() + Math.max(0, mealIntervalMinutes - offsetMinutes));
+  return base;
 }

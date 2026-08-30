@@ -14,7 +14,7 @@ import { useDb } from '@/db/DbProvider';
 import type { FeedingSession, PumpingSession, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatTime } from '@/lib/dates';
-import { notifyIn } from '@/lib/reminders';
+import { notifyDiaperFromGoals, notifyIn } from '@/lib/reminders';
 
 type ActiveItem =
   | { kind: 'feeding'; row: FeedingSession }
@@ -26,7 +26,7 @@ export function ActiveNowPanel() {
   const navigate = useNavigate();
   const [items, setItems] = useState<ActiveItem[]>([]);
   const [delay, setDelay] = useState(0);
-  const [diaperAfter, setDiaperAfter] = useState(0);
+  const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const now = useNow(items.length > 0);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export function ActiveNowPanel() {
         if (openPump) next.push({ kind: 'pumping', row: openPump });
         setItems(next);
         setDelay(reminder?.delayMinutes ?? 0);
-        setDiaperAfter(reminder?.diaperMinutes ?? 0);
+        setGoals(reminder);
       },
     );
   }, [baby, tick]);
@@ -53,9 +53,9 @@ export function ActiveNowPanel() {
   if (items.length === 0) return null;
 
   const stopFeed = async (id: string) => {
-    await stopFeeding(id);
+    const endedAt = await stopFeeding(id);
     await notifyIn(delay, 'Rappel tétée');
-    await notifyIn(diaperAfter, 'Rappel couche après le repas');
+    await notifyDiaperFromGoals(goals, endedAt);
   };
 
   return (

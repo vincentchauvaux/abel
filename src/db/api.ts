@@ -4,6 +4,7 @@ import type {
   BottleFeed,
   DiaperEvent,
   DiaperKind,
+  DiaperWhen,
   FeedingSegment,
   FeedingSession,
   Measurement,
@@ -59,6 +60,7 @@ export async function ensureBaby(): Promise<Baby> {
     bottleMl: null,
     bottleMinutes: null,
     diaperMinutes: null,
+    diaperWhen: null,
     createdAt: now,
     updatedAt: now,
     deletedAt: null,
@@ -364,6 +366,7 @@ export type CareGoalsPatch = {
   bottleMl?: number | null;
   bottleMinutes?: number | null;
   diaperMinutes?: number | null;
+  diaperWhen?: DiaperWhen | null;
 };
 
 export async function upsertCareGoals(babyId: string, patch: CareGoalsPatch) {
@@ -372,12 +375,17 @@ export async function upsertCareGoals(babyId: string, patch: CareGoalsPatch) {
   const bottleMl = patch.bottleMl !== undefined ? patch.bottleMl : (existing?.bottleMl ?? null);
   const bottleMinutes = patch.bottleMinutes !== undefined ? patch.bottleMinutes : (existing?.bottleMinutes ?? null);
   const diaperMinutes = patch.diaperMinutes !== undefined ? patch.diaperMinutes : (existing?.diaperMinutes ?? null);
+  const diaperWhen =
+    patch.diaperWhen !== undefined
+      ? patch.diaperWhen
+      : existing?.diaperWhen ?? (diaperMinutes && diaperMinutes > 0 ? 'after' : null);
   const values = {
     delayMinutes,
     enabled: delayMinutes > 0 || (bottleMinutes ?? 0) > 0 || (diaperMinutes ?? 0) > 0,
     bottleMl,
     bottleMinutes,
     diaperMinutes,
+    diaperWhen,
     ...touch(),
   };
   if (existing) {
@@ -391,6 +399,7 @@ export async function upsertCareGoals(babyId: string, patch: CareGoalsPatch) {
       bottleMl,
       bottleMinutes,
       diaperMinutes,
+      diaperWhen,
       ...stamp(),
     });
   }
