@@ -3,8 +3,6 @@ set -euo pipefail
 
 REPO=https://github.com/vincentchauvaux/abel.git
 ROOT=/opt/abel
-ABEL_DOMAIN="${ABEL_DOMAIN:-abel.be}"
-WEB_ROOT=/var/www/abel
 
 if [ -d "$ROOT/.git" ]; then
   git -C "$ROOT" fetch origin
@@ -54,9 +52,7 @@ else
   fi
 fi
 
-GOOGLE_ID=$(grep '^GOOGLE_CLIENT_ID=' "$ROOT/server/.env" | cut -d= -f2-)
-
-# Schéma / migrations
+# Schéma / migrations (amount_ml nullable, remaining_ml, pumping_session_id, etc.)
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d abel -f "$ROOT/server/schema.sql" >/dev/null
 
 # Rate limit zone (une fois dans http {})
@@ -64,32 +60,15 @@ if ! grep -q 'zone=abel_api' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=abel_api:10m rate=30r/m;' /etc/nginx/nginx.conf
 fi
 
-# API legacy sur le hostname VPS
+# API sur le hostname VPS (le front reste sur GitHub Pages)
 cp "$ROOT/deploy/nginx-abel.conf.example" /etc/nginx/snippets/abel.conf
 if ! grep -q 'snippets/abel.conf' /etc/nginx/sites-enabled/streamtv; then
   sed -i '/include snippets\/hakou-live.conf;/a\    include snippets/abel.conf;' /etc/nginx/sites-enabled/streamtv
 fi
 
-# Site web sur abel.be
-cd "$ROOT"
-npm ci
-VITE_BASE_PATH=/ \
-VITE_SYNC_URL="https://${ABEL_DOMAIN}/api" \
-VITE_GOOGLE_CLIENT_ID="${GOOGLE_ID}" \
-npm run build
-rm -rf "$WEB_ROOT"
-mkdir -p "$WEB_ROOT"
-cp -a dist/. "$WEB_ROOT/"
+# Désactiver un éventuel vhost abel.be (front = GitHub Pages)
+rm -f /etc/nginx/sites-enabled/abel.be
 
-cp "$ROOT/deploy/nginx-abel.be.conf.example" /etc/nginx/sites-available/abel.be
-ln -sf /etc/nginx/sites-available/abel.be /etc/nginx/sites-enabled/abel.be
-nginx -t
-systemctl reload nginx
-
-if ! certbot certificates 2>/dev/null | grep -q "${ABEL_DOMAIN}"; then
-  certbot --nginx -d "${ABEL_DOMAIN}" -d "www.${ABEL_DOMAIN}" --non-interactive --agree-tos --redirect || \
-    echo "Certbot : en attente du DNS (A @ et www → $(hostname -I | awk '{print $1}'))" >&2
-fi
 nginx -t
 systemctl reload nginx
 
@@ -101,6 +80,6 @@ pm2 save
 sleep 1
 curl -fsS http://127.0.0.1:3030/health
 echo
-curl -fsSk "https://${ABEL_DOMAIN}/api/health" || curl -fsS "http://${ABEL_DOMAIN}/api/health" || true
+curl -fsS https://127.0.0.1/abel/api/health --resolve vps-e09ed6db.vps.ovh.net:443:127.0.0.1 || curl -fsSk https://vps-e09ed6db.vps.ovh.net/abel/api/health
 echo
-echo "DEPLOY_OK https://${ABEL_DOMAIN}/"
+echo DEPLOY_OK

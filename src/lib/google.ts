@@ -8,7 +8,7 @@ export type GoogleUser = {
 const STORAGE_KEY = 'abel-google-user';
 const TOKEN_KEY = 'abel-google-token';
 export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
-export const SYNC_URL = (import.meta.env.VITE_SYNC_URL || 'https://abel.be/api').replace(
+export const SYNC_URL = (import.meta.env.VITE_SYNC_URL || 'https://vps-e09ed6db.vps.ovh.net/abel/api').replace(
   /\/$/,
   '',
 );

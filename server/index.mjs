@@ -26,8 +26,6 @@ const PORT = Number(process.env.PORT || 3030);
 const DATABASE_URL = process.env.DATABASE_URL;
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const ALLOWED_ORIGINS = new Set([
-  'https://abel.be',
-  'https://www.abel.be',
   'https://vincentchauvaux.github.io',
   'http://localhost:5173',
   'http://127.0.0.1:5173',
