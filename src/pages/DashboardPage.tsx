@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { Card, Chip } from '@/components/ui';
 import {
   getReminder,
@@ -116,6 +117,7 @@ export function DashboardPage() {
   return (
     <div className="screen">
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
+      <ActiveNowPanel />
       <div className="row">
         {([
           ['today', 'Aujourd’hui'],

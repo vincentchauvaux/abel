@@ -21,7 +21,9 @@ Bébé | Outils (accueil) ↔ Dashboard (bouton central) | Profil (Google)
 
 Tab bar : **Bébé** (identité, objectifs, horoscope, alertes, **formulaire intelligent pour noter tout outil**, **journal éditable**) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (compte Google, sync).
 
-Menu du bas en **position fixed** (sticky bottom). Les en-têtes de module (`←`) ramènent toujours à Outils. L’onglet Apports/Suivi est **conservé** au retour depuis un module.
+Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours à Outils. L’onglet Apports/Suivi est **conservé** au retour depuis un module.
+
+Activités en cours (tétée minuteur, sommeil, tire-lait à compléter) : bandeau sur **Outils** (au-dessus d’Apports/Suivi) et sur **Dashboard** (sous le titre), avec bouton Terminer / Réveil / Ouvrir.
 
 ## Arborescence
 

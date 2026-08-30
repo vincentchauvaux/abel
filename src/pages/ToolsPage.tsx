@@ -2,6 +2,7 @@ import { Apple, ClipboardPen, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Sc
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
 
 export function ToolsPage() {
@@ -35,6 +36,7 @@ export function ToolsPage() {
   return (
     <div className="screen">
       <h1>Outils</h1>
+      <ActiveNowPanel />
       <div className="switch">
         <button type="button" className={section === 'apports' ? 'on' : ''} onClick={() => choose('apports')}>
           Apports
