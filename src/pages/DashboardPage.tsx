@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
 
+import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { MealPie } from '@/components/MealPie';
 import { PeriodSelector } from '@/components/PeriodSelector';
@@ -94,6 +94,7 @@ export function DashboardPage() {
   const [measures, setMeasures] = useState<Measurement[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [goals, setGoals] = useState<ReminderRule | undefined>();
+  const [notesOpen, setNotesOpen] = useState(false);
   const now = useNow(true, 30_000);
 
   useEffect(() => {
@@ -153,11 +154,14 @@ export function DashboardPage() {
   const diaperCount = diapers.filter((row) => inRange(row.occurredAt)).length;
   const solidsCount = solids.filter((row) => inRange(row.eatenAt)).length;
   const supplementsCount = supplements.filter((row) => inRange(row.givenAt)).length;
-  const notesCount = notes.filter((row) => inRange(row.notedAt)).length;
   const openNoteTodos = useMemo(
     () => notes.filter((row) => row.isTodo && !row.doneAt),
     [notes],
   );
+
+  const toggleNotesSection = (id: string) => {
+    if (id === 'notes') setNotesOpen((open) => !open);
+  };
   const tempsCount = temperatures.filter((row) => inRange(row.measuredAt)).length;
 
   const lastFeed = sessions[0];
@@ -336,31 +340,46 @@ export function DashboardPage() {
             sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
           />
         </div>
-        <div className="stat stat-notes">
-          <div className="stat-notes-head">
-            <span className="muted">Notes</span>
-            {openNoteTodos.length > 0 ? (
-              <span className="stat-sub muted">{openNoteTodos.length} à faire</span>
-            ) : null}
-          </div>
-          <Link to="/notes" className="stat-notes-btn">
-            Voir les notes
-          </Link>
-          {notesCount > 0 ? (
-            <span className="stat-sub muted">{notesCount} sur la période</span>
-          ) : null}
-        </div>
       </div>
-      {openNoteTodos.length > 0 ? (
-        <div className="dash-note-todos">
-          {openNoteTodos.map((row) => (
-            <label key={row.id} className="dash-note-todo">
-              <input type="checkbox" onChange={() => void completeNoteTodo(row.id)} />
-              <span>{row.body}</span>
-            </label>
-          ))}
-        </div>
-      ) : null}
+
+      <AccordionSection
+        id="notes"
+        title="Notes"
+        open={notesOpen}
+        onToggle={toggleNotesSection}
+        action={
+          openNoteTodos.length > 0 ? (
+            <span className="dash-notes-badge">{openNoteTodos.length} à faire</span>
+          ) : notes.length > 0 ? (
+            <span className="dash-notes-badge muted">{notes.length}</span>
+          ) : null
+        }>
+        {notes.length === 0 ? (
+          <p className="muted">Pas encore de note.</p>
+        ) : (
+          <div className="dash-notes-list">
+            {notes.map((row) =>
+              row.isTodo && !row.doneAt ? (
+                <label key={row.id} className="dash-note-todo">
+                  <input type="checkbox" onChange={() => void completeNoteTodo(row.id)} />
+                  <span>
+                    <span className="muted dash-note-date">{formatDateTime(row.notedAt)}</span>
+                    {row.body}
+                  </span>
+                </label>
+              ) : (
+                <div key={row.id} className="dash-note-item">
+                  <span className="muted">
+                    {formatDateTime(row.notedAt)}
+                    {row.isTodo && row.doneAt ? ' · fait' : ''}
+                  </span>
+                  <p>{row.body}</p>
+                </div>
+              ),
+            )}
+          </div>
+        )}
+      </AccordionSection>
 
       <Card>
         <h2>Alertes</h2>

@@ -68,7 +68,7 @@ Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports 
 | Croissance | Poids (kg), taille (cm), périmètre crânien (cm). |
 | Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. |
 | Température | Saisie °C uniquement. |
-| Notes | Texte libre. Case **À faire** = rappel sur le dashboard (coche pour marquer fait ; reste dans le journal, réouvrable depuis l’édition journal). Dashboard : bouton **Voir les notes**. |
+| Notes | Texte libre. Case **À faire** = rappel sur le dashboard (accordéon Notes : liste complète, coche pour marquer fait ; réouvrable depuis le journal). |
 
 ### Rappels repas
 
@@ -78,7 +78,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Cartes **Apports** : repas (tarte sein / biberon, récap sans les zéros), diversification, compléments. **Graphiques** : repas (total par jour), sommeil, couches. **Suivi** : couches, sommeil, stock lait, tiré (période), poids/taille/PC, temp. (libellé abrégé), notes. **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique en bas de page.
+Cartes **Apports** : repas (tarte sein / biberon, récap sans les zéros), diversification, compléments. **Graphiques** : repas (total par jour), sommeil, couches. **Suivi** : couches, sommeil, stock lait, tiré (période), poids/taille/PC, temp. (libellé abrégé). **Accordéon Notes** : toutes les notes, todos cochables. **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique en bas de page.
 
 ## Page Bébé
 

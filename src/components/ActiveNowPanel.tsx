@@ -62,9 +62,9 @@ export function ActiveNowPanel() {
         if (item.kind === 'feeding') {
           return (
             <div className="active-now-row" key={`feeding-${item.row.id}`}>
-              <div>
+              <div className="active-now-text">
                 <strong>Tétée en cours</strong>
-                <p className="muted">
+                <p className="muted active-now-meta">
                   Depuis {formatTime(item.row.startedAt)} ·{' '}
                   {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
                 </p>
@@ -76,9 +76,9 @@ export function ActiveNowPanel() {
         if (item.kind === 'sleep') {
           return (
             <div className="active-now-row" key={`sleep-${item.row.id}`}>
-              <div>
+              <div className="active-now-text">
                 <strong>Sommeil en cours</strong>
-                <p className="muted">
+                <p className="muted active-now-meta">
                   Depuis {formatTime(item.row.startedAt)} ·{' '}
                   {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
                 </p>
@@ -89,9 +89,11 @@ export function ActiveNowPanel() {
         }
         return (
           <div className="active-now-row" key={`pumping-${item.row.id}`}>
-            <div>
+            <div className="active-now-text">
               <strong>Tire-lait à compléter</strong>
-              <p className="muted">Début {formatTime(item.row.startedAt)} — manque la quantité</p>
+              <p className="muted active-now-meta">
+                Début {formatTime(item.row.startedAt)} · manque la quantité
+              </p>
             </div>
             <Button tone="muted" onClick={() => navigate('/pumping')}>
               Ouvrir
