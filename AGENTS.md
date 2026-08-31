@@ -37,12 +37,12 @@ src/
 
 ## Hébergement
 
-- **App web** : GitHub Pages — `https://vincentchauvaux.github.io/abel/` **et** VPS OVH — `https://vps-e09ed6db.vps.ovh.net/abel/`
+- **App web** : GitHub Pages — `https://vincentchauvaux.github.io/abel/`
 - **API / sync** : VPS OVH `https://vps-e09ed6db.vps.ovh.net/abel/api/` (Node `127.0.0.1:3030`, PostgreSQL local)
 
 Pages se déploie via GitHub Actions (workflow `.github/workflows/pages.yml`). Dans le repo : **Settings → Pages → Source = GitHub Actions** (pas « Deploy from a branch », sinon écran blanc / 404 sur `main.tsx`).
 
-Déploiement VPS : `GOOGLE_CLIENT_ID=... deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, `npm run build` → `dist/`, Nginx `/abel/` + API, Postgres, PM2). Snippet : `deploy/nginx-abel.conf.example` (déclarer `limit_req_zone` dans `http {}`). Build front seul : `deploy/build-front.sh`.
+Déploiement API : `deploy/bootstrap-vps.sh` (snippet `deploy/nginx-abel.conf.example`).
 
 En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/`.
 
@@ -94,7 +94,7 @@ Créer le client OAuth « Application Web » : https://console.cloud.google.com/
 
 Identifiants : https://console.cloud.google.com/apis/credentials
 
-Origines JS autorisées : `https://vincentchauvaux.github.io`, `https://vps-e09ed6db.vps.ovh.net` et `http://localhost:5173`.
+Origines JS autorisées : `https://vincentchauvaux.github.io` et `http://localhost:5173`.
 
 Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus par `.github/workflows/pages.yml`).
 
