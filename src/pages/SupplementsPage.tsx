@@ -23,7 +23,7 @@ export function SupplementsPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Compléments" />
+      <ModuleHeader title="Compléments" toolId="supplements" />
       <Card>
         <h2>Donner maintenant</h2>
         <div className="row">

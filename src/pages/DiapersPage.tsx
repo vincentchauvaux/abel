@@ -22,7 +22,7 @@ export function DiapersPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Couche" />
+      <ModuleHeader title="Couche" toolId="diapers" />
       <div className="grid-2">
         <button type="button" className="big pee" onClick={() => baby && addDiaper(baby.id, 'PEE')}>
           Pipi

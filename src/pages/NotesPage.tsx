@@ -20,7 +20,7 @@ export function NotesPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Notes" />
+      <ModuleHeader title="Notes" toolId="notes" />
       <Card>
         <h2>Nouvelle note</h2>
         <Field

@@ -8,7 +8,7 @@ Fonctionne dans le **navigateur** (téléphone ou ordinateur), y compris hors li
 
 - Offline-first : 3 h du matin, pas de réseau, ça doit marcher.
 - Pas de recommandation médicale. Les rappels sont des règles personnalisables.
-- Chaque icône Outils ouvre un **module** (écran complet : action + historique + réglages).
+- Chaque icône Outils ouvre un **module** (écran complet : action + historique + réglages). Cœur à droite du titre pour épingler l’outil en **Favoris** sur le dashboard (ordre de sélection, stocké en local).
 - Le dashboard répond d’abord à : « Où en est mon bébé aujourd’hui ? »
 
 ## Navigation
@@ -80,7 +80,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Cartes **Apports** (en premier) : repas, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, stock lait, tiré, poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches. **Accordéon Notes** : toutes les notes, todos cliquables pour marquer fait (apparaît dans le journal à la date de validation, libellé « fait »). **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique en bas de page.
+Cartes **Favoris** (si configurés) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). Puis **Apports** : repas, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches. **Accordéon Notes** : toutes les notes, todos cliquables pour marquer fait (apparaît dans le journal à la date de validation, libellé « fait »). **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique en bas de page.
 
 ## Page Bébé
 

@@ -23,7 +23,7 @@ export function GrowthPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Croissance" />
+      <ModuleHeader title="Croissance" toolId="growth" />
       {TYPES.map((type) => {
         const list = rows.filter((row) => row.type === type);
         return (

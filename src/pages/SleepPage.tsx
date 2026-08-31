@@ -26,7 +26,7 @@ export function SleepPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Sommeil" />
+      <ModuleHeader title="Sommeil" toolId="sleep" />
       <Card>
         {active ? (
           <>

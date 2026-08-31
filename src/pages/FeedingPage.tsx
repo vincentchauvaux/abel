@@ -78,7 +78,7 @@ export function FeedingPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Allaitement" />
+      <ModuleHeader title="Allaitement" toolId="feeding" />
       {active ? (
         <Card>
           <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>

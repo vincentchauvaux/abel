@@ -1,8 +1,10 @@
-import { Baby, CircleUser, Home, LayoutGrid } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Baby, CircleUser, Heart, Home, LayoutGrid } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { ConsentBanner } from '@/components/ConsentBanner';
 import { useDb } from '@/db/DbProvider';
+import { isToolFavorite, toggleToolFavorite, type ToolId } from '@/lib/tools';
 
 const MODULE_PREFIXES = [
   '/feeding',
@@ -60,15 +62,38 @@ export function Layout() {
   );
 }
 
-export function ModuleHeader({ title }: { title: string }) {
+export function ModuleHeader({ title, toolId }: { title: string; toolId?: ToolId }) {
   const navigate = useNavigate();
+  const [favorite, setFavorite] = useState(() => (toolId ? isToolFavorite(toolId) : false));
+
+  useEffect(() => {
+    if (toolId) setFavorite(isToolFavorite(toolId));
+  }, [toolId]);
+
+  const toggleFavorite = () => {
+    if (!toolId) return;
+    setFavorite(toggleToolFavorite(toolId));
+  };
+
   return (
     <div className="header">
       <button type="button" onClick={() => navigate('/')} aria-label="Retour au dashboard">
         ←
       </button>
-      <h1 style={{ fontSize: '1.25rem' }}>{title}</h1>
-      <span style={{ width: 44 }} />
+      <div className="header-title-wrap">
+        <h1>{title}</h1>
+        {toolId ? (
+          <button
+            type="button"
+            className={`module-fav ${favorite ? 'on' : ''}`}
+            onClick={toggleFavorite}
+            aria-label={favorite ? 'Retirer des favoris du dashboard' : 'Ajouter aux favoris du dashboard'}
+            aria-pressed={favorite}>
+            <Heart size={20} fill={favorite ? 'currentColor' : 'none'} />
+          </button>
+        ) : null}
+      </div>
+      <span className="header-balance" aria-hidden />
     </div>
   );
 }

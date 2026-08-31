@@ -49,6 +49,7 @@ import {
   type Period,
 } from '@/lib/dates';
 import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
+import { FAVORITES_CHANGED, readToolFavorites, TOOLS, type ToolId } from '@/lib/tools';
 import type { DiaperWhen } from '@/lib/goals';
 import {
   bottleMlAlertLine,
@@ -103,7 +104,14 @@ export function DashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [goals, setGoals] = useState<ReminderRule | undefined>();
   const [notesOpen, setNotesOpen] = useState(false);
+  const [favorites, setFavorites] = useState(() => readToolFavorites());
   const now = useNow(true, 30_000);
+
+  useEffect(() => {
+    const sync = () => setFavorites(readToolFavorites());
+    window.addEventListener(FAVORITES_CHANGED, sync);
+    return () => window.removeEventListener(FAVORITES_CHANGED, sync);
+  }, []);
 
   useEffect(() => {
     if (!baby) return;
@@ -249,15 +257,14 @@ export function DashboardPage() {
       to: '/sleep',
     },
     {
-      label: 'Stock lait',
+      label: 'Tire-lait',
       value: `${stockMl} ml`,
-      sub: pumps.length ? `${pumps.length} lot(s)` : '—',
-      to: '/pumping',
-    },
-    {
-      label: 'Tiré',
-      value: pumpedMl > 0 ? `${pumpedMl} ml` : '—',
-      sub: 'sur la période',
+      sub:
+        pumpedMl > 0
+          ? `${pumpedMl} ml tiré sur la période`
+          : pumps.length
+            ? `${pumps.length} lot(s)`
+            : '—',
       to: '/pumping',
     },
     {
@@ -313,6 +320,113 @@ export function DashboardPage() {
     },
   ];
 
+  const toolRows = useMemo((): Record<ToolId, FollowRow> => {
+    const growthSub = lastHeight
+      ? `${heightFmt.value} cm`
+      : lastHead
+        ? `PC ${headFmt.value} cm`
+        : undefined;
+    return {
+      feeding: {
+        label: TOOLS.feeding.label,
+        value: breastCount > 0 ? breastCount : '—',
+        sub: lastFeed ? formatTime(lastFeed.startedAt) : '—',
+        to: TOOLS.feeding.route,
+      },
+      bottle: {
+        label: TOOLS.bottle.label,
+        value: bottleMl > 0 ? `${bottleMl} ml` : bottleCount > 0 ? bottleCount : '—',
+        sub: bottleCount > 0 ? `${bottleCount} bib` : '—',
+        to: TOOLS.bottle.route,
+      },
+      solids: {
+        label: TOOLS.solids.label,
+        value: solidsCount > 0 ? solidsCount : '—',
+        sub: lastSolid ? lastSolid.food : '—',
+        to: TOOLS.solids.route,
+      },
+      supplements: {
+        label: TOOLS.supplements.label,
+        value: supplementsCount > 0 ? supplementsCount : '—',
+        sub: lastSupplement ? lastSupplement.name : '—',
+        to: TOOLS.supplements.route,
+      },
+      diapers: {
+        label: TOOLS.diapers.label,
+        value: diaperCount > 0 ? diaperCount : '—',
+        sub: lastDiaper ? formatTime(lastDiaper.occurredAt) : '—',
+        to: TOOLS.diapers.route,
+      },
+      pumping: {
+        label: TOOLS.pumping.label,
+        value: `${stockMl} ml`,
+        sub:
+          pumpedMl > 0
+            ? `${pumpedMl} ml tiré sur la période`
+            : pumps.length
+              ? `${pumps.length} lot(s)`
+              : '—',
+        to: TOOLS.pumping.route,
+      },
+      growth: {
+        label: TOOLS.growth.label,
+        value: lastWeight ? `${weightFmt.value} kg` : '—',
+        sub: growthSub ?? '—',
+        to: TOOLS.growth.route,
+      },
+      sleep: {
+        label: TOOLS.sleep.label,
+        value: sleepMs > 0 ? formatMinutes(sleepMs) : '—',
+        sub: activeSleep ? 'en cours' : '—',
+        to: TOOLS.sleep.route,
+      },
+      temperature: {
+        label: TOOLS.temperature.label,
+        value: lastTemp ? `${formatTemperature(lastTemp.celsius)}°` : '—',
+        sub: lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`,
+        to: TOOLS.temperature.route,
+        valueClassName: lastTemp ? temperatureLevelClass(lastTemp.celsius) : undefined,
+      },
+      notes: {
+        label: TOOLS.notes.label,
+        value: openNoteTodos.length > 0 ? openNoteTodos.length : notes.length > 0 ? notes.length : '—',
+        sub: openNoteTodos.length > 0 ? `${openNoteTodos.length} à faire` : notes.length > 0 ? 'notes' : '—',
+        to: TOOLS.notes.route,
+      },
+    };
+  }, [
+    breastCount,
+    bottleCount,
+    bottleMl,
+    solidsCount,
+    supplementsCount,
+    diaperCount,
+    stockMl,
+    pumpedMl,
+    pumps.length,
+    sleepMs,
+    activeSleep,
+    lastFeed,
+    lastSolid,
+    lastSupplement,
+    lastDiaper,
+    lastWeight,
+    lastHeight,
+    lastHead,
+    lastTemp,
+    tempsCount,
+    weightFmt,
+    heightFmt,
+    headFmt,
+    openNoteTodos.length,
+    notes.length,
+  ]);
+
+  const favoriteRows = useMemo(
+    () => favorites.map((id) => toolRows[id]).filter(Boolean),
+    [favorites, toolRows],
+  );
+
   const days = eachLocalDay(
     period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
   );
@@ -349,6 +463,17 @@ export function DashboardPage() {
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
       <ActiveNowPanel />
       <PeriodSelector value={period} onChange={setPeriod} />
+
+      {favoriteRows.length > 0 ? (
+        <>
+          <p className="dash-section">Favoris</p>
+          <div className="dash-follow-list">
+            {favoriteRows.map((row) => (
+              <FollowRowItem key={row.label} {...row} />
+            ))}
+          </div>
+        </>
+      ) : null}
 
       <p className="dash-section">Apports</p>
       <div className="dash-follow-list">

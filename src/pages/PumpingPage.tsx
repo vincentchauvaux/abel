@@ -48,7 +48,7 @@ export function PumpingPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Tire-lait" />
+      <ModuleHeader title="Tire-lait" toolId="pumping" />
       <Card>
         <h2>Noter un tirage</h2>
         <p className="muted">Quantité + date. Le lait entre en stock pour les prochains biberons.</p>

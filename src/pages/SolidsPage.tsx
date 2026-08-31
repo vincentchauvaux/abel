@@ -21,7 +21,7 @@ export function SolidsPage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Diversification" />
+      <ModuleHeader title="Diversification" toolId="solids" />
       <Card>
         <h2>Nouvel aliment</h2>
         <Field label="Aliment" value={food} onChange={setFood} placeholder="Carotte" inputMode="text" />

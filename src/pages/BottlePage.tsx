@@ -43,7 +43,7 @@ export function BottlePage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Biberon" />
+      <ModuleHeader title="Biberon" toolId="bottle" />
       <Card>
         <h2>Nouveau biberon</h2>
         <p className="muted">La quantité est obligatoire. Au sein, utilise Allaitement.</p>

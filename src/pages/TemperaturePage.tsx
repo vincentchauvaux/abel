@@ -23,7 +23,7 @@ export function TemperaturePage() {
 
   return (
     <div className="screen">
-      <ModuleHeader title="Température" />
+      <ModuleHeader title="Température" toolId="temperature" />
       <Card>
         <h2>Nouvelle mesure</h2>
         <p className="muted">Saisie uniquement. Abel ne donne aucun conseil médical.</p>

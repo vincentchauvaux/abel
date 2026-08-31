@@ -279,6 +279,43 @@ h2 {
   cursor: pointer;
 }
 
+.header-title-wrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.header-title-wrap h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.header-balance {
+  width: 44px;
+  flex-shrink: 0;
+}
+
+.module-fav {
+  width: 36px;
+  height: 36px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.module-fav.on {
+  color: var(--primary);
+}
+
 .tabbar {
   position: fixed;
   bottom: 0;
