@@ -252,6 +252,27 @@ h2 {
   color: var(--primary);
 }
 
+.tab-icon-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tab-badge {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+  text-align: center;
+}
+
 .tab-center {
   margin-top: -28px;
 }
@@ -265,6 +286,31 @@ h2 {
   display: grid;
   place-items: center;
   box-shadow: 0 6px 16px rgba(164, 72, 56, 0.35);
+}
+
+.sharing-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.sharing-invite-card {
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--muted-bg);
+}
+
+.sharing-invite-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.sharing-invite-row .btn {
+  width: auto;
+  flex-shrink: 0;
 }
 
 .active-now {

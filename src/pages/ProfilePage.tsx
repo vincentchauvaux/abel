@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
 import { LegalFooter } from '@/components/LegalFooter';
-import { Button } from '@/components/ui';
+import { Button, Field } from '@/components/ui';
 import { ensureBaby, linkBabyUser } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import { hasLegalConsent } from '@/lib/consent';
@@ -20,6 +20,15 @@ import {
 } from '@/lib/google';
 import { deleteRemoteAccount, downloadJson, exportLocalData, wipeLocalData } from '@/lib/privacy';
 import { LEGAL_ROUTES } from '@/lib/site';
+import {
+  acceptInvite,
+  cancelInvite,
+  createInvite,
+  declineInvite,
+  fetchSharing,
+  INVITE_ERROR_LABEL,
+  type SharingState,
+} from '@/lib/sharing';
 import { runSync, pullFromServer, subscribeSync, type SyncState } from '@/lib/sync';
 
 const SYNC_LABEL: Record<SyncState, string> = {
@@ -33,21 +42,62 @@ const SYNC_LABEL: Record<SyncState, string> = {
 };
 
 export function ProfilePage() {
-  const { baby } = useDb();
+  const { baby, refreshSharing } = useDb();
   const [user, setUser] = useState<GoogleUser | null>(readGoogleUser);
   const [hasToken, setHasToken] = useState(() => Boolean(readGoogleToken()));
   const [googleError, setGoogleError] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [busy, setBusy] = useState('');
   const [openSection, setOpenSection] = useState<string | null>('google');
+  const [sharing, setSharing] = useState<SharingState | null>(null);
+  const [sharingError, setSharingError] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
   const buttonHost = useRef<HTMLDivElement>(null);
   const needsReconnect = Boolean(user && (!hasToken || syncState === 'auth'));
+
+  const loadSharing = async () => {
+    if (!readGoogleToken()) {
+      setSharing(null);
+      return;
+    }
+    const state = await fetchSharing();
+    if (state === 'auth') {
+      setSharingError('Session expirée.');
+      return;
+    }
+    if (state === 'rate_limit') {
+      setSharingError('Trop de requêtes — réessaie dans une minute.');
+      return;
+    }
+    if (state === 'error' || 'error' in state) {
+      setSharingError('Impossible de charger le partage pour le moment.');
+      return;
+    }
+    setSharing(state);
+    setSharingError('');
+    await refreshSharing();
+  };
 
   const toggleSection = (id: string) => {
     setOpenSection((prev) => (prev === id ? null : id));
   };
 
   useEffect(() => subscribeSync(setSyncState), []);
+
+  useEffect(() => {
+    if (user && hasToken && !needsReconnect) {
+      void loadSharing();
+    } else {
+      setSharing(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reload when auth state changes
+  }, [user, hasToken, needsReconnect, baby?.id]);
+
+  useEffect(() => {
+    if (sharing?.pendingInvitesCount) {
+      setOpenSection('coparent');
+    }
+  }, [sharing?.pendingInvitesCount]);
 
   useEffect(() => {
     setHasToken(Boolean(readGoogleToken()));
@@ -100,9 +150,12 @@ export function ProfilePage() {
   };
 
   const wipeRemote = async () => {
+    const isMember = sharing?.role === 'member';
     if (
       !window.confirm(
-        'Supprimer toutes vos données sur le VPS ? Les données locales sur cet appareil ne seront pas effacées automatiquement.',
+        isMember
+          ? 'Quitter le bébé partagé sur le VPS ? Les données restent accessibles pour l’autre parent. Les données locales sur cet appareil ne seront pas effacées.'
+          : 'Supprimer toutes les données du bébé sur le VPS pour tout le monde ? Les données locales sur cet appareil ne seront pas effacées automatiquement.',
       )
     ) {
       return;
@@ -114,10 +167,70 @@ export function ProfilePage() {
         setHasToken(false);
         window.alert('Session expirée. Appuie sur le bouton Google ci-dessus puis réessaie.');
       } else if (result === 'error') {
-        window.alert('Suppression impossible pour le moment.');
-      } else {
+        window.alert('Action impossible pour le moment.');
+      } else if (typeof result === 'object' && result !== null && 'action' in result && result.action === 'left') {
+        window.alert('Tu as quitté le bébé partagé.');
+        await loadSharing();
+      } else if (typeof result === 'object' && result !== null && 'action' in result) {
         window.alert('Données serveur supprimées.');
+        await loadSharing();
       }
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const sendInvite = async () => {
+    if (!inviteEmail.trim()) return;
+    setBusy('invite');
+    setSharingError('');
+    try {
+      const result = await createInvite(inviteEmail.trim());
+      if (result === 'auth') {
+        setSharingError('Session expirée.');
+        return;
+      }
+      if (result === 'rate_limit') {
+        setSharingError('Trop de requêtes — réessaie plus tard.');
+        return;
+      }
+      if (result === 'error') {
+        setSharingError('Invitation impossible pour le moment.');
+        return;
+      }
+      if (typeof result === 'object' && 'error' in result) {
+        setSharingError(INVITE_ERROR_LABEL[result.error] ?? 'Invitation impossible.');
+        return;
+      }
+      setInviteEmail('');
+      await loadSharing();
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const respondInvite = async (id: string, action: 'accept' | 'decline') => {
+    setBusy(action);
+    setSharingError('');
+    try {
+      const result = action === 'accept' ? await acceptInvite(id) : await declineInvite(id);
+      if (result === 'auth') {
+        setSharingError('Session expirée.');
+        return;
+      }
+      if (result === 'rate_limit' || result === 'error') {
+        setSharingError('Action impossible pour le moment.');
+        return;
+      }
+      if (typeof result === 'object' && 'error' in result) {
+        setSharingError(INVITE_ERROR_LABEL[result.error] ?? 'Action impossible.');
+        return;
+      }
+      if (action === 'accept') {
+        await pullFromServer();
+        await runSync();
+      }
+      await loadSharing();
     } finally {
       setBusy('');
     }
@@ -228,6 +341,110 @@ export function ProfilePage() {
         )}
       </AccordionSection>
       <AccordionSection
+        id="coparent"
+        title="Co-parent"
+        open={openSection === 'coparent'}
+        onToggle={toggleSection}
+        action={
+          sharing?.pendingInvitesCount ? (
+            <span className="dash-notes-badge">{sharing.pendingInvitesCount} reçue(s)</span>
+          ) : null
+        }>
+        {!user || needsReconnect ? (
+          <p className="muted">Connecte-toi avec Google pour inviter un co-parent ou accepter une invitation.</p>
+        ) : (
+          <>
+            {sharingError ? <p className="muted">{sharingError}</p> : null}
+            {sharing?.receivedInvites.length ? (
+              <div className="sharing-block">
+                <p className="goal-label">Invitations reçues</p>
+                {sharing.receivedInvites.map((invite) => (
+                  <div key={invite.id} className="sharing-invite-card">
+                    <p>
+                      Invitation à suivre <strong>{invite.babyName}</strong>
+                    </p>
+                    <div className="row">
+                      <Button disabled={busy !== ''} onClick={() => void respondInvite(invite.id, 'accept')}>
+                        Accepter
+                      </Button>
+                      <Button tone="muted" disabled={busy !== ''} onClick={() => void respondInvite(invite.id, 'decline')}>
+                        Refuser
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {sharing?.babyId ? (
+              <>
+                <p className="muted">
+                  Bébé partagé : <strong>{sharing.babyName}</strong>
+                  {sharing.role === 'member' ? ' (co-parent)' : ' (propriétaire)'}
+                </p>
+                {sharing.members.length ? (
+                  <div className="sharing-block">
+                    <p className="goal-label">Personnes avec accès</p>
+                    {sharing.members.map((member, index) => (
+                      <p key={`${member.label}-${index}`} className="muted" style={{ margin: '4px 0' }}>
+                        {member.label}
+                        {member.role === 'owner' ? ' · propriétaire' : ' · co-parent'}
+                      </p>
+                    ))}
+                  </div>
+                ) : null}
+                {sharing.members.length < 2 ? (
+                  <div className="sharing-block">
+                    <p className="goal-label">Inviter par e-mail Google</p>
+                    <Field
+                      label="E-mail du co-parent"
+                      value={inviteEmail}
+                      onChange={setInviteEmail}
+                      placeholder="co-parent@exemple.com"
+                      inputMode="text"
+                    />
+                    <p className="muted">
+                      La personne doit se connecter avec ce compte Google. L’invitation apparaît dans son Profil.
+                    </p>
+                    <Button disabled={busy !== '' || !inviteEmail.trim()} onClick={() => void sendInvite()}>
+                      {busy === 'invite' ? 'Envoi…' : 'Envoyer l’invitation'}
+                    </Button>
+                  </div>
+                ) : (
+                  <p className="muted">Ce bébé est déjà partagé avec un co-parent.</p>
+                )}
+                {sharing.sentInvites.some((row) => row.status === 'pending') ? (
+                  <div className="sharing-block">
+                    <p className="goal-label">Invitations envoyées</p>
+                    {sharing.sentInvites
+                      .filter((row) => row.status === 'pending')
+                      .map((invite) => (
+                        <div key={invite.id} className="sharing-invite-row">
+                          <span className="muted">{invite.email}</span>
+                          <Button
+                            tone="muted"
+                            disabled={busy !== ''}
+                            onClick={async () => {
+                              setBusy('cancel');
+                              await cancelInvite(invite.id);
+                              await loadSharing();
+                              setBusy('');
+                            }}>
+                            Annuler
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
+                ) : null}
+              </>
+            ) : !sharing?.receivedInvites.length ? (
+              <p className="muted">
+                Synchronise d’abord un bébé depuis cette page, puis invite ton co-parent par son e-mail Google.
+              </p>
+            ) : null}
+          </>
+        )}
+      </AccordionSection>
+      <AccordionSection
         id="rgpd"
         title="Données et droits (RGPD)"
         open={openSection === 'rgpd'}
@@ -241,7 +458,11 @@ export function ProfilePage() {
         </Button>
         {user ? (
           <Button tone="danger" disabled={busy !== '' || needsReconnect} onClick={() => void wipeRemote()}>
-            {busy === 'remote' ? 'Suppression…' : 'Supprimer mes données sur le VPS'}
+            {busy === 'remote'
+              ? 'Traitement…'
+              : sharing?.role === 'member'
+                ? 'Quitter le bébé partagé (VPS)'
+                : 'Supprimer le bébé sur le VPS'}
           </Button>
         ) : null}
       </AccordionSection>

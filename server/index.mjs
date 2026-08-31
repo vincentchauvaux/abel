@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -284,7 +285,12 @@ const RATE_LIMITS = {
   horoscope: { max: 40, windowMs: 60_000 },
   sync: { max: 120, windowMs: 60_000 },
   account: { max: 5, windowMs: 60_000 },
+  sharing: { max: 60, windowMs: 60_000 },
+  invites: { max: 10, windowMs: 3_600_000 },
 };
+
+const MAX_BABY_MEMBERS = 2;
+const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const rateBuckets = new Map();
 
@@ -362,6 +368,297 @@ async function canonicalBabyId(client, sub) {
   return rows[0]?.id ?? null;
 }
 
+function normalizeEmail(email) {
+  return (email || '').trim().toLowerCase();
+}
+
+async function ensureOwnerMembership(client, babyId, sub, ts = new Date().toISOString()) {
+  const { rows } = await client.query(
+    `SELECT id FROM baby_members
+     WHERE baby_id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+    [babyId, sub],
+  );
+  if (rows.length) return;
+  await client.query(
+    `INSERT INTO baby_members (id, baby_id, user_id, role, joined_at, created_at)
+     VALUES ($1, $2, $3, 'owner', $4, $4)`,
+    [randomUUID(), babyId, sub, ts],
+  );
+}
+
+async function resolveBabyAccess(client, user) {
+  const { rows } = await client.query(
+    `SELECT m.baby_id, m.role FROM baby_members m
+     JOIN babies b ON b.id = m.baby_id AND b.deleted_at IS NULL
+     WHERE m.user_id = $1 AND m.deleted_at IS NULL
+     ORDER BY m.joined_at ASC LIMIT 1`,
+    [user.sub],
+  );
+  if (rows[0]) {
+    return { babyId: rows[0].baby_id, role: rows[0].role };
+  }
+  const babyId = await canonicalBabyId(client, user.sub);
+  if (!babyId) return { babyId: null, role: null };
+  await ensureOwnerMembership(client, babyId, user.sub);
+  return { babyId, role: 'owner' };
+}
+
+async function countActiveMembers(client, babyId) {
+  const { rows } = await client.query(
+    `SELECT COUNT(*)::int AS n FROM baby_members WHERE baby_id = $1 AND deleted_at IS NULL`,
+    [babyId],
+  );
+  return rows[0]?.n ?? 0;
+}
+
+async function expirePendingInvites(client) {
+  const ts = new Date().toISOString();
+  await client.query(
+    `UPDATE baby_invites SET status = 'expired', responded_at = $1
+     WHERE status = 'pending' AND expires_at < $1`,
+    [ts],
+  );
+}
+
+async function userOwnsNonPlaceholderBaby(client, sub) {
+  const { rows } = await client.query(
+    `SELECT name, born_on FROM babies WHERE user_id = $1 AND deleted_at IS NULL LIMIT 1`,
+    [sub],
+  );
+  if (!rows[0]) return false;
+  const name = (rows[0].name || '').trim();
+  return Boolean(rows[0].born_on) || (name !== 'Bébé' && name !== '');
+}
+
+async function getBabyName(client, babyId) {
+  const { rows } = await client.query(`SELECT name FROM babies WHERE id = $1 AND deleted_at IS NULL`, [babyId]);
+  return rows[0]?.name ?? 'Bébé';
+}
+
+async function handleSharingGet(user) {
+  const client = await pool.connect();
+  try {
+    await expirePendingInvites(client);
+    const access = await resolveBabyAccess(client, user);
+    const email = normalizeEmail(user.email);
+    const received = email
+      ? (
+          await client.query(
+            `SELECT i.id, i.baby_id, i.expires_at, b.name AS baby_name
+             FROM baby_invites i
+             JOIN babies b ON b.id = i.baby_id AND b.deleted_at IS NULL
+             WHERE i.invited_email = $1 AND i.status = 'pending' AND i.expires_at > NOW()
+             ORDER BY i.created_at DESC`,
+            [email],
+          )
+        ).rows.map((row) => ({
+          id: row.id,
+          babyName: row.baby_name,
+          expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at,
+        }))
+      : [];
+
+    if (!access.babyId) {
+      return {
+        babyId: null,
+        babyName: null,
+        role: null,
+        members: [],
+        sentInvites: [],
+        receivedInvites: received,
+        pendingInvitesCount: received.length,
+      };
+    }
+
+    const babyName = await getBabyName(client, access.babyId);
+    const members = (
+      await client.query(
+        `SELECT role, user_id FROM baby_members
+         WHERE baby_id = $1 AND deleted_at IS NULL ORDER BY joined_at ASC`,
+        [access.babyId],
+      )
+    ).rows.map((row) => ({
+      role: row.role,
+      isYou: row.user_id === user.sub,
+      label: row.user_id === user.sub ? 'Vous' : row.role === 'owner' ? 'Propriétaire' : 'Co-parent',
+    }));
+
+    const sentInvites = (
+      await client.query(
+        `SELECT id, invited_email, status, expires_at FROM baby_invites
+         WHERE baby_id = $1 AND status IN ('pending', 'accepted', 'declined', 'cancelled', 'expired')
+         ORDER BY created_at DESC LIMIT 20`,
+        [access.babyId],
+      )
+    ).rows.map((row) => ({
+      id: row.id,
+      email: row.invited_email,
+      status: row.status,
+      expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at,
+    }));
+
+    return {
+      babyId: access.babyId,
+      babyName,
+      role: access.role,
+      members,
+      sentInvites,
+      receivedInvites: received,
+      pendingInvitesCount: received.length,
+    };
+  } finally {
+    client.release();
+  }
+}
+
+async function handleInviteCreate(user, body) {
+  const invitedEmail = normalizeEmail(body?.email);
+  if (!invitedEmail || !invitedEmail.includes('@')) {
+    return { status: 400, body: { error: 'invalid_email' } };
+  }
+  if (normalizeEmail(user.email) === invitedEmail) {
+    return { status: 400, body: { error: 'self_invite' } };
+  }
+
+  const client = await pool.connect();
+  const ts = new Date().toISOString();
+  try {
+    await expirePendingInvites(client);
+    const access = await resolveBabyAccess(client, user);
+    if (!access.babyId) {
+      return { status: 403, body: { error: 'forbidden' } };
+    }
+    const members = await countActiveMembers(client, access.babyId);
+    if (members >= MAX_BABY_MEMBERS) {
+      return { status: 409, body: { error: 'max_members' } };
+    }
+    const pending = await client.query(
+      `SELECT id FROM baby_invites
+       WHERE baby_id = $1 AND invited_email = $2 AND status = 'pending' AND expires_at > NOW()`,
+      [access.babyId, invitedEmail],
+    );
+    if (pending.rows.length) {
+      return { status: 409, body: { error: 'already_invited' } };
+    }
+    const id = randomUUID();
+    const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
+    await client.query(
+      `INSERT INTO baby_invites (id, baby_id, invited_email, invited_by, status, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6)`,
+      [id, access.babyId, invitedEmail, user.sub, expiresAt, ts],
+    );
+    return { status: 201, body: { ok: true, id, expiresAt } };
+  } finally {
+    client.release();
+  }
+}
+
+async function getInviteForUser(client, inviteId, user) {
+  const email = normalizeEmail(user.email);
+  const { rows } = await client.query(`SELECT * FROM baby_invites WHERE id = $1`, [inviteId]);
+  return { invite: rows[0] ?? null, email };
+}
+
+async function handleInviteAccept(user, inviteId) {
+  const client = await pool.connect();
+  const ts = new Date().toISOString();
+  try {
+    await client.query('BEGIN');
+    await expirePendingInvites(client);
+    const { invite, email } = await getInviteForUser(client, inviteId, user);
+    if (!invite) {
+      await client.query('ROLLBACK');
+      return { status: 404, body: { error: 'not_found' } };
+    }
+    if (invite.status !== 'pending' || new Date(invite.expires_at) <= new Date()) {
+      await client.query('ROLLBACK');
+      return { status: 410, body: { error: 'expired' } };
+    }
+    if (invite.invited_email !== email) {
+      await client.query('ROLLBACK');
+      return { status: 403, body: { error: 'forbidden' } };
+    }
+    const existingMember = await client.query(
+      `SELECT 1 FROM baby_members WHERE user_id = $1 AND deleted_at IS NULL`,
+      [user.sub],
+    );
+    if (existingMember.rows.length) {
+      await client.query('ROLLBACK');
+      return { status: 409, body: { error: 'already_member' } };
+    }
+    if (await userOwnsNonPlaceholderBaby(client, user.sub)) {
+      await client.query('ROLLBACK');
+      return { status: 409, body: { error: 'has_own_baby' } };
+    }
+    const members = await countActiveMembers(client, invite.baby_id);
+    if (members >= MAX_BABY_MEMBERS) {
+      await client.query('ROLLBACK');
+      return { status: 409, body: { error: 'max_members' } };
+    }
+    await client.query(
+      `INSERT INTO baby_members (id, baby_id, user_id, role, joined_at, created_at)
+       VALUES ($1, $2, $3, 'member', $4, $4)`,
+      [randomUUID(), invite.baby_id, user.sub, ts],
+    );
+    await client.query(
+      `UPDATE baby_invites SET status = 'accepted', responded_at = $2 WHERE id = $1`,
+      [inviteId, ts],
+    );
+    await client.query(
+      `UPDATE baby_invites SET status = 'cancelled', responded_at = $2
+       WHERE baby_id = $1 AND invited_email = $3 AND status = 'pending' AND id <> $4`,
+      [invite.baby_id, ts, email, inviteId],
+    );
+    await client.query('COMMIT');
+    return { status: 200, body: { ok: true, babyId: invite.baby_id } };
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
+
+async function handleInviteDecline(user, inviteId) {
+  const client = await pool.connect();
+  const ts = new Date().toISOString();
+  try {
+    const { invite, email } = await getInviteForUser(client, inviteId, user);
+    if (!invite) return { status: 404, body: { error: 'not_found' } };
+    if (invite.status !== 'pending') return { status: 410, body: { error: 'expired' } };
+    if (invite.invited_email !== email) return { status: 403, body: { error: 'forbidden' } };
+    await client.query(`UPDATE baby_invites SET status = 'declined', responded_at = $2 WHERE id = $1`, [
+      inviteId,
+      ts,
+    ]);
+    return { status: 200, body: { ok: true } };
+  } finally {
+    client.release();
+  }
+}
+
+async function handleInviteCancel(user, inviteId) {
+  const client = await pool.connect();
+  const ts = new Date().toISOString();
+  try {
+    const access = await resolveBabyAccess(client, user);
+    const { rows } = await client.query(`SELECT * FROM baby_invites WHERE id = $1`, [inviteId]);
+    const invite = rows[0];
+    if (!invite) return { status: 404, body: { error: 'not_found' } };
+    if (!access.babyId || invite.baby_id !== access.babyId) {
+      return { status: 403, body: { error: 'forbidden' } };
+    }
+    if (invite.status !== 'pending') return { status: 410, body: { error: 'expired' } };
+    await client.query(`UPDATE baby_invites SET status = 'cancelled', responded_at = $2 WHERE id = $1`, [
+      inviteId,
+      ts,
+    ]);
+    return { status: 200, body: { ok: true } };
+  } finally {
+    client.release();
+  }
+}
+
 function isPlaceholderBabyRow(baby) {
   const name = (baby.name || '').trim();
   return !baby.bornOn && (name === 'Bébé' || name === '');
@@ -370,7 +667,7 @@ function isPlaceholderBabyRow(baby) {
 async function handlePull(user) {
   const client = await pool.connect();
   try {
-    const babyId = await canonicalBabyId(client, user.sub);
+    const { babyId } = await resolveBabyAccess(client, user);
     if (!babyId) return { babyId: null, records: emptyRecords() };
     return { babyId, records: await dumpUser(babyId) };
   } finally {
@@ -378,27 +675,48 @@ async function handlePull(user) {
   }
 }
 
+async function getOwnerUserId(client, babyId) {
+  const { rows } = await client.query(`SELECT user_id FROM babies WHERE id = $1 AND deleted_at IS NULL`, [babyId]);
+  return rows[0]?.user_id ?? null;
+}
+
 async function handleSync(user, body) {
   const changes = body?.changes && typeof body.changes === 'object' ? body.changes : {};
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    let babyId = await canonicalBabyId(client, user.sub);
+    const access = await resolveBabyAccess(client, user);
+    let babyId = access.babyId;
+    const ownerUserId = babyId ? await getOwnerUserId(client, babyId) : null;
 
     const incomingBabies = Array.isArray(changes.babies) ? changes.babies : [];
     for (const baby of incomingBabies) {
-      if (baby.userId && baby.userId !== user.sub) continue;
+      if (access.role === 'member') {
+        if (!babyId) continue;
+        if (baby.id && baby.id !== babyId) continue;
+      } else if (baby.userId && baby.userId !== user.sub) {
+        continue;
+      }
       if (babyId && isPlaceholderBabyRow(baby)) continue;
-      const record = { ...baby, userId: user.sub };
+      const record = { ...baby };
+      if (access.role === 'owner' || !babyId) {
+        record.userId = user.sub;
+      } else if (ownerUserId) {
+        record.userId = ownerUserId;
+      }
       if (babyId && record.id !== babyId) {
         record.id = babyId;
       }
       try {
         await upsert(client, 'babies', toRow(TABLES.babies.fields, record));
-        if (!babyId) babyId = record.id;
+        if (!babyId) {
+          babyId = record.id;
+          await ensureOwnerMembership(client, babyId, user.sub);
+        }
       } catch (err) {
         if (err && typeof err === 'object' && 'code' in err && err.code === '23505') {
-          babyId = await canonicalBabyId(client, user.sub);
+          const resolved = await resolveBabyAccess(client, user);
+          babyId = resolved.babyId;
         } else {
           throw err;
         }
@@ -407,6 +725,12 @@ async function handleSync(user, body) {
 
     if (!babyId) {
       await client.query('COMMIT');
+      return { babyId: null, records: emptyRecords() };
+    }
+
+    const allowed = await resolveBabyAccess(client, user);
+    if (allowed.babyId !== babyId) {
+      await client.query('ROLLBACK');
       return { babyId: null, records: emptyRecords() };
     }
 
@@ -468,16 +792,27 @@ async function dumpUser(babyId) {
   return records;
 }
 
-async function deleteAccount(sub) {
+async function deleteAccount(user) {
   const client = await pool.connect();
   const ts = new Date().toISOString();
   try {
     await client.query('BEGIN');
-    const babyId = await canonicalBabyId(client, sub);
-    if (!babyId) {
+    const access = await resolveBabyAccess(client, user);
+    if (!access.babyId) {
       await client.query('COMMIT');
-      return;
+      return { action: 'none' };
     }
+
+    if (access.role === 'member') {
+      await client.query(
+        `UPDATE baby_members SET deleted_at = $2 WHERE baby_id = $1 AND user_id = $3 AND deleted_at IS NULL`,
+        [access.babyId, ts, user.sub],
+      );
+      await client.query('COMMIT');
+      return { action: 'left' };
+    }
+
+    const babyId = access.babyId;
     await client.query(`UPDATE babies SET deleted_at = $2, updated_at = $2, user_id = NULL WHERE id = $1`, [
       babyId,
       ts,
@@ -503,7 +838,17 @@ async function deleteAccount(sub) {
        FROM feeding_sessions f WHERE f.id = s.feeding_session_id AND f.baby_id = $1`,
       [babyId, ts],
     );
+    await client.query(`UPDATE baby_members SET deleted_at = $2 WHERE baby_id = $1 AND deleted_at IS NULL`, [
+      babyId,
+      ts,
+    ]);
+    await client.query(
+      `UPDATE baby_invites SET status = 'cancelled', responded_at = $2
+       WHERE baby_id = $1 AND status = 'pending'`,
+      [babyId, ts],
+    );
     await client.query('COMMIT');
+    return { action: 'deleted' };
   } catch (err) {
     await client.query('ROLLBACK');
     throw err;
@@ -584,6 +929,67 @@ const server = createServer(async (req, res) => {
       send(res, 200, result);
       return;
     }
+    if (req.method === 'GET' && url.pathname === '/sharing') {
+      if (overRateLimit(req, 'sharing')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const result = await handleSharingGet(user);
+      send(res, 200, result);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/invites') {
+      if (overRateLimit(req, 'invites')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const body = await readBody(req);
+      const result = await handleInviteCreate(user, body);
+      send(res, result.status, result.body);
+      return;
+    }
+    const inviteAction = url.pathname.match(/^\/invites\/([^/]+)\/(accept|decline)$/);
+    if (req.method === 'POST' && inviteAction) {
+      if (overRateLimit(req, 'invites')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const [, inviteId, action] = inviteAction;
+      const result =
+        action === 'accept' ? await handleInviteAccept(user, inviteId) : await handleInviteDecline(user, inviteId);
+      send(res, result.status, result.body);
+      return;
+    }
+    const inviteDelete = url.pathname.match(/^\/invites\/([^/]+)$/);
+    if (req.method === 'DELETE' && inviteDelete) {
+      if (overRateLimit(req, 'invites')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const result = await handleInviteCancel(user, inviteDelete[1]);
+      send(res, result.status, result.body);
+      return;
+    }
     if (req.method === 'DELETE' && url.pathname === '/account') {
       if (overRateLimit(req, 'account')) {
         send(res, 429, { error: 'rate_limit' });
@@ -594,8 +1000,8 @@ const server = createServer(async (req, res) => {
         send(res, 401, { error: 'auth' });
         return;
       }
-      await deleteAccount(user.sub);
-      send(res, 200, { ok: true });
+      const result = await deleteAccount(user);
+      send(res, 200, { ok: true, ...result });
       return;
     }
     send(res, 404, { error: 'not_found' });

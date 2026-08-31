@@ -19,7 +19,7 @@ Bébé | Outils (accueil) ↔ Dashboard (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (accordéon : compte Google, RGPD, légal).
+Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (accordéon : compte Google, co-parent, RGPD, légal).
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours à Outils. L’onglet Apports/Suivi est **conservé** au retour depuis un module.
 
@@ -108,6 +108,7 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - Auth : jeton Google Identity Services (même Client ID que le front)
 - **Source de vérité** : PostgreSQL sur le VPS quand Google est connecté. IndexedDB = cache hors ligne.
 - `GET /sync` : télécharge le snapshot complet ; `POST /sync` : envoie les modifications en attente puis renvoie le snapshot.
+- **Co-parent** : `GET /sharing`, `POST /invites`, `POST /invites/:id/accept|decline`, `DELETE /invites/:id` — invitation par e-mail Google, acceptation dans Profil, accès sync identique (max 2 personnes).
 - Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : bouton **Récupérer depuis le VPS**.
 - Un bébé par compte Google ; un profil vide local ne remplace pas les données serveur.
 - Offline-first : saisie locale immédiate, envoi dès réseau + session Google.
@@ -127,14 +128,21 @@ Pages accessibles depuis **Profil** ou `/legal/*` :
 
 Bandeau de consentement à la première visite (stockage local). Connexion Google = acceptation explicite de la sync vers le VPS.
 
-**Profil** : export JSON, effacement local, `DELETE /account` pour suppression serveur.
+**Profil** : export JSON, effacement local, `DELETE /account` (propriétaire = suppression bébé pour tous ; co-parent = quitter le partage). Accordéon **Co-parent** : inviter par e-mail, accepter/refuser les invitations reçues.
+
+## Co-parent
+
+- Invitation depuis **Profil → Co-parent** par l’e-mail Google du co-parent (valable 7 jours).
+- L’invité voit l’invitation dans son **Profil** (badge sur l’onglet) une fois connecté avec ce compte.
+- **Droits égaux** : saisie, sync, lecture pour les deux (1 propriétaire + 1 co-parent max).
+- Tables VPS : `baby_members`, `baby_invites` ; accès sync via membership, pas seulement `babies.user_id`.
 
 ## Sécurité
 
 - API en écoute `127.0.0.1` uniquement, derrière Nginx HTTPS.
 - CORS restreint aux origines Abel.
-- Auth Google obligatoire pour `/sync` et `DELETE /account`.
-- Rate limiting API (`/horoscope`, `/sync`, `/account`) + Nginx `limit_req`.
+- Auth Google obligatoire pour `/sync`, `/sharing`, `/invites` et `DELETE /account`.
+- Rate limiting API (`/horoscope`, `/sync`, `/sharing`, `/invites`, `/account`) + Nginx `limit_req`.
 - En-têtes : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (nginx).
 - `VITE_GOOGLE_CLIENT_ID` via secrets — pas de Client ID en dur dans le code.
 - Pas de cookies de traçage tiers.

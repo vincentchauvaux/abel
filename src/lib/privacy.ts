@@ -42,7 +42,9 @@ export async function wipeLocalData() {
   window.dispatchEvent(new Event('abel-db'));
 }
 
-export async function deleteRemoteAccount(): Promise<'ok' | 'auth' | 'error'> {
+export async function deleteRemoteAccount(): Promise<
+  'ok' | 'auth' | 'error' | { ok: true; action: 'deleted' | 'left' | 'none' }
+> {
   const token = readGoogleToken();
   if (!token) return 'auth';
   try {
@@ -52,7 +54,8 @@ export async function deleteRemoteAccount(): Promise<'ok' | 'auth' | 'error'> {
     });
     if (res.status === 401) return 'auth';
     if (!res.ok) return 'error';
-    return 'ok';
+    const body = (await res.json()) as { action?: 'deleted' | 'left' | 'none' };
+    return { ok: true, action: body.action ?? 'deleted' };
   } catch {
     return 'error';
   }

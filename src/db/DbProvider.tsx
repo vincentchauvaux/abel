@@ -3,20 +3,43 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
 import { readGoogleToken } from '@/lib/google';
+import { fetchSharing } from '@/lib/sharing';
 import { pullFromServer, scheduleSync } from '@/lib/sync';
 
 type DbContextValue = {
   baby: Baby | null;
   tick: number;
   ready: boolean;
+  pendingInvitesCount: number;
+  refreshSharing: () => Promise<void>;
 };
 
-const DbContext = createContext<DbContextValue>({ baby: null, tick: 0, ready: false });
+const DbContext = createContext<DbContextValue>({
+  baby: null,
+  tick: 0,
+  ready: false,
+  pendingInvitesCount: 0,
+  refreshSharing: async () => {},
+});
 
 export function DbProvider({ children }: { children: ReactNode }) {
   const [baby, setBaby] = useState<Baby | null>(null);
   const [tick, setTick] = useState(0);
   const [ready, setReady] = useState(false);
+  const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
+
+  const refreshSharing = async () => {
+    if (!readGoogleToken()) {
+      setPendingInvitesCount(0);
+      return;
+    }
+    const state = await fetchSharing();
+    if (state === 'auth' || state === 'error' || state === 'rate_limit' || 'error' in state) {
+      setPendingInvitesCount(0);
+      return;
+    }
+    setPendingInvitesCount(state.pendingInvitesCount);
+  };
 
   useEffect(() => {
     void (async () => {
@@ -26,6 +49,7 @@ export function DbProvider({ children }: { children: ReactNode }) {
           if (pulled) {
             setBaby((await getBaby()) ?? null);
             setReady(true);
+            await refreshSharing();
             scheduleSync(400);
             return;
           }
@@ -33,6 +57,7 @@ export function DbProvider({ children }: { children: ReactNode }) {
         const row = await ensureBaby();
         setBaby(row);
         setReady(true);
+        await refreshSharing();
         scheduleSync(400);
       } catch {
         const row = await ensureBaby();
@@ -50,7 +75,10 @@ export function DbProvider({ children }: { children: ReactNode }) {
       if (syncTimer.id) window.clearTimeout(syncTimer.id);
       syncTimer.id = window.setTimeout(() => scheduleSync(3000), 3000);
     };
-    const onOnline = () => scheduleSync(2000);
+    const onOnline = () => {
+      scheduleSync(2000);
+      void refreshSharing();
+    };
     window.addEventListener('abel-db', onChange);
     window.addEventListener('online', onOnline);
     return () => {
@@ -60,7 +88,11 @@ export function DbProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  return <DbContext.Provider value={{ baby, tick, ready }}>{children}</DbContext.Provider>;
+  return (
+    <DbContext.Provider value={{ baby, tick, ready, pendingInvitesCount, refreshSharing }}>
+      {children}
+    </DbContext.Provider>
+  );
 }
 
 export function useDb() {

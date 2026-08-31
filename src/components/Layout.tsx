@@ -2,6 +2,7 @@ import { Baby, CircleUser, Home, LayoutGrid } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { ConsentBanner } from '@/components/ConsentBanner';
+import { useDb } from '@/db/DbProvider';
 
 const MODULE_PREFIXES = [
   '/feeding',
@@ -19,6 +20,7 @@ const MODULE_PREFIXES = [
 
 export function Layout() {
   const path = useLocation().pathname;
+  const { pendingInvitesCount } = useDb();
   const onTools = path === '/' || path === '/tools';
   const onBaby = path.startsWith('/baby');
   const onProfile = path.startsWith('/profile');
@@ -43,7 +45,14 @@ export function Layout() {
           {centerIsTools ? 'Outils' : 'Dashboard'}
         </Link>
         <Link to="/profile" className={`tab ${onProfile ? 'on' : ''}`}>
-          <CircleUser size={22} />
+          <span className="tab-icon-wrap">
+            <CircleUser size={22} />
+            {pendingInvitesCount > 0 ? (
+              <span className="tab-badge" aria-label={`${pendingInvitesCount} invitation(s)`}>
+                {pendingInvitesCount}
+              </span>
+            ) : null}
+          </span>
           Profil
         </Link>
       </nav>

@@ -155,3 +155,46 @@ ALTER TABLE pumping_sessions ADD COLUMN IF NOT EXISTS remaining_ml INTEGER;
 ALTER TABLE bottle_feeds ALTER COLUMN amount_ml DROP NOT NULL;
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS is_todo BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS done_at TIMESTAMPTZ;
+
+CREATE TABLE IF NOT EXISTS baby_members (
+  id UUID PRIMARY KEY,
+  baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+  joined_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS baby_members_one_per_user
+  ON baby_members (user_id)
+  WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS baby_members_one_per_baby_user
+  ON baby_members (baby_id, user_id)
+  WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS baby_invites (
+  id UUID PRIMARY KEY,
+  baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
+  invited_email TEXT NOT NULL,
+  invited_by TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'declined', 'cancelled', 'expired')),
+  expires_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  responded_at TIMESTAMPTZ
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS baby_invites_one_pending
+  ON baby_invites (baby_id, invited_email)
+  WHERE status = 'pending';
+
+INSERT INTO baby_members (id, baby_id, user_id, role, joined_at, created_at)
+SELECT gen_random_uuid(), b.id, b.user_id, 'owner', b.created_at, b.created_at
+FROM babies b
+WHERE b.deleted_at IS NULL
+  AND b.user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM baby_members m
+    WHERE m.baby_id = b.id AND m.user_id = b.user_id AND m.deleted_at IS NULL
+  );

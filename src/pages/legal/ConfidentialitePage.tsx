@@ -27,6 +27,11 @@ export function ConfidentialitePage() {
           profil ; les données bébé ci-dessus sont copiées sur le VPS OVH pour la sauvegarde multi-appareils.
         </li>
         <li>
+          <strong>Co-parent</strong> : si vous invitez ou acceptez un partage, l’autre parent (identifié par son
+          e-mail Google) accède aux mêmes données bébé sur le VPS. Abel ne partage pas votre compte Google : chacun
+          se connecte avec le sien.
+        </li>
+        <li>
           <strong>Horoscope du jour</strong> : signe astrologique dérivé de la date de naissance (requête vers le VPS,
           puis APIs publiques tierces ; texte mis en cache localement 24 h).
         </li>
@@ -82,7 +87,8 @@ export function ConfidentialitePage() {
           <strong>Suppression locale</strong> : « Effacer les données sur cet appareil » (Profil).
         </li>
         <li>
-          <strong>Suppression serveur</strong> : « Supprimer mes données sur le VPS » (Profil, compte Google connecté).
+          <strong>Suppression serveur</strong> : propriétaire — suppression du bébé pour tous ; co-parent — quitter le
+          partage sans effacer les données de l’autre parent (Profil, compte Google connecté).
         </li>
       </ul>
       <p>
