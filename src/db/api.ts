@@ -296,7 +296,6 @@ export async function addBottle(
       amountMl,
       fedAt,
       pumpingSessionId,
-      amountHistory: [{ at: fedAt, amountMl }],
       ...stamp(),
     });
   });
@@ -322,21 +321,12 @@ export async function updateBottle(
         });
       }
     }
-    const patch: Partial<BottleFeed> = { ...touch() };
-    if (values.amountMl !== undefined && values.amountMl !== row.amountMl) {
-      const delta = values.amountMl - row.amountMl;
-      const history = row.amountHistory?.length
-        ? [...row.amountHistory]
-        : [{ at: row.fedAt, amountMl: row.amountMl }];
-      history.push({ at: nowIso(), amountMl: delta });
-      patch.amountHistory = history;
-      patch.amountMl = values.amountMl;
-    } else if (values.amountMl !== undefined) {
-      patch.amountMl = values.amountMl;
-    }
-    if (values.milkType !== undefined) patch.milkType = values.milkType;
-    if (values.fedAt !== undefined) patch.fedAt = values.fedAt;
-    await db.bottleFeeds.update(id, patch);
+    await db.bottleFeeds.update(id, {
+      ...(values.amountMl !== undefined ? { amountMl: values.amountMl } : {}),
+      ...(values.milkType !== undefined ? { milkType: values.milkType } : {}),
+      ...(values.fedAt !== undefined ? { fedAt: values.fedAt } : {}),
+      ...touch(),
+    });
   });
   notifyDb();
 }

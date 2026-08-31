@@ -936,57 +936,6 @@ h2 {
   gap: 12px;
 }
 
-.module-history-edit {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  margin-top: -2px;
-}
-
-.bottle-day-block-spaced {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.bottle-day-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.bottle-day-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-}
-
-.bottle-day-type {
-  margin: 4px 0 8px;
-  font-size: 0.85rem;
-}
-
-.bottle-day-edits {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.bottle-day-edit-line {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  font-size: 0.95rem;
-}
-
-.bottle-day-total {
-  margin: 16px 0 0;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 0.85rem;
-}
-
 .bars-wrap {
   width: 100%;
   max-width: 100%;

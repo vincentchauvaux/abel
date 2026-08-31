@@ -31,11 +31,6 @@ export type FeedingSegment = Stamp & {
   startedAt: string;
   endedAt: string | null;
 };
-export type BottleAmountEntry = {
-  at: string;
-  amountMl: number;
-};
-
 export type BottleFeed = Stamp & {
   id: string;
   babyId: string;
@@ -44,8 +39,6 @@ export type BottleFeed = Stamp & {
   fedAt: string;
   /** Tirage consommé (lait maternel en stock). */
   pumpingSessionId: string | null;
-  /** Ajouts successifs (création + éditions). */
-  amountHistory: BottleAmountEntry[];
 };
 export type DiaperEvent = Stamp & {
   id: string;

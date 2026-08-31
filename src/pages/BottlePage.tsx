@@ -1,27 +1,13 @@
-import { Pencil } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-import { ActivityEditor } from '@/components/ActivityEditor';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import { addBottle, getReminder, listBottles, listMilkStock } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, MilkType, PumpingSession } from '@/db/types';
-import type { ActivityItem } from '@/lib/activity';
-import { bottleAmountHistory } from '@/lib/bottle-history';
 import { formatDateTime, formatTime, nowIso, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import { milkLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
-
-function bottleActivityItem(row: BottleFeed): ActivityItem {
-  return {
-    id: row.id,
-    kind: 'bottle',
-    at: row.fedAt,
-    title: 'Biberon',
-    detail: `${row.amountMl} ml · ${milkLabel[row.milkType]}`,
-  };
-}
 
 export function BottlePage() {
   const { baby, tick } = useDb();
@@ -32,7 +18,6 @@ export function BottlePage() {
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [stockId, setStockId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -134,46 +119,19 @@ export function BottlePage() {
         </Button>
       </Card>
       <Card>
-        {today.length === 0 ? (
-          <p className="muted">Rien de noté aujourd’hui.</p>
-        ) : (
-          today.map((row, index) => {
-            const history = bottleAmountHistory(row);
-            return (
-              <div className={`bottle-day-block${index > 0 ? ' bottle-day-block-spaced' : ''}`} key={row.id}>
-                <div className="bottle-day-head">
-                  <p className="bottle-day-title">
-                    Aujourd’hui · {history.length} · {row.amountMl} ml
-                  </p>
-                  <button
-                    type="button"
-                    className="icon-btn module-history-edit"
-                    onClick={() => setEditing(bottleActivityItem(row))}
-                    aria-label={`Modifier le biberon de ${formatTime(row.fedAt)}`}>
-                    <Pencil size={18} aria-hidden />
-                  </button>
-                </div>
-                <p className="muted bottle-day-type">
-                  {milkLabel[row.milkType]}
-                  {row.pumpingSessionId ? ' · stock' : ''}
-                </p>
-                <div className="bottle-day-edits">
-                  {history.map((entry, entryIndex) => (
-                    <div className="bottle-day-edit-line" key={`${entry.at}-${entryIndex}`}>
-                      <span>{formatTime(entry.at)}</span>
-                      <span className="muted">{entry.amountMl} ml</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })
-        )}
-        {today.length > 0 ? (
-          <p className="muted bottle-day-total">Total jour · {today.length} · {todayMl} ml</p>
-        ) : null}
+        <h2>
+          Aujourd’hui · {today.length} · {todayMl} ml
+        </h2>
+        {today.map((row) => (
+          <div className="line" key={row.id}>
+            <strong>{formatTime(row.fedAt)}</strong>
+            <span className="muted">
+              {row.amountMl} ml · {milkLabel[row.milkType]}
+              {row.pumpingSessionId ? ' · stock' : ''}
+            </span>
+          </div>
+        ))}
       </Card>
-      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }
