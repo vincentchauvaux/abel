@@ -173,6 +173,23 @@ export function DashboardPage() {
     [notes],
   );
 
+  const dashboardNotes = useMemo(() => {
+    const filtered = notes.filter((row) => {
+      if (row.isTodo && !row.doneAt) return true;
+      const at = row.isTodo && row.doneAt ? row.doneAt : row.notedAt;
+      return inRange(at);
+    });
+    return filtered.sort((a, b) => {
+      const aOpen = a.isTodo && !a.doneAt;
+      const bOpen = b.isTodo && !b.doneAt;
+      if (aOpen !== bOpen) return aOpen ? -1 : 1;
+      const aAt = a.isTodo && a.doneAt ? a.doneAt! : a.notedAt;
+      const bAt = b.isTodo && b.doneAt ? b.doneAt! : b.notedAt;
+      return bAt.localeCompare(aAt);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inRange dépend de period
+  }, [notes, period, from, todayKey]);
+
   const toggleNotesSection = (id: string) => {
     if (id === 'notes') setNotesOpen((open) => !open);
   };
@@ -479,15 +496,17 @@ export function DashboardPage() {
         action={
           openNoteTodos.length > 0 ? (
             <span className="dash-notes-badge">{openNoteTodos.length} à faire</span>
-          ) : notes.length > 0 ? (
-            <span className="dash-notes-badge muted">{notes.length}</span>
+          ) : dashboardNotes.length > 0 ? (
+            <span className="dash-notes-badge muted">{dashboardNotes.length}</span>
           ) : null
         }>
-        {notes.length === 0 ? (
-          <p className="muted">Pas encore de note.</p>
+        {dashboardNotes.length === 0 ? (
+          <p className="muted">
+            {notes.length === 0 ? 'Pas encore de note.' : 'Aucune note sur cette période.'}
+          </p>
         ) : (
           <div className="dash-notes-list">
-            {notes.map((row) =>
+            {dashboardNotes.map((row) =>
               row.isTodo && !row.doneAt ? (
                 <button
                   key={row.id}

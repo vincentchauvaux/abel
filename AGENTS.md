@@ -80,7 +80,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Cartes **Favoris** (si configurés) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). **Accordéon Notes** puis **Alertes** repas / sommeil / couche. Puis **Apports** : biberon, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches. **Entrées de la période** : journal synthétique en bas de page.
+Cartes **Favoris** (si configurés) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). **Accordéon Notes** puis **Alertes** repas / sommeil / couche. Notes filtrées par période (todos ouvertes toujours visibles ; todos faites selon `doneAt`). Puis **Apports** : biberon, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches. **Entrées de la période** : journal synthétique en bas de page.
 
 ## Page Bébé
 
