@@ -862,9 +862,16 @@ h2 {
 }
 
 .accordion-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border);
+}
+
+.accordion-body .btn {
+  width: 100%;
 }
 
 .accordion-body > :first-child {
@@ -873,6 +880,10 @@ h2 {
 
 .entry-above-journal {
   margin: 8px 0;
+}
+
+.entry-above-journal .btn {
+  width: 100%;
 }
 
 .linkish {
