@@ -350,16 +350,16 @@ export function DashboardPage() {
       <ActiveNowPanel />
       <PeriodSelector value={period} onChange={setPeriod} />
 
-      <p className="dash-section">Suivi</p>
+      <p className="dash-section">Apports</p>
       <div className="dash-follow-list">
-        {followRows.map((row) => (
+        {apportRows.map((row) => (
           <FollowRowItem key={row.label} {...row} />
         ))}
       </div>
 
-      <p className="dash-section">Apports</p>
+      <p className="dash-section">Suivi</p>
       <div className="dash-follow-list">
-        {apportRows.map((row) => (
+        {followRows.map((row) => (
           <FollowRowItem key={row.label} {...row} />
         ))}
       </div>
