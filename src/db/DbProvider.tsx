@@ -43,17 +43,20 @@ export function DbProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const syncTimer = { id: 0 };
     const onChange = () => {
       setTick((n) => n + 1);
       getBaby().then((row) => setBaby(row ?? null));
-      scheduleSync();
+      if (syncTimer.id) window.clearTimeout(syncTimer.id);
+      syncTimer.id = window.setTimeout(() => scheduleSync(3000), 3000);
     };
-    const onOnline = () => scheduleSync(200);
+    const onOnline = () => scheduleSync(2000);
     window.addEventListener('abel-db', onChange);
     window.addEventListener('online', onOnline);
     return () => {
       window.removeEventListener('abel-db', onChange);
       window.removeEventListener('online', onOnline);
+      if (syncTimer.id) window.clearTimeout(syncTimer.id);
     };
   }, []);
 

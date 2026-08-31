@@ -280,7 +280,7 @@ function cors(req, res) {
 
 const RATE_LIMITS = {
   horoscope: { max: 40, windowMs: 60_000 },
-  sync: { max: 30, windowMs: 60_000 },
+  sync: { max: 120, windowMs: 60_000 },
   account: { max: 5, windowMs: 60_000 },
 };
 

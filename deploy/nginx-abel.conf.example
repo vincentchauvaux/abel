@@ -15,7 +15,7 @@ location = /abel/api {
 }
 
 location /abel/api/ {
-    # Preflight CORS : avant le rate limit (sinon 503 sans en-têtes CORS)
+    # Preflight CORS (hors rate limit Nginx — le rate limit est côté Node)
     if ($request_method = OPTIONS) {
         add_header Access-Control-Allow-Origin $abel_cors_origin always;
         add_header Vary Origin always;
@@ -24,8 +24,6 @@ location /abel/api/ {
         add_header Content-Length 0;
         return 204;
     }
-
-    limit_req zone=abel_api burst=40 nodelay;
 
     proxy_pass http://127.0.0.1:3030/;
     proxy_http_version 1.1;

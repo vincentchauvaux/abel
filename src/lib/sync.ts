@@ -9,13 +9,14 @@ import {
 import { notifyDb } from '@/db/client';
 import { readGoogleToken, SYNC_URL } from '@/lib/google';
 
-export type SyncState = 'idle' | 'syncing' | 'ok' | 'auth' | 'offline' | 'error';
+export type SyncState = 'idle' | 'syncing' | 'ok' | 'auth' | 'offline' | 'error' | 'rate_limit';
 
 let inFlight = false;
 let queued = false;
 let skipSchedule = false;
 let timer: number | null = null;
 let lastState: SyncState = 'idle';
+let rateLimitUntil = 0;
 const listeners = new Set<(state: SyncState) => void>();
 
 function setState(state: SyncState) {
@@ -31,17 +32,18 @@ export function subscribeSync(fn: (state: SyncState) => void) {
   };
 }
 
-export function scheduleSync(delayMs = 1200) {
+export function scheduleSync(delayMs = 2500) {
   if (skipSchedule) return;
   if (inFlight) {
     queued = true;
     return;
   }
+  const wait = Math.max(delayMs, Math.max(0, rateLimitUntil - Date.now()));
   if (timer) window.clearTimeout(timer);
   timer = window.setTimeout(() => {
     timer = null;
     void runSync();
-  }, delayMs);
+  }, wait);
 }
 
 type SyncResponse = {
@@ -49,7 +51,13 @@ type SyncResponse = {
   records: SyncPayload;
 };
 
-async function fetchRemoteSnapshot(token: string, method: 'GET' | 'POST', body?: unknown): Promise<SyncResponse | 'auth' | 'error'> {
+type FetchResult = SyncResponse | 'auth' | 'error' | 'rate_limit';
+
+async function fetchRemoteSnapshot(
+  token: string,
+  method: 'GET' | 'POST',
+  body?: unknown,
+): Promise<FetchResult> {
   const res = await fetch(`${SYNC_URL}/sync`, {
     method,
     headers: {
@@ -59,8 +67,14 @@ async function fetchRemoteSnapshot(token: string, method: 'GET' | 'POST', body?:
     body: body ? JSON.stringify(body) : undefined,
   });
   if (res.status === 401) return 'auth';
+  if (res.status === 429) return 'rate_limit';
   if (!res.ok) return 'error';
   return (await res.json()) as SyncResponse;
+}
+
+function handleRateLimit() {
+  rateLimitUntil = Date.now() + 60_000;
+  setState('rate_limit');
 }
 
 /** Télécharge le snapshot VPS et remplace le cache local. */
@@ -71,6 +85,10 @@ export async function pullFromServer(): Promise<boolean> {
   const payload = await fetchRemoteSnapshot(token, 'GET');
   if (payload === 'auth') {
     setState('auth');
+    return false;
+  }
+  if (payload === 'rate_limit') {
+    handleRateLimit();
     return false;
   }
   if (payload === 'error') return false;
@@ -89,6 +107,10 @@ export async function runSync(): Promise<SyncState> {
     queued = true;
     return lastState;
   }
+  if (Date.now() < rateLimitUntil) {
+    setState('rate_limit');
+    return lastState;
+  }
   const token = readGoogleToken();
   if (!token) {
     setState(navigator.onLine ? 'auth' : 'offline');
@@ -101,6 +123,7 @@ export async function runSync(): Promise<SyncState> {
 
   inFlight = true;
   setState('syncing');
+  let shouldRetry = false;
   try {
     const local = await getBaby();
     const skipPlaceholder = local ? await isPlaceholderBaby(local) : false;
@@ -108,12 +131,17 @@ export async function runSync(): Promise<SyncState> {
     if (skipPlaceholder) {
       const pulled = await pullFromServer();
       if (pulled) return lastState;
+      if (lastState === 'rate_limit') return lastState;
     }
 
     const changes = await collectPending({ skipPlaceholderBaby: skipPlaceholder });
     const payload = await fetchRemoteSnapshot(token, 'POST', { changes });
     if (payload === 'auth') {
       setState('auth');
+      return lastState;
+    }
+    if (payload === 'rate_limit') {
+      handleRateLimit();
       return lastState;
     }
     if (payload === 'error') throw new Error('sync');
@@ -130,9 +158,12 @@ export async function runSync(): Promise<SyncState> {
     return lastState;
   } finally {
     inFlight = false;
-    if (queued) {
+    if (queued && lastState !== 'rate_limit') {
       queued = false;
-      scheduleSync(400);
+      shouldRetry = true;
+    } else {
+      queued = false;
     }
+    if (shouldRetry) scheduleSync(3000);
   }
 }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AccordionSection } from '@/components/Accordion';
 import { ActivityEditor } from '@/components/ActivityEditor';
@@ -57,6 +57,7 @@ export function BabyPage() {
   const [goalsReady, setGoalsReady] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const guidedRef = useRef(false);
   const now = useNow(true, 30_000);
 
   const toggleSection = (id: string) => {
@@ -71,7 +72,7 @@ export function BabyPage() {
   useEffect(() => {
     if (!baby) return;
     setEditIdentity(!(baby.bornOn && baby.name));
-  }, [baby?.id]);
+  }, [baby?.bornOn, baby?.name]);
 
   useEffect(() => {
     if (!baby) return;
@@ -93,23 +94,14 @@ export function BabyPage() {
         Boolean(r) &&
         ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
       setGoalsReady(configured);
-      if (!(baby.bornOn && baby.name)) setOpenSection('identity');
-      else if (!configured) setOpenSection('goals');
+      setEditGoals(!configured);
+      if (!guidedRef.current) {
+        if (!(baby.bornOn && baby.name)) setOpenSection('identity');
+        else if (!configured) setOpenSection('goals');
+        guidedRef.current = true;
+      }
     });
   }, [baby, tick]);
-
-  useEffect(() => {
-    if (!baby) return;
-    getReminder(baby.id).then((r) => {
-      const configured =
-        Boolean(r) &&
-        ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
-      setGoalsReady(configured);
-      setEditGoals(!configured);
-      if (!(baby.bornOn && baby.name)) setOpenSection('identity');
-      else if (!configured) setOpenSection('goals');
-    });
-  }, [baby?.id]);
 
   const horoscope = bornOn ? horoscopeFor(bornOn) : null;
 

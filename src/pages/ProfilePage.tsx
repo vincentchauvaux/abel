@@ -29,6 +29,7 @@ const SYNC_LABEL: Record<SyncState, string> = {
   auth: 'Session sync expirée',
   offline: 'Hors ligne — cache local, envoi dès que possible',
   error: 'Sync impossible pour le moment',
+  rate_limit: 'Trop de requêtes — réessaie dans une minute',
 };
 
 export function ProfilePage() {
