@@ -588,6 +588,17 @@ h2 {
   line-height: 1.35;
 }
 
+.dash-note-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-note-done-check {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 .dash-note-todo-btn {
   width: 100%;
   border: 1px solid var(--border);

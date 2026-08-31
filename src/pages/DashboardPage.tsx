@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
@@ -498,9 +499,11 @@ export function DashboardPage() {
                 </button>
               ) : (
                 <div key={row.id} className="dash-note-item">
-                  <span className="muted">
+                  <span className="muted dash-note-meta">
                     {formatDateTime(row.isTodo && row.doneAt ? row.doneAt : row.notedAt)}
-                    {row.isTodo && row.doneAt ? ' · fait' : ''}
+                    {row.isTodo && row.doneAt ? (
+                      <Check size={15} className="dash-note-done-check" aria-label="Fait" />
+                    ) : null}
                   </span>
                   <p>{row.body}</p>
                 </div>
