@@ -44,6 +44,7 @@ type Props = {
 };
 
 type FeedStatus = 'noted' | 'open' | 'done';
+type SleepStatus = 'open' | 'done';
 
 export function ActivityEditor({ item, onClose }: Props) {
   const [when, setWhen] = useState(toDatetimeLocalValue(item.at));
@@ -53,6 +54,9 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [side, setSide] = useState<Side>('LEFT');
   const [feedStatus, setFeedStatus] = useState<FeedStatus>('noted');
   const [feedMinutes, setFeedMinutes] = useState('');
+  const [sleepStatus, setSleepStatus] = useState<SleepStatus>('done');
+  const [sleepMinutes, setSleepMinutes] = useState('');
+  const [pumpDuration, setPumpDuration] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -77,6 +81,7 @@ export function ActivityEditor({ item, onClose }: Props) {
           setAmount(row.amountMl != null ? String(row.amountMl) : '');
           setWhen(toDatetimeLocalValue(row.startedAt));
           if (row.side) setSide(row.side);
+          if (row.durationMinutes != null) setPumpDuration(String(row.durationMinutes));
         }
       } else if (item.kind === 'feeding') {
         const row = await db.feedingSessions.get(item.id);
@@ -110,7 +115,18 @@ export function ActivityEditor({ item, onClose }: Props) {
         }
       } else if (item.kind === 'sleep') {
         const row = await db.sleepSessions.get(item.id);
-        if (!cancelled && row) setWhen(toDatetimeLocalValue(row.startedAt));
+        if (!cancelled && row) {
+          setWhen(toDatetimeLocalValue(row.startedAt));
+          if (!row.endedAt) {
+            setSleepStatus('open');
+            setSleepMinutes(String(Math.max(1, Math.round(elapsedMs(row.startedAt, null) / 60_000))));
+          } else {
+            setSleepStatus('done');
+            setSleepMinutes(
+              String(Math.max(1, Math.round(elapsedMs(row.startedAt, row.endedAt) / 60_000))),
+            );
+          }
+        }
       } else if (item.kind === 'temperature') {
         const row = await db.temperatures.get(item.id);
         if (!cancelled && row) {
@@ -160,7 +176,17 @@ export function ActivityEditor({ item, onClose }: Props) {
           setError('Quantité invalide.');
           return;
         }
-        await updatePumping(item.id, { amountMl: Math.round(ml), startedAt: at, side });
+        const pumpMins = pumpDuration.trim() ? parseDecimal(pumpDuration) : null;
+        if (pumpDuration.trim() && (pumpMins === null || pumpMins <= 0)) {
+          setError('Durée invalide.');
+          return;
+        }
+        await updatePumping(item.id, {
+          amountMl: Math.round(ml),
+          startedAt: at,
+          side,
+          durationMinutes: pumpMins === null ? null : Math.round(pumpMins),
+        });
       } else if (item.kind === 'feeding') {
         let endedAt: string | null;
         if (feedStatus === 'open') {
@@ -192,7 +218,29 @@ export function ActivityEditor({ item, onClose }: Props) {
       } else if (item.kind === 'supplement') {
         await updateSupplement(item.id, { name: text, givenAt: at });
       } else if (item.kind === 'sleep') {
-        await updateSleep(item.id, { startedAt: at });
+        if (sleepStatus === 'open') {
+          const session = await db.sleepSessions.get(item.id);
+          if (session) {
+            const otherOpen = (await db.sleepSessions.where('babyId').equals(session.babyId).toArray()).find(
+              (row) => row.id !== item.id && !row.deletedAt && !row.endedAt,
+            );
+            if (otherOpen) {
+              setError('Une autre sieste est déjà en cours. Termine-la d’abord.');
+              return;
+            }
+          }
+          await updateSleep(item.id, { startedAt: at, endedAt: null });
+        } else {
+          const mins = parseDecimal(sleepMinutes);
+          if (mins === null || mins <= 0) {
+            setError('Indique la durée en minutes.');
+            return;
+          }
+          await updateSleep(item.id, {
+            startedAt: at,
+            endedAt: addMinutesIso(at, Math.round(mins)),
+          });
+        }
       } else if (item.kind === 'temperature') {
         const n = parseDecimal(amount);
         if (n === null) {
@@ -238,9 +286,46 @@ export function ActivityEditor({ item, onClose }: Props) {
           {item.title} · {formatDateTime(item.at)}
         </h2>
         <label className="field">
-          <span>Date et heure</span>
+          <span>
+            {item.kind === 'sleep' || item.kind === 'feeding' ? 'Début' : 'Date et heure'}
+          </span>
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
+
+        {item.kind === 'sleep' ? (
+          <>
+            <p className="goal-label">État</p>
+            <div className="row">
+              <Chip
+                label="En cours"
+                selected={sleepStatus === 'open'}
+                onClick={() => {
+                  setSleepStatus('open');
+                  if (!sleepMinutes.trim()) setSleepMinutes('1');
+                }}
+              />
+              <Chip
+                label="Terminée"
+                selected={sleepStatus === 'done'}
+                onClick={() => {
+                  setSleepStatus('done');
+                  if (!sleepMinutes.trim()) setSleepMinutes('60');
+                }}
+              />
+            </div>
+            {sleepStatus === 'done' ? (
+              <Field
+                label="Durée (min)"
+                value={sleepMinutes}
+                onChange={setSleepMinutes}
+                placeholder="90"
+                inputMode="decimal"
+              />
+            ) : (
+              <p className="muted">Sommeil en cours — tu peux aussi le terminer depuis Outils ou le Dashboard.</p>
+            )}
+          </>
+        ) : null}
 
         {item.kind === 'feeding' ? (
           <>
@@ -302,6 +387,13 @@ export function ActivityEditor({ item, onClose }: Props) {
                 <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />
               ))}
             </div>
+            <Field
+              label="Durée (min, facultatif)"
+              value={pumpDuration}
+              onChange={setPumpDuration}
+              placeholder="15"
+              inputMode="decimal"
+            />
           </>
         ) : null}
 
