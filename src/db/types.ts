@@ -16,6 +16,7 @@ export type Baby = Stamp & {
   name: string;
   userId: string | null;
   bornOn: string | null;
+  photoUrl: string | null;
 };
 export type FeedingSession = Stamp & {
   id: string;

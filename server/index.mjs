@@ -50,6 +50,7 @@ const TABLES = {
       name: 'name',
       userId: 'user_id',
       bornOn: 'born_on',
+      photoUrl: 'photo_url',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',

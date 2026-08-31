@@ -65,8 +65,28 @@ export function formatDuration(ms: number): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
+/** Minutes arrondies → libellé lisible (45 min, 2 h 15 min, 3 j 5 h). */
+export function formatMinuteCount(minutes: number): string {
+  const total = Math.max(0, Math.round(minutes));
+  if (total === 0) return '0 min';
+  if (total < 60) return total === 1 ? '1 min' : `${total} min`;
+
+  const days = Math.floor(total / 1440);
+  const hours = Math.floor((total % 1440) / 60);
+  const mins = total % 60;
+
+  if (days >= 1) {
+    const parts: string[] = [days === 1 ? '1 j' : `${days} j`];
+    if (hours > 0) parts.push(`${hours} h`);
+    return parts.join(' ');
+  }
+
+  if (mins === 0) return `${hours} h`;
+  return `${hours} h ${mins} min`;
+}
+
 export function formatMinutes(ms: number): string {
-  return `${Math.round(ms / 60_000)} min`;
+  return formatMinuteCount(Math.round(ms / 60_000));
 }
 
 export function elapsedMs(startedAt: string, endedAt?: string | null, now = Date.now()): number {
@@ -134,11 +154,7 @@ export function formatAge(bornOn: string, now = new Date()): string {
 export function formatFromNow(iso: string, now = Date.now()): string {
   const diff = new Date(iso).getTime() - now;
   const abs = Math.abs(diff);
-  const minutes = Math.round(abs / 60_000);
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  const label =
-    hours >= 1 ? `${hours} h${mins ? ` ${mins}` : ''}` : minutes <= 1 ? '1 min' : `${minutes} min`;
+  const label = formatMinuteCount(Math.round(abs / 60_000));
   return diff >= 0 ? `dans ${label}` : `il y a ${label}`;
 }
 

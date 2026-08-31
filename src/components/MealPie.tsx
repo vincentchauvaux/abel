@@ -1,3 +1,5 @@
+import { formatMinuteCount } from '@/lib/dates';
+
 type Props = {
   breastCount: number;
   bottleCount: number;
@@ -29,7 +31,7 @@ export function MealPie({ breastCount, bottleCount, otherCount, feedingMinutes, 
   if (breastCount > 0) recap.push(`${breastCount} sein`);
   if (bottleCount > 0) recap.push(`${bottleCount} biberon`);
   if (otherCount > 0) recap.push(`${otherCount} autre${otherCount > 1 ? 's' : ''}`);
-  if (feedingMinutes > 0) recap.push(`${feedingMinutes} min`);
+  if (feedingMinutes > 0) recap.push(formatMinuteCount(feedingMinutes));
   if (bottleMl > 0) recap.push(`${bottleMl} ml`);
 
   return (

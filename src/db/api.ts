@@ -49,6 +49,7 @@ export async function ensureBaby(): Promise<Baby> {
     name: 'Bébé',
     userId: null,
     bornOn: null,
+    photoUrl: null,
     ...stamp(),
   };
   await db.babies.add(baby);
@@ -79,10 +80,14 @@ export async function renameBaby(id: string, name: string) {
   notifyDb();
 }
 
-export async function updateBaby(id: string, values: { name?: string; bornOn?: string | null }) {
+export async function updateBaby(
+  id: string,
+  values: { name?: string; bornOn?: string | null; photoUrl?: string | null },
+) {
   await db.babies.update(id, {
     ...(values.name !== undefined ? { name: values.name.trim() || 'Bébé' } : {}),
     ...(values.bornOn !== undefined ? { bornOn: values.bornOn || null } : {}),
+    ...(values.photoUrl !== undefined ? { photoUrl: values.photoUrl } : {}),
     ...touch(),
   });
   notifyDb();

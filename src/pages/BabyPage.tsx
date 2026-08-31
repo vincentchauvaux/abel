@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AccordionSection } from '@/components/Accordion';
 import { ActivityEditor } from '@/components/ActivityEditor';
+import { BabyPhoto } from '@/components/BabyPhoto';
 import { SmartEntryForm } from '@/components/SmartEntryForm';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import {
@@ -42,6 +43,7 @@ export function BabyPage() {
   const { baby, tick } = useDb();
   const [name, setName] = useState(baby?.name ?? '');
   const [bornOn, setBornOn] = useState(baby?.bornOn ?? '');
+  const [photoUrl, setPhotoUrl] = useState<string | null>(baby?.photoUrl ?? null);
   const [goals, setGoals] = useState<ReminderRule | undefined>();
   const [customFeed, setCustomFeed] = useState('');
   const [customMl, setCustomMl] = useState('');
@@ -67,7 +69,8 @@ export function BabyPage() {
   useEffect(() => {
     if (baby?.name) setName(baby.name);
     setBornOn(baby?.bornOn ?? '');
-  }, [baby?.name, baby?.bornOn]);
+    setPhotoUrl(baby?.photoUrl ?? null);
+  }, [baby?.name, baby?.bornOn, baby?.photoUrl]);
 
   useEffect(() => {
     if (!baby) return;
@@ -162,8 +165,14 @@ export function BabyPage() {
 
   const saveIdentity = () => {
     if (!baby) return;
-    updateBaby(baby.id, { name, bornOn: bornOn || null });
+    updateBaby(baby.id, { name, bornOn: bornOn || null, photoUrl });
     if (name.trim() && bornOn) setEditIdentity(false);
+  };
+
+  const onPhotoChange = (url: string | null) => {
+    setPhotoUrl(url);
+    if (!baby) return;
+    void updateBaby(baby.id, { photoUrl: url });
   };
 
   const saveGoals = async (patch: Parameters<typeof upsertCareGoals>[1]) => {
@@ -197,6 +206,7 @@ export function BabyPage() {
         }>
         {editIdentity ? (
           <>
+            <BabyPhoto photoUrl={photoUrl} editable onChange={onPhotoChange} />
             <label className="field">
               <span>Prénom</span>
               <input value={name} onChange={(e) => setName(e.target.value)} />
@@ -214,6 +224,7 @@ export function BabyPage() {
           </>
         ) : (
           <>
+            <BabyPhoto photoUrl={photoUrl} editable={false} onChange={() => {}} />
             <div className="info-line">
               <span className="muted">Prénom</span>
               <strong>{name || '—'}</strong>

@@ -1144,6 +1144,50 @@ h2 {
   padding: 0;
 }
 
+.baby-photo-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.baby-photo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  border: 2px dashed var(--border);
+  background: color-mix(in srgb, var(--border) 25%, transparent);
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+}
+
+.baby-photo.editable {
+  cursor: pointer;
+}
+
+.baby-photo.has-photo {
+  border-style: solid;
+}
+
+.baby-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.baby-photo-input {
+  display: none;
+}
+
+.baby-photo-remove {
+  font-size: 0.85rem;
+}
+
 .info-line {
   display: flex;
   flex-direction: column;
