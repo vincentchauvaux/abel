@@ -111,6 +111,9 @@ function loadGis(): Promise<void> {
   });
 }
 
+let gsiInitialized = false;
+let gsiCallback: ((user: GoogleUser, credential: string) => void) | null = null;
+
 export async function renderGoogleButton(
   host: HTMLElement,
   onUser: (user: GoogleUser, credential: string) => void,
@@ -118,11 +121,17 @@ export async function renderGoogleButton(
   if (!GOOGLE_CLIENT_ID) return;
   await loadGis();
   if (!window.google?.accounts.id) return;
+  gsiCallback = onUser;
   host.replaceChildren();
-  window.google.accounts.id.initialize({
-    client_id: GOOGLE_CLIENT_ID,
-    callback: (response) => onUser(decodeJwt(response.credential), response.credential),
-  });
+  if (!gsiInitialized) {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: (response) => {
+        gsiCallback?.(decodeJwt(response.credential), response.credential);
+      },
+    });
+    gsiInitialized = true;
+  }
   window.google.accounts.id.renderButton(host, {
     theme: 'outline',
     size: 'large',

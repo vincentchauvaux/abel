@@ -318,10 +318,14 @@ async function verifyUser(req) {
   const header = req.headers.authorization || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : '';
   if (!token) return null;
-  const ticket = await google.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
-  const payload = ticket.getPayload();
-  if (!payload?.sub) return null;
-  return { sub: payload.sub, email: payload.email || '' };
+  try {
+    const ticket = await google.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+    if (!payload?.sub) return null;
+    return { sub: payload.sub, email: payload.email || '' };
+  } catch {
+    return null;
+  }
 }
 
 async function readBody(req) {

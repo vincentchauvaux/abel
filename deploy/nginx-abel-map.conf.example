@@ -1,0 +1,8 @@
+# À inclure une fois dans http {} de nginx.conf :
+#   include /etc/nginx/snippets/abel-map.conf;
+map $http_origin $abel_cors_origin {
+    default "";
+    "https://vincentchauvaux.github.io" $http_origin;
+    "http://localhost:5173" $http_origin;
+    "http://127.0.0.1:5173" $http_origin;
+}

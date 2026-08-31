@@ -1,19 +1,31 @@
 # Abel — snippet Nginx (HTTPS, hostname OVH)
 # À inclure dans le server {} de vps-e09ed6db.vps.ovh.net
 #
+#   sudo cp deploy/nginx-abel-map.conf.example /etc/nginx/snippets/abel-map.conf
 #   sudo cp deploy/nginx-abel.conf.example /etc/nginx/snippets/abel.conf
-#   include snippets/abel.conf;
+#   include snippets/abel.conf;  (dans server {})
+#   include /etc/nginx/snippets/abel-map.conf;  (dans http {}, une fois)
 #   sudo nginx -t && sudo systemctl reload nginx
 #
 # Rate limit (à déclarer une fois dans http {} si absent) :
-#   limit_req_zone $binary_remote_addr zone=abel_api:10m rate=30r/m;
+#   limit_req_zone $binary_remote_addr zone=abel_api:10m rate=120r/m;
 
 location = /abel/api {
     return 301 $scheme://$host/abel/api/;
 }
 
 location /abel/api/ {
-    limit_req zone=abel_api burst=20 nodelay;
+    # Preflight CORS : avant le rate limit (sinon 503 sans en-têtes CORS)
+    if ($request_method = OPTIONS) {
+        add_header Access-Control-Allow-Origin $abel_cors_origin always;
+        add_header Vary Origin always;
+        add_header Access-Control-Allow-Methods "GET, POST, DELETE, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
+        add_header Content-Length 0;
+        return 204;
+    }
+
+    limit_req zone=abel_api burst=40 nodelay;
 
     proxy_pass http://127.0.0.1:3030/;
     proxy_http_version 1.1;

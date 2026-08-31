@@ -57,10 +57,17 @@ sudo -u postgres psql -v ON_ERROR_STOP=1 -d abel -f "$ROOT/server/schema.sql" >/
 
 # Rate limit zone (une fois dans http {})
 if ! grep -q 'zone=abel_api' /etc/nginx/nginx.conf; then
-  sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=abel_api:10m rate=30r/m;' /etc/nginx/nginx.conf
+  sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=abel_api:10m rate=120r/m;' /etc/nginx/nginx.conf
+else
+  sed -i 's|zone=abel_api:10m rate=[0-9]*r/m|zone=abel_api:10m rate=120r/m|' /etc/nginx/nginx.conf
+fi
+if ! grep -q 'snippets/abel-map.conf' /etc/nginx/nginx.conf; then
+  cp "$ROOT/deploy/nginx-abel-map.conf.example" /etc/nginx/snippets/abel-map.conf
+  sed -i '/http {/a\    include /etc/nginx/snippets/abel-map.conf;' /etc/nginx/nginx.conf
 fi
 
 # API sur le hostname VPS (le front reste sur GitHub Pages)
+cp "$ROOT/deploy/nginx-abel-map.conf.example" /etc/nginx/snippets/abel-map.conf
 cp "$ROOT/deploy/nginx-abel.conf.example" /etc/nginx/snippets/abel.conf
 if ! grep -q 'snippets/abel.conf' /etc/nginx/sites-enabled/streamtv; then
   sed -i '/include snippets\/hakou-live.conf;/a\    include snippets/abel.conf;' /etc/nginx/sites-enabled/streamtv

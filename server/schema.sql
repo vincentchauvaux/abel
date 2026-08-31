@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS bottle_feeds (
   id UUID PRIMARY KEY,
   baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
   milk_type TEXT NOT NULL,
-  amount_ml INTEGER NOT NULL,
+  amount_ml INTEGER,
   fed_at TIMESTAMPTZ NOT NULL,
   pumping_session_id UUID,
   created_at TIMESTAMPTZ NOT NULL,
