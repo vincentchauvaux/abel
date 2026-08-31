@@ -55,7 +55,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Module | Rôle |
 |---|---|
 | Allaitement | Une carte « Noter une tétée » + case **Minuteur** : sans case = notée immédiatement ; avec case = démarre le timer. |
-| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. Historique du jour éditable (crayon sur chaque ligne).
+| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. Historique du jour : ligne récap + type de lait, puis chaque ajout/édition (heure + ml) ; crayon sur la ligne récap.
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 
@@ -170,7 +170,7 @@ Pas d’app native Expo. Pas de Next.js pour la V1 web.
 ```
 babies (name, bornOn, photoUrl)
  ├── feeding_sessions → feeding_segments
- ├── bottle_feeds (amountMl, pumpingSessionId?)
+ ├── bottle_feeds (amountMl, pumpingSessionId?, amountHistory[])
  ├── solid_foods
  ├── supplements
  ├── diaper_events

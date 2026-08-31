@@ -90,6 +90,7 @@ const TABLES = {
       amountMl: 'amount_ml',
       fedAt: 'fed_at',
       pumpingSessionId: 'pumping_session_id',
+      amountHistory: 'amount_history',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -253,6 +254,10 @@ function toRow(fields, record) {
       row[sql] = value ? String(value).slice(0, 10) : null;
       continue;
     }
+    if (sql === 'amount_history') {
+      row[sql] = value == null ? null : JSON.stringify(value);
+      continue;
+    }
     if (typeof value === 'string' && (sql.endsWith('_at') || sql === 'created_at')) {
       value = value ? new Date(value) : null;
     }
@@ -267,6 +272,10 @@ function fromRow(fields, pgRow) {
     const value = pgRow[sql];
     if (sql === 'born_on') {
       record[camel] = dateOnly(value);
+    } else if (sql === 'amount_history') {
+      if (value == null) record[camel] = [];
+      else if (typeof value === 'string') record[camel] = JSON.parse(value);
+      else record[camel] = value;
     } else {
       record[camel] = value instanceof Date ? value.toISOString() : value;
     }
