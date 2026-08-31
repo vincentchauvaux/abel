@@ -294,17 +294,12 @@ export function DashboardPage() {
     },
   ];
 
-  const mealTotal = breastCount + bottleCount;
-  const mealRecap: string[] = [];
-  if (breastCount > 0) mealRecap.push(`${breastCount} sein`);
-  if (bottleCount > 0) mealRecap.push(`${bottleCount} bib`);
-  if (bottleMl > 0) mealRecap.push(`${bottleMl} ml`);
   const apportRows: FollowRow[] = [
     {
-      label: 'Repas',
-      value: mealTotal > 0 ? mealTotal : '—',
-      sub: mealRecap.length > 0 ? mealRecap.join(' · ') : mealAt ? formatTime(mealAt) : '—',
-      to: '/feeding',
+      label: TOOLS.bottle.label,
+      value: bottleMl > 0 ? `${bottleMl} ml` : bottleCount > 0 ? bottleCount : '—',
+      sub: bottleCount > 0 ? `${bottleCount} bib` : lastBottle ? formatTime(lastBottle.fedAt) : '—',
+      to: TOOLS.bottle.route,
     },
     {
       label: 'Diversification',
@@ -475,37 +470,6 @@ export function DashboardPage() {
         </>
       ) : null}
 
-      <p className="dash-section">Apports</p>
-      <div className="dash-follow-list">
-        {apportRows.map((row) => (
-          <FollowRowItem key={row.label} {...row} />
-        ))}
-      </div>
-
-      <p className="dash-section">Suivi</p>
-      <div className="dash-follow-list">
-        {followRows.map((row) => (
-          <FollowRowItem key={row.label} {...row} />
-        ))}
-      </div>
-
-      <p className="dash-section">Graphiques</p>
-      <Bars title="Repas (nombre)" data={mealBars} tone="meal" />
-      <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
-      <Bars title="Couches" data={diaperBars} tone="pee" />
-      {weights.length > 1 ? (
-        <Card>
-          <h2>Évolution poids (kg)</h2>
-          <p>
-            {[...weights]
-              .reverse()
-              .map((row) => `${row.value}`.replace('.', ','))
-              .join(' → ')}
-          </p>
-          <p className="muted">Dernière pesée · {formatDateTime(weights[0].measuredAt)}</p>
-        </Card>
-      ) : null}
-
       <AccordionSection
         id="notes"
         title="Notes"
@@ -569,6 +533,37 @@ export function DashboardPage() {
           <span>{diaperAlert}</span>
         </div>
       </Card>
+
+      <p className="dash-section">Apports</p>
+      <div className="dash-follow-list">
+        {apportRows.map((row) => (
+          <FollowRowItem key={row.label} {...row} />
+        ))}
+      </div>
+
+      <p className="dash-section">Suivi</p>
+      <div className="dash-follow-list">
+        {followRows.map((row) => (
+          <FollowRowItem key={row.label} {...row} />
+        ))}
+      </div>
+
+      <p className="dash-section">Graphiques</p>
+      <Bars title="Repas (nombre)" data={mealBars} tone="meal" />
+      <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
+      <Bars title="Couches" data={diaperBars} tone="pee" />
+      {weights.length > 1 ? (
+        <Card>
+          <h2>Évolution poids (kg)</h2>
+          <p>
+            {[...weights]
+              .reverse()
+              .map((row) => `${row.value}`.replace('.', ','))
+              .join(' → ')}
+          </p>
+          <p className="muted">Dernière pesée · {formatDateTime(weights[0].measuredAt)}</p>
+        </Card>
+      ) : null}
 
       <Card>
         <h2>Entrées de la période</h2>
