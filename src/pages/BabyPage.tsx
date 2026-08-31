@@ -130,11 +130,17 @@ export function BabyPage() {
       return;
     }
     let cancelled = false;
-    fetchDailyHoroscope(bornOn).then((reading) => {
-      if (!cancelled) setDaily(reading.text);
-    });
+    const load = (force = false) => {
+      fetchDailyHoroscope(bornOn, { force }).then((reading) => {
+        if (!cancelled) setDaily(reading.text);
+      });
+    };
+    load();
+    const onOnline = () => load(true);
+    window.addEventListener('online', onOnline);
     return () => {
       cancelled = true;
+      window.removeEventListener('online', onOnline);
     };
   }, [bornOn]);
   const lastBottle = bottles[0];
