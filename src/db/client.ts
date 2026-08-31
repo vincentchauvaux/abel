@@ -142,8 +142,12 @@ export function createId(): string {
 
 export type DbNotifyPriority = 'normal' | 'urgent';
 
-export function notifyDb(priority: DbNotifyPriority = 'normal') {
-  window.dispatchEvent(new CustomEvent('abel-db', { detail: { priority } }));
+type DbNotifyOptions = {
+  silent?: boolean;
+};
+
+export function notifyDb(priority: DbNotifyPriority = 'normal', options?: DbNotifyOptions) {
+  window.dispatchEvent(new CustomEvent('abel-db', { detail: { priority, silent: options?.silent } }));
 }
 
 export function notifyDbUrgent() {

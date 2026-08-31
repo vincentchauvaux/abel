@@ -112,7 +112,7 @@ export async function pullFromServer(): Promise<boolean> {
 
     await mirrorRemoteSnapshot(payload.records, payload.babyId);
     skipSchedule = true;
-    notifyDb();
+    notifyDb('normal', { silent: true });
     skipSchedule = false;
     setState('ok');
     return true;
@@ -141,8 +141,8 @@ export async function runSync(): Promise<SyncState> {
   }
 
   inFlight = true;
-  setState('syncing');
   let shouldRetry = false;
+  let hadPending = false;
   try {
     const local = await getBaby();
     const skipPlaceholder = local ? await isPlaceholderBaby(local) : false;
@@ -154,6 +154,9 @@ export async function runSync(): Promise<SyncState> {
     }
 
     const changes = await collectPending({ skipPlaceholderBaby: skipPlaceholder });
+    hadPending = Object.values(changes).some((rows) => (rows?.length ?? 0) > 0);
+    if (hadPending) setState('syncing');
+
     const payload = await fetchRemoteSnapshot(token, 'POST', { changes });
     if (payload === 'auth') {
       setState('auth');
@@ -168,7 +171,7 @@ export async function runSync(): Promise<SyncState> {
     await markPushed(changes);
     await mirrorRemoteSnapshot(payload.records, payload.babyId);
     skipSchedule = true;
-    notifyDb();
+    notifyDb('normal', { silent: !hadPending });
     skipSchedule = false;
     setState('ok');
     return lastState;

@@ -61,6 +61,8 @@ export function ProfilePage() {
   const [sharingError, setSharingError] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const buttonHost = useRef<HTMLDivElement>(null);
+  const babyIdRef = useRef(baby?.id);
+  babyIdRef.current = baby?.id;
   const needsReconnect = Boolean(user && (!hasToken || syncState === 'auth'));
   const syncOk = syncState === 'ok' && !needsReconnect;
   const syncTone = syncOk ? 'success' : 'muted';
@@ -111,21 +113,23 @@ export function ProfilePage() {
 
   useEffect(() => {
     setHasToken(Boolean(readGoogleToken()));
-  }, [syncState, user]);
+  }, [syncState]);
 
   useEffect(() => {
     const showButton = (!user || needsReconnect) && GOOGLE_CLIENT_ID && hasLegalConsent();
     if (!showButton || !buttonHost.current) return;
+    delete buttonHost.current.dataset.abelGsi;
     setGoogleError('');
     renderGoogleButton(buttonHost.current, async (next, credential) => {
       if (!hasLegalConsent()) return;
       writeGoogleSession(next, credential);
       setUser(next);
       setHasToken(true);
-      if (baby) await linkBabyUser(baby.id, next.sub);
+      const id = babyIdRef.current;
+      if (id) await linkBabyUser(id, next.sub);
       await runSync();
     }).catch(() => setGoogleError('Impossible de charger Google pour le moment.'));
-  }, [user, baby, needsReconnect]);
+  }, [user?.sub, needsReconnect]);
 
   const exportData = async () => {
     setBusy('export');

@@ -6,6 +6,19 @@ import { readGoogleToken } from '@/lib/google';
 import { fetchSharing } from '@/lib/sharing';
 import { pullFromServer, schedulePull, scheduleSync } from '@/lib/sync';
 
+function sameBaby(a: Baby | null, b: Baby | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return (
+    a.id === b.id &&
+    a.updatedAt === b.updatedAt &&
+    a.name === b.name &&
+    a.bornOn === b.bornOn &&
+    a.photoUrl === b.photoUrl &&
+    a.userId === b.userId
+  );
+}
+
 type DbContextValue = {
   baby: Baby | null;
   tick: number;
@@ -70,9 +83,14 @@ export function DbProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const syncTimer = { id: 0 };
     const onChange = (event: Event) => {
-      const urgent = (event as CustomEvent<{ priority?: string }>).detail?.priority === 'urgent';
+      const detail = (event as CustomEvent<{ priority?: string; silent?: boolean }>).detail ?? {};
+      const urgent = detail.priority === 'urgent';
       setTick((n) => n + 1);
-      getBaby().then((row) => setBaby(row ?? null));
+      void getBaby().then((row) => {
+        const next = row ?? null;
+        setBaby((prev) => (sameBaby(prev, next) ? prev : next));
+      });
+      if (detail.silent) return;
       if (syncTimer.id) window.clearTimeout(syncTimer.id);
       syncTimer.id = window.setTimeout(
         () => scheduleSync(urgent ? 250 : 700),

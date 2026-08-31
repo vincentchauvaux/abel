@@ -122,7 +122,9 @@ export async function renderGoogleButton(
   await loadGis();
   if (!window.google?.accounts.id) return;
   gsiCallback = onUser;
+  if (host.dataset.abelGsi === '1' && host.childElementCount > 0) return;
   host.replaceChildren();
+  host.dataset.abelGsi = '1';
   if (!gsiInitialized) {
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
