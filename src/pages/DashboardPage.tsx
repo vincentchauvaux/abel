@@ -360,13 +360,14 @@ export function DashboardPage() {
           <div className="dash-notes-list">
             {notes.map((row) =>
               row.isTodo && !row.doneAt ? (
-                <label key={row.id} className="dash-note-todo">
-                  <input type="checkbox" onChange={() => void completeNoteTodo(row.id)} />
-                  <span>
-                    <span className="muted dash-note-date">{formatDateTime(row.notedAt)}</span>
-                    {row.body}
-                  </span>
-                </label>
+                <button
+                  key={row.id}
+                  type="button"
+                  className="dash-note-item dash-note-todo-btn"
+                  onClick={() => void completeNoteTodo(row.id)}>
+                  <span className="muted">{formatDateTime(row.notedAt)}</span>
+                  <p>{row.body}</p>
+                </button>
               ) : (
                 <div key={row.id} className="dash-note-item">
                   <span className="muted">

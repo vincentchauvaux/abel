@@ -551,35 +551,20 @@ h2 {
   line-height: 1.35;
 }
 
-.dash-note-date {
-  display: block;
-  margin-bottom: 4px;
-  font-size: 0.82rem;
-}
-
-.dash-note-todo {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 14px 16px;
-  background: var(--surface);
+.dash-note-todo-btn {
+  width: 100%;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  font-size: 0.95rem;
-  line-height: 1.35;
+  background: var(--surface);
+  padding: 10px 12px;
   cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
 }
 
-.dash-note-todo input {
-  margin-top: 3px;
-  width: 20px;
-  height: 20px;
-  flex-shrink: 0;
-  accent-color: var(--primary);
-}
-
-.dash-note-todo span {
-  flex: 1;
-  white-space: pre-wrap;
+.dash-note-todo-btn:active {
+  border-color: var(--primary);
 }
 
 .dashboard-stats > .stat {
