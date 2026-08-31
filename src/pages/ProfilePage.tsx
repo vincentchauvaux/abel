@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 
+import { AccordionSection } from '@/components/Accordion';
 import { LegalFooter } from '@/components/LegalFooter';
-import { Button, Card } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { ensureBaby, linkBabyUser } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import { hasLegalConsent } from '@/lib/consent';
@@ -37,8 +38,13 @@ export function ProfilePage() {
   const [googleError, setGoogleError] = useState('');
   const [syncState, setSyncState] = useState<SyncState>('idle');
   const [busy, setBusy] = useState('');
+  const [openSection, setOpenSection] = useState<string | null>('google');
   const buttonHost = useRef<HTMLDivElement>(null);
   const needsReconnect = Boolean(user && (!hasToken || syncState === 'auth'));
+
+  const toggleSection = (id: string) => {
+    setOpenSection((prev) => (prev === id ? null : id));
+  };
 
   useEffect(() => subscribeSync(setSyncState), []);
 
@@ -119,8 +125,11 @@ export function ProfilePage() {
   return (
     <div className="screen">
       <h1>Profil</h1>
-      <Card>
-        <h2>Compte Google</h2>
+      <AccordionSection
+        id="google"
+        title="Compte Google"
+        open={openSection === 'google'}
+        onToggle={toggleSection}>
         {user ? (
           <>
             <div className="google-user">
@@ -198,9 +207,12 @@ export function ProfilePage() {
             </p>
           </>
         )}
-      </Card>
-      <Card>
-        <h2>Données et droits (RGPD)</h2>
+      </AccordionSection>
+      <AccordionSection
+        id="rgpd"
+        title="Données et droits (RGPD)"
+        open={openSection === 'rgpd'}
+        onToggle={toggleSection}>
         <p className="muted">Export JSON, effacement local ou suppression sur le serveur de sync.</p>
         <Button tone="muted" disabled={busy !== ''} onClick={() => void exportData()}>
           {busy === 'export' ? 'Export…' : 'Exporter mes données'}
@@ -213,21 +225,24 @@ export function ProfilePage() {
             {busy === 'remote' ? 'Suppression…' : 'Supprimer mes données sur le VPS'}
           </Button>
         ) : null}
-      </Card>
-      <Card>
-        <h2>Informations légales</h2>
+      </AccordionSection>
+      <AccordionSection
+        id="legal"
+        title="Informations légales"
+        open={openSection === 'legal'}
+        onToggle={toggleSection}>
         <p className="muted">
           Abel n’est pas un dispositif médical.{' '}
           <Link to={LEGAL_ROUTES.medical}>Avertissement santé</Link>.
         </p>
         <LegalFooter />
-      </Card>
-      <Card>
+      </AccordionSection>
+      <AccordionSection id="about" title="Sync et hors ligne" open={openSection === 'about'} onToggle={toggleSection}>
         <p className="muted">
           L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers{' '}
           vps-e09ed6db.vps.ovh.net (France, OVH).
         </p>
-      </Card>
+      </AccordionSection>
     </div>
   );
 }

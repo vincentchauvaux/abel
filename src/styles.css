@@ -820,6 +820,61 @@ h2 {
   gap: 12px;
 }
 
+.accordion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.accordion-trigger {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  min-height: 44px;
+}
+
+.accordion-trigger h2 {
+  margin: 0;
+}
+
+.accordion-chevron {
+  flex-shrink: 0;
+  color: var(--muted, #888);
+  transition: transform 0.2s ease;
+}
+
+.accordion-chevron.open {
+  transform: rotate(180deg);
+}
+
+.accordion-action {
+  flex-shrink: 0;
+}
+
+.accordion-body {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.accordion-body > :first-child {
+  margin-top: 0;
+}
+
+.entry-above-journal {
+  margin: 8px 0;
+}
+
 .linkish {
   border: 0;
   background: none;

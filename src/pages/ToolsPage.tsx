@@ -1,4 +1,4 @@
-import { Apple, ClipboardPen, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer } from 'lucide-react';
+import { Apple, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -21,7 +21,6 @@ export function ToolsPage() {
           { key: 'bottle', label: 'Biberon', icon: Milk, to: '/bottle' },
           { key: 'solids', label: 'Diversification', icon: Apple, to: '/solids' },
           { key: 'supplements', label: 'Compléments', icon: Pill, to: '/supplements' },
-          { key: 'manual', label: 'Entrée manuelle', icon: ClipboardPen, to: '/manual' },
         ]
       : [
           { key: 'diapers', label: 'Couche', icon: Droplets, to: '/diapers' },
@@ -30,7 +29,6 @@ export function ToolsPage() {
           { key: 'sleep', label: 'Sommeil', icon: Moon, to: '/sleep' },
           { key: 'temp', label: 'Température', icon: Thermometer, to: '/temperature' },
           { key: 'notes', label: 'Notes', icon: NotebookPen, to: '/notes' },
-          { key: 'manual', label: 'Entrée manuelle', icon: ClipboardPen, to: '/manual' },
         ];
 
   return (

@@ -19,7 +19,7 @@ Bébé | Outils (accueil) ↔ Dashboard (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (identité, objectifs, horoscope, alertes, **formulaire intelligent pour noter tout outil**, **journal éditable**) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (compte Google, sync).
+Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Outils** = page d’accueil `/` ; depuis Outils → **Dashboard** `/dashboard` ; depuis un module → retour **Outils**) | **Profil** (accordéon : compte Google, RGPD, légal).
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours à Outils. L’onglet Apports/Suivi est **conservé** au retour depuis un module.
 
@@ -56,9 +56,8 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
-| Entrée manuelle | Formulaire intelligent (même composant que sur Bébé) : choix de l’outil + options adaptées. |
 
-Sur **Bébé**, la carte « Noter une entrée » commence par **Apports | Suivi**, puis l’outil (tétée 1 tap, couche, biberon, etc.). Case **Minuteur** sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
+Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste au-dessus du journal. Case **Minuteur** sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
 
 ### Suivi
 
@@ -171,7 +170,7 @@ babies (name, bornOn)
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.
 
-Page **Bébé** : identité et objectifs en **lecture** une fois renseignés (bouton Modifier), journal chronologique éditable. Édition tétée : Notée | Minuteur | Terminée (+ durée en minutes).
+Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier), journal chronologique éditable. Édition tétée : Notée | Minuteur | Terminée (+ durée en minutes).
 
 ## Conventions agent
 

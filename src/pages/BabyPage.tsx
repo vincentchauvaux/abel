@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 
+import { AccordionSection } from '@/components/Accordion';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { SmartEntryForm } from '@/components/SmartEntryForm';
 import { Button, Card, Chip, Field } from '@/components/ui';
@@ -55,7 +56,12 @@ export function BabyPage() {
   const [editGoals, setEditGoals] = useState(true);
   const [goalsReady, setGoalsReady] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
+  const [openSection, setOpenSection] = useState<string | null>(null);
   const now = useNow(true, 30_000);
+
+  const toggleSection = (id: string) => {
+    setOpenSection((prev) => (prev === id ? null : id));
+  };
 
   useEffect(() => {
     if (baby?.name) setName(baby.name);
@@ -87,6 +93,8 @@ export function BabyPage() {
         Boolean(r) &&
         ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
       setGoalsReady(configured);
+      if (!(baby.bornOn && baby.name)) setOpenSection('identity');
+      else if (!configured) setOpenSection('goals');
     });
   }, [baby, tick]);
 
@@ -98,6 +106,8 @@ export function BabyPage() {
         ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
       setGoalsReady(configured);
       setEditGoals(!configured);
+      if (!(baby.bornOn && baby.name)) setOpenSection('identity');
+      else if (!configured) setOpenSection('goals');
     });
   }, [baby?.id]);
 
@@ -175,28 +185,24 @@ export function BabyPage() {
   return (
     <div className="screen">
       <h1>{baby?.name || 'Bébé'}</h1>
-      {showEntry ? (
-        <Card>
-          <div className="card-head">
-            <h2>Noter une entrée</h2>
-            <button type="button" className="linkish" onClick={() => setShowEntry(false)}>
-              Fermer
-            </button>
-          </div>
-          <SmartEntryForm onSaved={() => setShowEntry(false)} />
-        </Card>
-      ) : (
-        <Button onClick={() => setShowEntry(true)}>Noter une entrée</Button>
-      )}
-      <Card>
-        <div className="card-head">
-          <h2>Identité</h2>
-          {!editIdentity ? (
-            <button type="button" className="linkish" onClick={() => setEditIdentity(true)}>
+      <AccordionSection
+        id="identity"
+        title="Identité"
+        open={openSection === 'identity'}
+        onToggle={toggleSection}
+        action={
+          !editIdentity ? (
+            <button
+              type="button"
+              className="linkish"
+              onClick={() => {
+                setOpenSection('identity');
+                setEditIdentity(true);
+              }}>
               Modifier
             </button>
-          ) : null}
-        </div>
+          ) : null
+        }>
         {editIdentity ? (
           <>
             <label className="field">
@@ -226,16 +232,25 @@ export function BabyPage() {
             </div>
           </>
         )}
-      </Card>
-      <Card>
-        <div className="card-head">
-          <h2>Objectifs</h2>
-          {!editGoals && goalsReady ? (
-            <button type="button" className="linkish" onClick={() => setEditGoals(true)}>
+      </AccordionSection>
+      <AccordionSection
+        id="goals"
+        title="Objectifs"
+        open={openSection === 'goals'}
+        onToggle={toggleSection}
+        action={
+          !editGoals && goalsReady ? (
+            <button
+              type="button"
+              className="linkish"
+              onClick={() => {
+                setOpenSection('goals');
+                setEditGoals(true);
+              }}>
               Modifier
             </button>
-          ) : null}
-        </div>
+          ) : null
+        }>
         <p className="muted">Tes règles à toi. Ce n’est pas un conseil médical.</p>
         {editGoals ? (
           <>
@@ -339,31 +354,32 @@ export function BabyPage() {
             </div>
           </>
         )}
-      </Card>
-      {horoscope ? (
-        <Card>
-          <h2>Petit horoscope</h2>
-          <p className="zodiac">
-            <strong>
-              {horoscope.sign} · {horoscope.animal} · {horoscope.element}
-            </strong>
-          </p>
-          <p className="goal-label">Horoscope du jour</p>
-          <p>{daily || horoscope.line}</p>
-          <p className="goal-label">Médecine occidentale</p>
-          <p>{horoscope.western}</p>
-          <p className="goal-label">Médecine chinoise</p>
-          <p>{horoscope.chinese}</p>
-          <p className="muted">{HOROSCOPE_DISCLAIMER}</p>
-        </Card>
-      ) : (
-        <Card>
-          <h2>Petit horoscope</h2>
+      </AccordionSection>
+      <AccordionSection
+        id="horoscope"
+        title="Petit horoscope"
+        open={openSection === 'horoscope'}
+        onToggle={toggleSection}>
+        {horoscope ? (
+          <>
+            <p className="zodiac">
+              <strong>
+                {horoscope.sign} · {horoscope.animal} · {horoscope.element}
+              </strong>
+            </p>
+            <p className="goal-label">Horoscope du jour</p>
+            <p>{daily || horoscope.line}</p>
+            <p className="goal-label">Médecine occidentale</p>
+            <p>{horoscope.western}</p>
+            <p className="goal-label">Médecine chinoise</p>
+            <p>{horoscope.chinese}</p>
+            <p className="muted">{HOROSCOPE_DISCLAIMER}</p>
+          </>
+        ) : (
           <p className="muted">Ajoute la date de naissance pour afficher le signe, les lectures et l’horoscope du jour.</p>
-        </Card>
-      )}
-      <Card>
-        <h2>Alertes</h2>
+        )}
+      </AccordionSection>
+      <AccordionSection id="alerts" title="Alertes" open={openSection === 'alerts'} onToggle={toggleSection}>
         <div className="alert-line">
           <span className="muted">Repas</span>
           <span>
@@ -384,9 +400,23 @@ export function BabyPage() {
           <span className="muted">Couche</span>
           <span>{diaperAlert}</span>
         </div>
-      </Card>
-      <Card>
-        <h2>Journal</h2>
+      </AccordionSection>
+      <div className="entry-above-journal">
+        {showEntry ? (
+          <Card>
+            <div className="card-head">
+              <h2>Noter une entrée</h2>
+              <button type="button" className="linkish" onClick={() => setShowEntry(false)}>
+                Fermer
+              </button>
+            </div>
+            <SmartEntryForm onSaved={() => setShowEntry(false)} />
+          </Card>
+        ) : (
+          <Button onClick={() => setShowEntry(true)}>Noter une entrée</Button>
+        )}
+      </div>
+      <AccordionSection id="journal" title="Journal" open={openSection === 'journal'} onToggle={toggleSection}>
         <p className="muted">Appuie sur une ligne pour modifier ou supprimer.</p>
         {activity.length === 0 ? (
           <p className="muted">Pas encore d’entrée.</p>
@@ -405,7 +435,7 @@ export function BabyPage() {
             </button>
           ))
         )}
-      </Card>
+      </AccordionSection>
       {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
