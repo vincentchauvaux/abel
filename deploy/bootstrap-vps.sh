@@ -55,6 +55,27 @@ fi
 # Schéma / migrations (amount_ml nullable, remaining_ml, pumping_session_id, etc.)
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d abel -f "$ROOT/server/schema.sql" >/dev/null
 
+sudo -u postgres psql -v ON_ERROR_STOP=1 -d abel <<'EOSQL'
+DO $$
+DECLARE r RECORD;
+BEGIN
+  FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO abel', r.tablename);
+  END LOOP;
+END $$;
+
+INSERT INTO baby_members (id, baby_id, user_id, role, joined_at, created_at)
+SELECT gen_random_uuid(), b.id, b.user_id, 'owner', b.created_at, b.created_at
+FROM babies b
+WHERE b.deleted_at IS NULL
+  AND b.user_id IS NOT NULL
+  AND NOT EXISTS (
+    SELECT 1 FROM baby_members m
+    WHERE m.baby_id = b.id AND m.user_id = b.user_id AND m.deleted_at IS NULL
+  );
+EOSQL
+
 # Rate limit zone (une fois dans http {})
 if ! grep -q 'zone=abel_api' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=abel_api:10m rate=120r/m;' /etc/nginx/nginx.conf

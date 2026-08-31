@@ -188,13 +188,3 @@ CREATE TABLE IF NOT EXISTS baby_invites (
 CREATE UNIQUE INDEX IF NOT EXISTS baby_invites_one_pending
   ON baby_invites (baby_id, invited_email)
   WHERE status = 'pending';
-
-INSERT INTO baby_members (id, baby_id, user_id, role, joined_at, created_at)
-SELECT gen_random_uuid(), b.id, b.user_id, 'owner', b.created_at, b.created_at
-FROM babies b
-WHERE b.deleted_at IS NULL
-  AND b.user_id IS NOT NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM baby_members m
-    WHERE m.baby_id = b.id AND m.user_id = b.user_id AND m.deleted_at IS NULL
-  );
