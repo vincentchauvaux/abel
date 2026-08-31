@@ -4,7 +4,7 @@ import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
 import { readGoogleToken } from '@/lib/google';
 import { fetchSharing } from '@/lib/sharing';
-import { pullFromServer, scheduleSync } from '@/lib/sync';
+import { pullFromServer, schedulePull, scheduleSync } from '@/lib/sync';
 
 type DbContextValue = {
   baby: Baby | null;
@@ -69,21 +69,39 @@ export function DbProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const syncTimer = { id: 0 };
-    const onChange = () => {
+    const onChange = (event: Event) => {
+      const urgent = (event as CustomEvent<{ priority?: string }>).detail?.priority === 'urgent';
       setTick((n) => n + 1);
       getBaby().then((row) => setBaby(row ?? null));
       if (syncTimer.id) window.clearTimeout(syncTimer.id);
-      syncTimer.id = window.setTimeout(() => scheduleSync(3000), 3000);
+      syncTimer.id = window.setTimeout(
+        () => scheduleSync(urgent ? 250 : 700),
+        urgent ? 350 : 1200,
+      );
     };
     const onOnline = () => {
-      scheduleSync(2000);
+      scheduleSync(800);
+      schedulePull(0);
       void refreshSharing();
     };
+    const onVisible = () => {
+      if (document.hidden || !readGoogleToken() || !navigator.onLine) return;
+      schedulePull(0);
+      scheduleSync(800);
+    };
+    const pullInterval = window.setInterval(() => {
+      if (document.hidden || !readGoogleToken() || !navigator.onLine) return;
+      schedulePull(0);
+    }, 20_000);
+
     window.addEventListener('abel-db', onChange);
     window.addEventListener('online', onOnline);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       window.removeEventListener('abel-db', onChange);
       window.removeEventListener('online', onOnline);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearInterval(pullInterval);
       if (syncTimer.id) window.clearTimeout(syncTimer.id);
     };
   }, []);

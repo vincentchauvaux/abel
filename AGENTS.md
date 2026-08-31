@@ -114,6 +114,7 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : bouton **Récupérer depuis le VPS**.
 - Un bébé par compte Google ; un profil vide local ne remplace pas les données serveur.
 - Offline-first : saisie locale immédiate, envoi dès réseau + session Google.
+- **Co-parent temps réel (onglet ouvert)** : push auto ~2 s après chaque changement (~0,6 s pour start/stop chrono) ; pull VPS toutes les 20 s + au retour sur l’onglet, pour que l’autre parent voie tétée/sommeil/tire-lait en cours.
 
 Déploiement : `GOOGLE_CLIENT_ID=... deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, Postgres, PM2, Nginx). Snippet : `deploy/nginx-abel.conf.example` (déclarer `limit_req_zone` dans `http {}`).
 

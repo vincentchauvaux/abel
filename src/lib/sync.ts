@@ -12,9 +12,11 @@ import { readGoogleToken, SYNC_URL } from '@/lib/google';
 export type SyncState = 'idle' | 'syncing' | 'ok' | 'auth' | 'offline' | 'error' | 'rate_limit';
 
 let inFlight = false;
+let pullInFlight = false;
 let queued = false;
 let skipSchedule = false;
 let timer: number | null = null;
+let pullTimer: number | null = null;
 let lastState: SyncState = 'idle';
 let rateLimitUntil = 0;
 const listeners = new Set<(state: SyncState) => void>();
@@ -44,6 +46,17 @@ export function scheduleSync(delayMs = 2500) {
     timer = null;
     void runSync();
   }, wait);
+}
+
+/** Télécharge le snapshot VPS sans envoyer de modifications locales. */
+export function schedulePull(delayMs = 0) {
+  if (skipSchedule) return;
+  if (!readGoogleToken() || !navigator.onLine) return;
+  if (pullTimer) window.clearTimeout(pullTimer);
+  pullTimer = window.setTimeout(() => {
+    pullTimer = null;
+    void pullFromServer();
+  }, delayMs);
 }
 
 type SyncResponse = {
@@ -79,27 +92,33 @@ function handleRateLimit() {
 
 /** Télécharge le snapshot VPS et remplace le cache local. */
 export async function pullFromServer(): Promise<boolean> {
+  if (pullInFlight || inFlight) return false;
   const token = readGoogleToken();
   if (!token || !navigator.onLine) return false;
 
-  const payload = await fetchRemoteSnapshot(token, 'GET');
-  if (payload === 'auth') {
-    setState('auth');
-    return false;
-  }
-  if (payload === 'rate_limit') {
-    handleRateLimit();
-    return false;
-  }
-  if (payload === 'error') return false;
-  if (!payload.babyId) return false;
+  pullInFlight = true;
+  try {
+    const payload = await fetchRemoteSnapshot(token, 'GET');
+    if (payload === 'auth') {
+      setState('auth');
+      return false;
+    }
+    if (payload === 'rate_limit') {
+      handleRateLimit();
+      return false;
+    }
+    if (payload === 'error') return false;
+    if (!payload.babyId) return false;
 
-  await mirrorRemoteSnapshot(payload.records, payload.babyId);
-  skipSchedule = true;
-  notifyDb();
-  skipSchedule = false;
-  setState('ok');
-  return true;
+    await mirrorRemoteSnapshot(payload.records, payload.babyId);
+    skipSchedule = true;
+    notifyDb();
+    skipSchedule = false;
+    setState('ok');
+    return true;
+  } finally {
+    pullInFlight = false;
+  }
 }
 
 export async function runSync(): Promise<SyncState> {

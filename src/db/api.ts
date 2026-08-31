@@ -1,4 +1,4 @@
-import { db, createId, notifyDb } from '@/db/client';
+import { db, createId, notifyDb, notifyDbUrgent } from '@/db/client';
 import type {
   Baby,
   BottleFeed,
@@ -111,7 +111,7 @@ export async function startFeeding(babyId: string, side: Side) {
     endedAt: null,
     ...stamp(),
   });
-  notifyDb();
+  notifyDbUrgent();
   return sessionId;
 }
 
@@ -151,7 +151,7 @@ export async function switchFeedingSide(sessionId: string, side: Side) {
     endedAt: null,
     ...stamp(),
   });
-  notifyDb();
+  notifyDbUrgent();
 }
 
 export async function stopFeeding(sessionId: string) {
@@ -161,7 +161,7 @@ export async function stopFeeding(sessionId: string) {
   );
   await Promise.all(open.map((row) => db.feedingSegments.update(row.id, { endedAt: now, ...touch() })));
   await db.feedingSessions.update(sessionId, { endedAt: now, ...touch() });
-  notifyDb();
+  notifyDbUrgent();
   return now;
 }
 
@@ -202,7 +202,7 @@ export async function startPumping(babyId: string) {
     side: null,
     ...stamp(),
   });
-  notifyDb();
+  notifyDbUrgent();
   return id;
 }
 
@@ -524,7 +524,7 @@ export async function startSleep(babyId: string, startedAt = nowIso()) {
   const open = alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
   if (open) {
     await db.sleepSessions.update(open.id, { startedAt, ...touch() });
-    notifyDb();
+    notifyDbUrgent();
     return open.id;
   }
   const id = createId();
@@ -535,13 +535,13 @@ export async function startSleep(babyId: string, startedAt = nowIso()) {
     endedAt: null,
     ...stamp(),
   });
-  notifyDb();
+  notifyDbUrgent();
   return id;
 }
 
 export async function stopSleep(id: string) {
   await db.sleepSessions.update(id, { endedAt: nowIso(), ...touch() });
-  notifyDb();
+  notifyDbUrgent();
 }
 
 export async function listSleep(babyId: string): Promise<SleepSession[]> {

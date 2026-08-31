@@ -140,6 +140,12 @@ export function createId(): string {
   return crypto.randomUUID();
 }
 
-export function notifyDb() {
-  window.dispatchEvent(new Event('abel-db'));
+export type DbNotifyPriority = 'normal' | 'urgent';
+
+export function notifyDb(priority: DbNotifyPriority = 'normal') {
+  window.dispatchEvent(new CustomEvent('abel-db', { detail: { priority } }));
+}
+
+export function notifyDbUrgent() {
+  notifyDb('urgent');
 }
