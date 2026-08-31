@@ -1,4 +1,3 @@
-import { Sparkles } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
@@ -345,9 +344,6 @@ export function BabyPage() {
         <Card>
           <h2>Petit horoscope</h2>
           <p className="zodiac">
-            <span className="zodiac-icon" aria-hidden>
-              <Sparkles size={20} strokeWidth={1.75} />
-            </span>
             <strong>
               {horoscope.sign} · {horoscope.animal} · {horoscope.element}
             </strong>
