@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
-import { MealPie } from '@/components/MealPie';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { Card } from '@/components/ui';
 import {
@@ -58,26 +57,6 @@ import {
   mealAlertLine,
   sleepAlertLine,
 } from '@/lib/reminders';
-
-function StatTile({
-  label,
-  value,
-  sub,
-  valueClassName,
-}: {
-  label: string;
-  value: string | number;
-  sub?: string;
-  valueClassName?: string;
-}) {
-  return (
-    <div className="stat">
-      <span className="muted">{label}</span>
-      <b className={valueClassName}>{value}</b>
-      {sub ? <span className="stat-sub muted">{sub}</span> : null}
-    </div>
-  );
-}
 
 function latestMeasure(measures: Measurement[], type: MeasurementType) {
   return measures.find((row) => row.type === type);
@@ -169,9 +148,6 @@ export function DashboardPage() {
   const bottlesRange = bottles.filter((row) => inRange(row.fedAt));
   const breastCount = sessionsRange.length;
   const bottleCount = bottlesRange.length;
-  const feedingMinutes = Math.round(
-    sessionsRange.reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0) / 60_000,
-  );
   const bottleMl = bottlesRange.reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0);
   const stockMl = pumps.reduce((sum, row) => sum + (Number(row.remainingMl) || 0), 0);
   const pumpedMl = pumps
@@ -311,6 +287,32 @@ export function DashboardPage() {
     },
   ];
 
+  const mealTotal = breastCount + bottleCount;
+  const mealRecap: string[] = [];
+  if (breastCount > 0) mealRecap.push(`${breastCount} sein`);
+  if (bottleCount > 0) mealRecap.push(`${bottleCount} bib`);
+  if (bottleMl > 0) mealRecap.push(`${bottleMl} ml`);
+  const apportRows: FollowRow[] = [
+    {
+      label: 'Repas',
+      value: mealTotal > 0 ? mealTotal : '—',
+      sub: mealRecap.length > 0 ? mealRecap.join(' · ') : mealAt ? formatTime(mealAt) : '—',
+      to: '/feeding',
+    },
+    {
+      label: 'Diversification',
+      value: solidsCount > 0 ? solidsCount : '—',
+      sub: lastSolid ? lastSolid.food : '—',
+      to: '/solids',
+    },
+    {
+      label: 'Compléments',
+      value: supplementsCount > 0 ? supplementsCount : '—',
+      sub: lastSupplement ? lastSupplement.name : '—',
+      to: '/supplements',
+    },
+  ];
+
   const days = eachLocalDay(
     period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
   );
@@ -356,29 +358,10 @@ export function DashboardPage() {
       </div>
 
       <p className="dash-section">Apports</p>
-      <div className="dashboard-stats">
-        <div className="stat stat-meal">
-          <span className="muted">Repas</span>
-          <MealPie
-            breastCount={breastCount}
-            bottleCount={bottleCount}
-            otherCount={0}
-            feedingMinutes={feedingMinutes}
-            bottleMl={bottleMl}
-          />
-        </div>
-        <div className="stat-row-2">
-          <StatTile
-            label="Diversification"
-            value={solidsCount}
-            sub={lastSolid ? lastSolid.food : '—'}
-          />
-          <StatTile
-            label="Compléments"
-            value={supplementsCount}
-            sub={lastSupplement ? lastSupplement.name : '—'}
-          />
-        </div>
+      <div className="dash-follow-list">
+        {apportRows.map((row) => (
+          <FollowRowItem key={row.label} {...row} />
+        ))}
       </div>
 
       <p className="dash-section">Graphiques</p>

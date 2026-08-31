@@ -36,9 +36,9 @@ export default function App() {
         <Ready>
           <Routes>
             <Route element={<Layout />}>
-              <Route path="/" element={<ToolsPage />} />
-              <Route path="/tools" element={<Navigate to="/" replace />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/tools" element={<ToolsPage />} />
+              <Route path="/dashboard" element={<Navigate to="/" replace />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/baby" element={<BabyPage />} />
               <Route path="/feeding" element={<FeedingPage />} />
