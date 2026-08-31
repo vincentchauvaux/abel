@@ -406,6 +406,32 @@ h2 {
   line-height: 1.2;
 }
 
+.stat-notes {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.stat-notes-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+}
+
+.stat-notes-btn {
+  display: inline-block;
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: var(--muted-bg);
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.95rem;
+  text-decoration: none;
+}
+
 .dash-note-todos {
   display: flex;
   flex-direction: column;

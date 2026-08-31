@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { MealPie } from '@/components/MealPie';
@@ -335,11 +336,20 @@ export function DashboardPage() {
             sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
           />
         </div>
-        <StatTile
-          label="Notes"
-          value={notesCount}
-          sub={openNoteTodos.length > 0 ? `${openNoteTodos.length} à faire` : '—'}
-        />
+        <div className="stat stat-notes">
+          <div className="stat-notes-head">
+            <span className="muted">Notes</span>
+            {openNoteTodos.length > 0 ? (
+              <span className="stat-sub muted">{openNoteTodos.length} à faire</span>
+            ) : null}
+          </div>
+          <Link to="/notes" className="stat-notes-btn">
+            Voir les notes
+          </Link>
+          {notesCount > 0 ? (
+            <span className="stat-sub muted">{notesCount} sur la période</span>
+          ) : null}
+        </div>
       </div>
       {openNoteTodos.length > 0 ? (
         <div className="dash-note-todos">

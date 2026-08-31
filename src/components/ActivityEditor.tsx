@@ -58,6 +58,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [sleepMinutes, setSleepMinutes] = useState('');
   const [pumpDuration, setPumpDuration] = useState('');
   const [noteTodo, setNoteTodo] = useState(false);
+  const [noteDone, setNoteDone] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -140,6 +141,7 @@ export function ActivityEditor({ item, onClose }: Props) {
           setText(row.body);
           setWhen(toDatetimeLocalValue(row.notedAt));
           setNoteTodo(row.isTodo);
+          setNoteDone(!!row.doneAt);
         }
       } else if (item.kind === 'measurement') {
         const row = await db.measurements.get(item.id);
@@ -251,7 +253,12 @@ export function ActivityEditor({ item, onClose }: Props) {
         }
         await updateTemperature(item.id, { celsius: n, measuredAt: at });
       } else if (item.kind === 'note') {
-        await updateNote(item.id, { body: text, notedAt: at, isTodo: noteTodo });
+        const existing = await db.notes.get(item.id);
+        let doneAt: string | null = null;
+        if (noteTodo && noteDone) {
+          doneAt = existing?.doneAt ?? new Date().toISOString();
+        }
+        await updateNote(item.id, { body: text, notedAt: at, isTodo: noteTodo, doneAt });
       } else if (item.kind === 'measurement') {
         const n = parseDecimal(amount);
         if (n === null) {
@@ -433,10 +440,29 @@ export function ActivityEditor({ item, onClose }: Props) {
               multiline={item.kind === 'note'}
             />
             {item.kind === 'note' ? (
-              <label className="check-inline">
-                <input type="checkbox" checked={noteTodo} onChange={(e) => setNoteTodo(e.target.checked)} />
-                À faire sur le dashboard
-              </label>
+              <>
+                <label className="check-inline">
+                  <input
+                    type="checkbox"
+                    checked={noteTodo}
+                    onChange={(e) => {
+                      setNoteTodo(e.target.checked);
+                      if (!e.target.checked) setNoteDone(false);
+                    }}
+                  />
+                  À faire sur le dashboard
+                </label>
+                {noteTodo ? (
+                  <label className="check-inline">
+                    <input
+                      type="checkbox"
+                      checked={noteDone}
+                      onChange={(e) => setNoteDone(e.target.checked)}
+                    />
+                    Fait (masquée du dashboard)
+                  </label>
+                ) : null}
+              </>
             ) : null}
           </>
         ) : null}

@@ -611,12 +611,15 @@ export async function updateNote(
   id: string,
   values: { body?: string; notedAt?: string; isTodo?: boolean; doneAt?: string | null },
 ) {
-  await db.notes.update(id, {
-    ...values,
-    ...(values.body !== undefined ? { body: values.body.trim() } : {}),
-    ...(values.isTodo === false ? { doneAt: null } : {}),
-    ...touch(),
-  });
+  const patch: Record<string, unknown> = { ...touch() };
+  if (values.body !== undefined) patch.body = values.body.trim();
+  if (values.notedAt !== undefined) patch.notedAt = values.notedAt;
+  if (values.isTodo !== undefined) {
+    patch.isTodo = values.isTodo;
+    if (!values.isTodo) patch.doneAt = null;
+  }
+  if (values.doneAt !== undefined) patch.doneAt = values.doneAt;
+  await db.notes.update(id, patch);
   notifyDb();
 }
 
