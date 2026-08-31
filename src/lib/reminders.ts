@@ -9,7 +9,7 @@ export async function notifyAfterMs(ms: number, body: string) {
   if (ms <= 0 || !('Notification' in window)) return;
   const ok = await Notification.requestPermission();
   if (ok !== 'granted') return;
-  window.setTimeout(() => new Notification('Abel', { body }), ms);
+  window.setTimeout(() => new Notification('Mimom', { body }), ms);
 }
 
 export async function notifyIn(minutes: number, body: string) {

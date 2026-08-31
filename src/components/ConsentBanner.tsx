@@ -12,7 +12,7 @@ export function ConsentBanner() {
   return (
     <div className="consent-banner" role="dialog" aria-labelledby="consent-title">
       <p id="consent-title">
-        Abel garde un <strong>cache local</strong> pour le hors ligne. Avec Google, les données sont{' '}
+        Mimom garde un <strong>cache local</strong> pour le hors ligne. Avec Google, les données sont{' '}
         <strong>centralisées sur le VPS</strong>.{' '}
         <Link to={LEGAL_ROUTES.privacy}>Politique de confidentialité</Link> ·{' '}
         <Link to={LEGAL_ROUTES.medical}>Avertissement santé</Link>

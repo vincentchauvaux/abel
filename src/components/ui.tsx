@@ -14,7 +14,7 @@ export function Button({
   children: ReactNode;
   onClick?: () => void;
   disabled?: boolean;
-  tone?: 'primary' | 'accent' | 'danger' | 'muted';
+  tone?: 'primary' | 'accent' | 'danger' | 'muted' | 'success';
   type?: 'button' | 'submit';
 }) {
   return (

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { X } from 'lucide-react';
 
 import { AccordionSection } from '@/components/Accordion';
 import { LegalFooter } from '@/components/LegalFooter';
@@ -34,12 +35,19 @@ import { runSync, pullFromServer, subscribeSync, type SyncState } from '@/lib/sy
 const SYNC_LABEL: Record<SyncState, string> = {
   idle: 'Pas encore synchronisé',
   syncing: 'Synchronisation…',
-  ok: 'À jour — données centralisées sur le VPS',
+  ok: '',
   auth: 'Session sync expirée',
   offline: 'Hors ligne — cache local, envoi dès que possible',
   error: 'Sync impossible pour le moment',
   rate_limit: 'Trop de requêtes — réessaie dans une minute',
 };
+
+function emailFontSize(email: string) {
+  if (email.length > 32) return '0.68rem';
+  if (email.length > 26) return '0.75rem';
+  if (email.length > 20) return '0.82rem';
+  return undefined;
+}
 
 export function ProfilePage() {
   const { baby, refreshSharing } = useDb();
@@ -54,6 +62,8 @@ export function ProfilePage() {
   const [inviteEmail, setInviteEmail] = useState('');
   const buttonHost = useRef<HTMLDivElement>(null);
   const needsReconnect = Boolean(user && (!hasToken || syncState === 'auth'));
+  const syncOk = syncState === 'ok' && !needsReconnect;
+  const syncTone = syncOk ? 'success' : 'muted';
 
   const loadSharing = async () => {
     if (!readGoogleToken()) {
@@ -122,7 +132,7 @@ export function ProfilePage() {
     try {
       const data = await exportLocalData();
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadJson(`abel-export-${stamp}.json`, data);
+      downloadJson(`mimom-export-${stamp}.json`, data);
     } finally {
       setBusy('');
     }
@@ -250,7 +260,7 @@ export function ProfilePage() {
               {user.picture ? <img src={user.picture} alt="" /> : null}
               <div>
                 <strong>{user.name}</strong>
-                <p className="muted" style={{ margin: 0 }}>
+                <p className="muted google-user-email" style={{ fontSize: emailFontSize(user.email) }}>
                   {user.email}
                 </p>
               </div>
@@ -270,12 +280,12 @@ export function ProfilePage() {
                 <p className="muted">
                   Tes données sont centralisées sur le VPS. L’appareil garde un cache pour le hors ligne.
                 </p>
-                <p className="muted">{SYNC_LABEL[syncState]}</p>
-                <Button tone="muted" onClick={() => void runSync()}>
+                {SYNC_LABEL[syncState] ? <p className="muted">{SYNC_LABEL[syncState]}</p> : null}
+                <Button tone={syncTone} onClick={() => void runSync()}>
                   Synchroniser maintenant
                 </Button>
                 <Button
-                  tone="muted"
+                  tone={syncTone}
                   disabled={busy !== ''}
                   onClick={async () => {
                     setBusy('pull');
@@ -419,9 +429,11 @@ export function ProfilePage() {
                       .filter((row) => row.status === 'pending')
                       .map((invite) => (
                         <div key={invite.id} className="sharing-invite-row">
-                          <span className="muted">{invite.email}</span>
-                          <Button
-                            tone="muted"
+                          <span className="muted sharing-invite-email">{invite.email}</span>
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label="Annuler l’invitation"
                             disabled={busy !== ''}
                             onClick={async () => {
                               setBusy('cancel');
@@ -429,8 +441,8 @@ export function ProfilePage() {
                               await loadSharing();
                               setBusy('');
                             }}>
-                            Annuler
-                          </Button>
+                            <X size={18} aria-hidden />
+                          </button>
                         </div>
                       ))}
                   </div>
@@ -472,14 +484,14 @@ export function ProfilePage() {
         open={openSection === 'legal'}
         onToggle={toggleSection}>
         <p className="muted">
-          Abel n’est pas un dispositif médical.{' '}
+          Mimom n’est pas un dispositif médical.{' '}
           <Link to={LEGAL_ROUTES.medical}>Avertissement santé</Link>.
         </p>
         <LegalFooter />
       </AccordionSection>
       <AccordionSection id="about" title="Sync et hors ligne" open={openSection === 'about'} onToggle={toggleSection}>
         <p className="muted">
-          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers mimom.be
+          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Mimom envoie les données vers mimom.be
           (France, OVH).
         </p>
       </AccordionSection>

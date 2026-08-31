@@ -65,7 +65,7 @@ export function FeedingPage() {
       if (ok === 'granted') {
         const fire = new Date(ended.endedAt).getTime() + minutes * 60_000 - Date.now();
         if (fire > 0) {
-          window.setTimeout(() => new Notification('Abel', { body: 'Rappel repas' }), fire);
+          window.setTimeout(() => new Notification('Mimom', { body: 'Rappel repas' }), fire);
         }
       }
     }

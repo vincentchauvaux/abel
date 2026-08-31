@@ -11,7 +11,7 @@ export async function exportLocalData(): Promise<Record<string, unknown>> {
     tables[name] = await db.table(name).toArray();
   }
   return {
-    app: 'Abel',
+    app: 'Mimom',
     exportedAt: new Date().toISOString(),
     tables,
   };

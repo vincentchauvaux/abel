@@ -1,5 +1,5 @@
 export const SITE = {
-  name: 'Abel',
+  name: 'Mimom',
   appUrl: 'https://mimom.be/',
   publisher: 'Vincent Chauvaux',
   publisherType: 'particulier — projet personnel à usage familial',
