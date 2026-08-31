@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
-import { MealCircles } from '@/components/MealCircles';
-import { Card, Chip } from '@/components/ui';
+import { MealPie } from '@/components/MealPie';
+import { PeriodSelector } from '@/components/PeriodSelector';
+import { Card } from '@/components/ui';
 import {
   getReminder,
   listBottles,
@@ -225,12 +226,15 @@ export function DashboardPage() {
   );
   const compact = days.length > 10;
 
-  const mealBars = days.map((day) => ({
-    key: day,
-    label: compact ? day.slice(8) : weekdayShort(day),
-    breast: sessions.filter((row) => localDateKey(row.startedAt) === day).length,
-    bottle: bottles.filter((row) => localDateKey(row.fedAt) === day).length,
-  }));
+  const mealBars = days.map((day) => {
+    const breast = sessions.filter((row) => localDateKey(row.startedAt) === day).length;
+    const bottle = bottles.filter((row) => localDateKey(row.fedAt) === day).length;
+    return {
+      key: day,
+      label: compact ? day.slice(8) : weekdayShort(day),
+      value: breast + bottle,
+    };
+  });
   const sleepBars = days.map((day) => ({
     key: day,
     label: compact ? day.slice(8) : weekdayShort(day),
@@ -252,24 +256,16 @@ export function DashboardPage() {
     <div className="screen">
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
       <ActiveNowPanel />
-      <div className="row">
-        {([
-          ['today', 'Aujourd’hui'],
-          ['7d', '7 jours'],
-          ['30d', '30 jours'],
-          ['all', 'Tout'],
-        ] as const).map(([key, label]) => (
-          <Chip key={key} label={label} selected={period === key} onClick={() => setPeriod(key)} />
-        ))}
-      </div>
+      <PeriodSelector value={period} onChange={setPeriod} />
 
       <p className="dash-section">Apports</p>
       <div className="dashboard-stats">
         <div className="stat stat-meal">
           <span className="muted">Repas</span>
-          <MealCircles
+          <MealPie
             breastCount={breastCount}
             bottleCount={bottleCount}
+            otherCount={0}
             feedingMinutes={feedingMinutes}
             bottleMl={bottleMl}
           />
@@ -287,6 +283,23 @@ export function DashboardPage() {
           />
         </div>
       </div>
+
+      <p className="dash-section">Graphiques</p>
+      <Bars title="Repas (nombre)" data={mealBars} tone="meal" />
+      <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
+      <Bars title="Couches" data={diaperBars} tone="pee" />
+      {weights.length > 1 ? (
+        <Card>
+          <h2>Évolution poids (kg)</h2>
+          <p>
+            {[...weights]
+              .reverse()
+              .map((row) => `${row.value}`.replace('.', ','))
+              .join(' → ')}
+          </p>
+          <p className="muted">Dernière pesée · {formatDateTime(weights[0].measuredAt)}</p>
+        </Card>
+      ) : null}
 
       <p className="dash-section">Suivi</p>
       <div className="dashboard-stats">
@@ -313,7 +326,7 @@ export function DashboardPage() {
           <StatTile label="Taille" value={heightFmt.value} sub={lastHeight ? `cm · ${heightFmt.sub}` : 'cm'} />
           <StatTile label="PC" value={headFmt.value} sub={lastHead ? `cm · ${headFmt.sub}` : 'cm'} />
           <StatTile
-            label="Température"
+            label="Temp."
             value={lastTemp ? `${lastTemp.celsius}°` : '—'}
             sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
           />
@@ -367,78 +380,7 @@ export function DashboardPage() {
           ))
         )}
       </Card>
-
-      <StackedMealBars title="Repas (nombre)" data={mealBars} />
-      <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
-      <Bars title="Couches" data={diaperBars} tone="pee" />
-      {weights.length > 1 ? (
-        <Card>
-          <h2>Évolution poids (kg)</h2>
-          <p>
-            {[...weights]
-              .reverse()
-              .map((row) => `${row.value}`.replace('.', ','))
-              .join(' → ')}
-          </p>
-          <p className="muted">Dernière pesée · {formatDateTime(weights[0].measuredAt)}</p>
-        </Card>
-      ) : null}
     </div>
-  );
-}
-
-function StackedMealBars({
-  title,
-  data,
-}: {
-  title: string;
-  data: { key: string; label: string; breast: number; bottle: number }[];
-}) {
-  const max = Math.max(1, ...data.map((d) => Math.max(d.breast, d.bottle)));
-  const compact = data.length > 10;
-  return (
-    <Card>
-      <h2>{title}</h2>
-      <div className="bar-legend">
-        <span className="leg-breast">Sein</span>
-        <span className="leg-bottle">Biberon</span>
-      </div>
-      <div className="bars-wrap">
-        <div className={`bars meal-bars ${compact ? 'compact' : ''}`}>
-          {data.map((d) => {
-            const breastH = d.breast > 0 ? (d.breast / max) * 100 : 0;
-            const bottleH = d.bottle > 0 ? (d.bottle / max) * 100 : 0;
-            const total = d.breast + d.bottle;
-            return (
-              <div className="bar-col meal-bar-col" key={d.key}>
-                <div className="meal-bar-pair">
-                  <div className="bar-stack">
-                    {d.breast > 0 ? (
-                      <div className="bar breast" style={{ height: `${Math.max(14, breastH)}%` }}>
-                        <span className="bar-value">{d.breast}</span>
-                      </div>
-                    ) : (
-                      <div className="bar empty" style={{ height: '4%' }} />
-                    )}
-                  </div>
-                  <div className="bar-stack">
-                    {d.bottle > 0 ? (
-                      <div className="bar bottle" style={{ height: `${Math.max(14, bottleH)}%` }}>
-                        <span className="bar-value">{d.bottle}</span>
-                      </div>
-                    ) : (
-                      <div className="bar empty" style={{ height: '4%' }} />
-                    )}
-                  </div>
-                </div>
-                {total > 0 ? <span className="meal-bar-total muted">{total}</span> : null}
-                <span className="bar-label">{d.label}</span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </Card>
   );
 }
 
@@ -449,7 +391,7 @@ function Bars({
 }: {
   title: string;
   data: { key: string; label: string; value: number }[];
-  tone?: 'sleep' | 'pee';
+  tone?: 'sleep' | 'pee' | 'meal';
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const compact = data.length > 10;

@@ -77,7 +77,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [stockId, setStockId] = useState<string | null>(null);
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
-  const [useTimer, setUseTimer] = useState(false);
+  const [useTimer, setUseTimer] = useState(true);
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
 

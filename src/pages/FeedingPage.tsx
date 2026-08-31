@@ -30,7 +30,7 @@ export function FeedingPage() {
   const [delay, setDelay] = useState(0);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [custom, setCustom] = useState('');
-  const [useTimer, setUseTimer] = useState(false);
+  const [useTimer, setUseTimer] = useState(true);
   const babyId = baby?.id ?? '';
 
   useEffect(() => {

@@ -79,6 +79,21 @@ export function addMinutesIso(iso: string, minutes: number): string {
   return new Date(new Date(iso).getTime() + minutes * 60_000).toISOString();
 }
 
+/** Heure affichée / tri journal : fin si chronométré, sinon début. */
+export function activityAt(startedAt: string, endedAt?: string | null): string {
+  return endedAt ?? startedAt;
+}
+
+export function activityAtFromDuration(
+  startedAt: string,
+  durationMinutes: number | null | undefined,
+): string {
+  if (durationMinutes != null && durationMinutes > 0) {
+    return addMinutesIso(startedAt, durationMinutes);
+  }
+  return startedAt;
+}
+
 export function formatFeedLabel(startedAt: string, endedAt?: string | null, now = Date.now()): string {
   if (endedAt && endedAt === startedAt) return 'notée';
   const ms = elapsedMs(startedAt, endedAt, now);

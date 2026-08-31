@@ -23,7 +23,7 @@ import type {
   Supplement,
   Temperature,
 } from '@/db/types';
-import { formatFeedLabel, formatMinutes, elapsedMs } from '@/lib/dates';
+import { activityAt, activityAtFromDuration, formatFeedLabel, formatMinutes, elapsedMs } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
 
 export type ActivityKind =
@@ -73,7 +73,7 @@ export async function listActivity(babyId: string, limit = 80): Promise<Activity
     items.push({
       id: row.id,
       kind: 'feeding',
-      at: row.startedAt,
+      at: activityAt(row.startedAt, row.endedAt),
       title: 'Tétée',
       detail: `${row.endedAt ? formatFeedLabel(row.startedAt, row.endedAt) : 'en cours'}${sides ? ` · ${sides}` : ''}`,
     });
@@ -103,7 +103,7 @@ export async function listActivity(babyId: string, limit = 80): Promise<Activity
     items.push({
       id: row.id,
       kind: 'pumping',
-      at: row.startedAt,
+      at: activityAtFromDuration(row.startedAt, row.durationMinutes),
       title: 'Tire-lait',
       detail:
         row.amountMl == null
@@ -122,7 +122,7 @@ export async function listActivity(babyId: string, limit = 80): Promise<Activity
     items.push({
       id: row.id,
       kind: 'sleep',
-      at: row.startedAt,
+      at: activityAt(row.startedAt, row.endedAt),
       title: 'Sommeil',
       detail: row.endedAt
         ? formatMinutes(elapsedMs(row.startedAt, row.endedAt))

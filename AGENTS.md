@@ -57,7 +57,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 
-Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste au-dessus du journal. Case **Minuteur** sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
+Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste au-dessus du journal. Case **Minuteur** cochée par défaut sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
 
 ### Suivi
 
@@ -78,7 +78,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Cartes **Apports** : repas (cercles), diversification, compléments. **Suivi** : couches, sommeil, stock lait, tiré (période), poids/taille/PC, température, notes. **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique de tout ce qui est noté via les outils. Graphiques : repas, sommeil, couches.
+Cartes **Apports** : repas (tarte sein / biberon, récap sans les zéros), diversification, compléments. **Graphiques** : repas (total par jour), sommeil, couches. **Suivi** : couches, sommeil, stock lait, tiré (période), poids/taille/PC, temp. (libellé abrégé), notes. **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique en bas de page.
 
 ## Page Bébé
 
@@ -170,7 +170,7 @@ babies (name, bornOn)
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.
 
-Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier), journal chronologique éditable. Édition tétée : Notée | Minuteur | Terminée (+ durée en minutes).
+Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier), journal chronologique éditable (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré). Édition tétée : Notée | Minuteur | Terminée (+ durée en minutes).
 
 ## Conventions agent
 
