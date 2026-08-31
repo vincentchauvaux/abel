@@ -11,6 +11,7 @@ export function NotesPage() {
   const { baby, tick } = useDb();
   const [rows, setRows] = useState<Note[]>([]);
   const [body, setBody] = useState('');
+  const [asTodo, setAsTodo] = useState(false);
 
   useEffect(() => {
     if (!baby) return;
@@ -30,12 +31,18 @@ export function NotesPage() {
           inputMode="text"
           multiline
         />
+        <label className="check-inline">
+          <input type="checkbox" checked={asTodo} onChange={(e) => setAsTodo(e.target.checked)} />
+          À faire sur le dashboard
+        </label>
+        <p className="muted">Reste visible sur le dashboard jusqu’à ce que tu coches « fait ».</p>
         <Button
           disabled={!body.trim()}
           onClick={() => {
             if (!baby || !body.trim()) return;
-            addNote(baby.id, body);
+            addNote(baby.id, body, undefined, asTodo);
             setBody('');
+            setAsTodo(false);
           }}>
           Enregistrer
         </Button>
@@ -47,7 +54,10 @@ export function NotesPage() {
         ) : (
           rows.map((row) => (
             <div key={row.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="muted">{formatDateTime(row.notedAt)}</span>
+              <span className="muted">
+                {formatDateTime(row.notedAt)}
+                {row.isTodo ? (row.doneAt ? ' · fait' : ' · à faire') : ''}
+              </span>
               <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{row.body}</p>
             </div>
           ))

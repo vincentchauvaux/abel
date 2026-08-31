@@ -88,6 +88,28 @@ class AbelDB extends Dexie {
             if (row.pumpingSessionId === undefined) row.pumpingSessionId = null;
           });
       });
+    this.version(4)
+      .stores({
+        babies: 'id',
+        feedingSessions: 'id, babyId, startedAt',
+        feedingSegments: 'id, feedingSessionId, startedAt',
+        bottleFeeds: 'id, babyId, fedAt, pumpingSessionId',
+        diaperEvents: 'id, babyId, occurredAt',
+        pumpingSessions: 'id, babyId, startedAt',
+        measurements: 'id, babyId, type, measuredAt',
+        reminderRules: 'id, babyId',
+        solidFoods: 'id, babyId, eatenAt',
+        supplements: 'id, babyId, givenAt',
+        sleepSessions: 'id, babyId, startedAt',
+        temperatures: 'id, babyId, measuredAt',
+        notes: 'id, babyId, notedAt, isTodo, doneAt',
+      })
+      .upgrade(async (tx) => {
+        await tx.table('notes').toCollection().modify((row: { isTodo?: boolean; doneAt?: string | null }) => {
+          if (row.isTodo === undefined) row.isTodo = false;
+          if (row.doneAt === undefined) row.doneAt = null;
+        });
+      });
   }
 }
 

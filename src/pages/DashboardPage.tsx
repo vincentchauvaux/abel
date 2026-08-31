@@ -10,6 +10,7 @@ import {
   listDiapers,
   listMeasurements,
   listNotes,
+  completeNoteTodo,
   listPumps,
   listSessions,
   listSleep,
@@ -152,6 +153,10 @@ export function DashboardPage() {
   const solidsCount = solids.filter((row) => inRange(row.eatenAt)).length;
   const supplementsCount = supplements.filter((row) => inRange(row.givenAt)).length;
   const notesCount = notes.filter((row) => inRange(row.notedAt)).length;
+  const openNoteTodos = useMemo(
+    () => notes.filter((row) => row.isTodo && !row.doneAt),
+    [notes],
+  );
   const tempsCount = temperatures.filter((row) => inRange(row.measuredAt)).length;
 
   const lastFeed = sessions[0];
@@ -160,7 +165,6 @@ export function DashboardPage() {
   const lastSolid = solids.find((row) => inRange(row.eatenAt)) ?? solids[0];
   const lastSupplement = supplements.find((row) => inRange(row.givenAt)) ?? supplements[0];
   const lastTemp = temperatures.find((row) => inRange(row.measuredAt)) ?? temperatures[0];
-  const lastNote = notes.find((row) => inRange(row.notedAt)) ?? notes[0];
   const lastWeight = latestMeasure(measures, 'WEIGHT');
   const lastHeight = latestMeasure(measures, 'HEIGHT');
   const lastHead = latestMeasure(measures, 'HEAD_CIRCUMFERENCE');
@@ -331,14 +335,22 @@ export function DashboardPage() {
             sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
           />
         </div>
-        <div className="stat-row-2">
-          <StatTile
-            label="Notes"
-            value={notesCount}
-            sub={lastNote ? lastNote.body.slice(0, 36) + (lastNote.body.length > 36 ? '…' : '') : '—'}
-          />
-        </div>
+        <StatTile
+          label="Notes"
+          value={notesCount}
+          sub={openNoteTodos.length > 0 ? `${openNoteTodos.length} à faire` : '—'}
+        />
       </div>
+      {openNoteTodos.length > 0 ? (
+        <div className="dash-note-todos">
+          {openNoteTodos.map((row) => (
+            <label key={row.id} className="dash-note-todo">
+              <input type="checkbox" onChange={() => void completeNoteTodo(row.id)} />
+              <span>{row.body}</span>
+            </label>
+          ))}
+        </div>
+      ) : null}
 
       <Card>
         <h2>Alertes</h2>

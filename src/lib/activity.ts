@@ -139,12 +139,13 @@ export async function listActivity(babyId: string, limit = 80): Promise<Activity
     });
   }
   for (const row of notes) {
+    const todoTag = row.isTodo ? (row.doneAt ? ' · fait' : ' · à faire') : '';
     items.push({
       id: row.id,
       kind: 'note',
       at: row.notedAt,
       title: 'Note',
-      detail: row.body.slice(0, 80),
+      detail: `${row.body.slice(0, 80)}${todoTag}`,
     });
   }
   for (const row of measures) {

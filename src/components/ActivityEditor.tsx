@@ -57,6 +57,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [sleepStatus, setSleepStatus] = useState<SleepStatus>('done');
   const [sleepMinutes, setSleepMinutes] = useState('');
   const [pumpDuration, setPumpDuration] = useState('');
+  const [noteTodo, setNoteTodo] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -138,6 +139,7 @@ export function ActivityEditor({ item, onClose }: Props) {
         if (!cancelled && row) {
           setText(row.body);
           setWhen(toDatetimeLocalValue(row.notedAt));
+          setNoteTodo(row.isTodo);
         }
       } else if (item.kind === 'measurement') {
         const row = await db.measurements.get(item.id);
@@ -249,7 +251,7 @@ export function ActivityEditor({ item, onClose }: Props) {
         }
         await updateTemperature(item.id, { celsius: n, measuredAt: at });
       } else if (item.kind === 'note') {
-        await updateNote(item.id, { body: text, notedAt: at });
+        await updateNote(item.id, { body: text, notedAt: at, isTodo: noteTodo });
       } else if (item.kind === 'measurement') {
         const n = parseDecimal(amount);
         if (n === null) {
@@ -422,13 +424,21 @@ export function ActivityEditor({ item, onClose }: Props) {
           </div>
         ) : null}
         {item.kind === 'solid' || item.kind === 'supplement' || item.kind === 'note' ? (
-          <Field
-            label={item.kind === 'note' ? 'Texte' : 'Libellé'}
-            value={text}
-            onChange={setText}
-            inputMode="text"
-            multiline={item.kind === 'note'}
-          />
+          <>
+            <Field
+              label={item.kind === 'note' ? 'Texte' : 'Libellé'}
+              value={text}
+              onChange={setText}
+              inputMode="text"
+              multiline={item.kind === 'note'}
+            />
+            {item.kind === 'note' ? (
+              <label className="check-inline">
+                <input type="checkbox" checked={noteTodo} onChange={(e) => setNoteTodo(e.target.checked)} />
+                À faire sur le dashboard
+              </label>
+            ) : null}
+          </>
         ) : null}
         {error ? <p className="muted">{error}</p> : null}
         <Button onClick={() => void save()}>Enregistrer</Button>

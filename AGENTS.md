@@ -68,7 +68,7 @@ Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports 
 | Croissance | Poids (kg), taille (cm), périmètre crânien (cm). |
 | Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. |
 | Température | Saisie °C uniquement. |
-| Notes | Texte libre. |
+| Notes | Texte libre. Case **À faire** = rappel sur le dashboard (coche pour marquer fait ; reste dans le journal). |
 
 ### Rappels repas
 

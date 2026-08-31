@@ -104,4 +104,7 @@ export type Note = Stamp & {
   babyId: string;
   body: string;
   notedAt: string;
+  /** Afficher sur le dashboard jusqu’à marquage fait. */
+  isTodo: boolean;
+  doneAt: string | null;
 };

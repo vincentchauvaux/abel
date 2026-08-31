@@ -203,6 +203,8 @@ const TABLES = {
       babyId: 'baby_id',
       body: 'body',
       notedAt: 'noted_at',
+      isTodo: 'is_todo',
+      doneAt: 'done_at',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',

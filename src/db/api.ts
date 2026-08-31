@@ -572,12 +572,19 @@ export async function deleteTemperature(id: string) {
   notifyDb();
 }
 
-export async function addNote(babyId: string, body: string, notedAt = nowIso()) {
+export async function addNote(
+  babyId: string,
+  body: string,
+  notedAt = nowIso(),
+  isTodo = false,
+) {
   await db.notes.add({
     id: createId(),
     babyId,
     body: body.trim(),
     notedAt,
+    isTodo,
+    doneAt: null,
     ...stamp(),
   });
   notifyDb();
@@ -589,10 +596,25 @@ export async function listNotes(babyId: string): Promise<Note[]> {
   );
 }
 
-export async function updateNote(id: string, values: { body?: string; notedAt?: string }) {
+export async function listOpenNoteTodos(babyId: string): Promise<Note[]> {
+  return alive(await db.notes.where('babyId').equals(babyId).toArray())
+    .filter((row) => row.isTodo && !row.doneAt)
+    .sort((a, b) => b.notedAt.localeCompare(a.notedAt));
+}
+
+export async function completeNoteTodo(id: string) {
+  await db.notes.update(id, { doneAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function updateNote(
+  id: string,
+  values: { body?: string; notedAt?: string; isTodo?: boolean; doneAt?: string | null },
+) {
   await db.notes.update(id, {
     ...values,
     ...(values.body !== undefined ? { body: values.body.trim() } : {}),
+    ...(values.isTodo === false ? { doneAt: null } : {}),
     ...touch(),
   });
   notifyDb();

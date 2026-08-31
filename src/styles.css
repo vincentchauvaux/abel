@@ -406,6 +406,42 @@ h2 {
   line-height: 1.2;
 }
 
+.dash-note-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.dash-note-todo {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  font-size: 0.95rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.dash-note-todo input {
+  margin-top: 3px;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--primary);
+}
+
+.dash-note-todo span {
+  flex: 1;
+  white-space: pre-wrap;
+}
+
+.dashboard-stats > .stat {
+  width: 100%;
+}
+
 .dash-section {
   font-size: 0.75rem;
   font-weight: 800;
