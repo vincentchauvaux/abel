@@ -55,7 +55,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Module | Rôle |
 |---|---|
 | Allaitement | Une carte « Noter une tétée » + case **Minuteur** : sans case = notée immédiatement ; avec case = démarre le timer. |
-| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
+| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. Historique du jour éditable (crayon sur chaque ligne).
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 
