@@ -640,6 +640,11 @@ h2 {
   text-decoration: none;
 }
 
+.screen a.dash-follow-add {
+  text-decoration: none;
+  color: var(--accent);
+}
+
 .dash-follow-add:active {
   opacity: 0.85;
 }
