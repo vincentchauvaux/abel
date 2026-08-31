@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 
 import { ModuleHeader } from '@/components/Layout';
+import { TemperatureValue } from '@/components/TemperatureValue';
 import { Button, Card, Field } from '@/components/ui';
 import { addTemperature, listTemperatures } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Temperature } from '@/db/types';
 import { formatDateTime, parseDecimal } from '@/lib/dates';
+import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
 
 export function TemperaturePage() {
   const { baby, tick } = useDb();
@@ -17,6 +19,8 @@ export function TemperaturePage() {
     listTemperatures(baby.id).then(setRows);
   }, [baby, tick]);
 
+  const previewTemp = parseDecimal(value);
+
   return (
     <div className="screen">
       <ModuleHeader title="Température" />
@@ -24,6 +28,11 @@ export function TemperaturePage() {
         <h2>Nouvelle mesure</h2>
         <p className="muted">Saisie uniquement. Abel ne donne aucun conseil médical.</p>
         <Field label="Température (°C)" value={value} onChange={setValue} placeholder="37,2" />
+        {previewTemp != null ? (
+          <p className={temperatureLevelClass(previewTemp)}>
+            Aperçu : {formatTemperature(previewTemp)} °C
+          </p>
+        ) : null}
         <Button
           disabled={!value}
           onClick={() => {
@@ -43,7 +52,7 @@ export function TemperaturePage() {
           rows.slice(0, 30).map((row) => (
             <div className="line" key={row.id}>
               <span className="muted">{formatDateTime(row.measuredAt)}</span>
-              <strong>{String(row.celsius).replace('.', ',')} °C</strong>
+              <TemperatureValue celsius={row.celsius} />
             </div>
           ))
         )}

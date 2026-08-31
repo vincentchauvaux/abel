@@ -19,6 +19,7 @@ import type { BottleFeed, DiaperEvent, FeedingSession, ReminderRule, SleepSessio
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem, type ActivityKind } from '@/lib/activity';
 import { formatAge, formatLongDate, formatTime, localDateKey, parseDecimal, startOfLocalDay } from '@/lib/dates';
+import { temperatureLevelClass } from '@/lib/temperature';
 import {
   DIAPER_MEAL_PRESETS,
   formatBottleMlGoal,
@@ -475,7 +476,9 @@ export function BabyPage() {
                 <strong>{formatTime(row.at)}</strong>
                 <span className="muted"> · {row.title}</span>
               </span>
-              <span className="muted">{row.detail}</span>
+              <span className={row.tempCelsius != null ? temperatureLevelClass(row.tempCelsius) : 'muted'}>
+                {row.detail}
+              </span>
             </button>
           ))
         )}

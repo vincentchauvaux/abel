@@ -48,6 +48,7 @@ import {
   weekdayShort,
   type Period,
 } from '@/lib/dates';
+import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
 import type { DiaperWhen } from '@/lib/goals';
 import {
   bottleMlAlertLine,
@@ -65,15 +66,17 @@ function StatTile({
   label,
   value,
   sub,
+  valueClassName,
 }: {
   label: string;
   value: string | number;
   sub?: string;
+  valueClassName?: string;
 }) {
   return (
     <div className="stat">
       <span className="muted">{label}</span>
-      <b>{value}</b>
+      <b className={valueClassName}>{value}</b>
       {sub ? <span className="stat-sub muted">{sub}</span> : null}
     </div>
   );
@@ -336,7 +339,8 @@ export function DashboardPage() {
           <StatTile label="PC" value={headFmt.value} sub={lastHead ? `cm · ${headFmt.sub}` : 'cm'} />
           <StatTile
             label="Temp."
-            value={lastTemp ? `${lastTemp.celsius}°` : '—'}
+            value={lastTemp ? `${formatTemperature(lastTemp.celsius)}°` : '—'}
+            valueClassName={lastTemp ? temperatureLevelClass(lastTemp.celsius) : undefined}
             sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
           />
         </div>
@@ -417,7 +421,9 @@ export function DashboardPage() {
                 <strong>{formatTime(row.at)}</strong>
                 <span className="muted"> · {row.title}</span>
               </span>
-              <span className="muted">{row.detail}</span>
+              <span className={row.tempCelsius != null ? temperatureLevelClass(row.tempCelsius) : 'muted'}>
+                {row.detail}
+              </span>
             </div>
           ))
         )}

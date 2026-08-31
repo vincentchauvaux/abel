@@ -660,6 +660,21 @@ h2 {
   margin-top: 4px;
 }
 
+.temp-value.temp-ok {
+  color: #3a9b6e;
+  font-weight: 700;
+}
+
+.temp-value.temp-warn {
+  color: #c47a3a;
+  font-weight: 700;
+}
+
+.temp-value.temp-alert {
+  color: var(--danger);
+  font-weight: 700;
+}
+
 .stat-meal {
   width: 100%;
 }

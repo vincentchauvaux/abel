@@ -24,6 +24,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { activityAt, activityAtFromDuration, formatFeedLabel, formatMinutes, elapsedMs } from '@/lib/dates';
+import { formatTemperature } from '@/lib/temperature';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
 
 export type ActivityKind =
@@ -44,6 +45,7 @@ export type ActivityItem = {
   at: string;
   title: string;
   detail: string;
+  tempCelsius?: number;
 };
 
 export async function listActivity(babyId: string, limit?: number): Promise<ActivityItem[]> {
@@ -135,7 +137,8 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       kind: 'temperature',
       at: row.measuredAt,
       title: 'Température',
-      detail: `${String(row.celsius).replace('.', ',')} °C`,
+      detail: `${formatTemperature(row.celsius)} °C`,
+      tempCelsius: row.celsius,
     });
   }
   for (const row of notes) {
