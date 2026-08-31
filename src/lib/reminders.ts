@@ -134,3 +134,45 @@ export function bottleMlAlertLine(
   }
   return `Aujourd’hui ${todayMl} ml · objectif ${goalMl} ml par repas biberon.`;
 }
+
+export type DiaperAlertInput = {
+  lastDiaper?: { occurredAt: string } | null;
+  mealAt: string | null;
+  mealIntervalMinutes: number;
+  diaperWhen: DiaperWhen;
+  diaperOffset: number;
+  now?: number;
+};
+
+export function diaperAlertLine(input: DiaperAlertInput): string {
+  const now = input.now ?? Date.now();
+  const { lastDiaper, mealAt, mealIntervalMinutes, diaperWhen, diaperOffset } = input;
+  const lastLine = lastDiaper
+    ? `Dernière couche à ${formatTime(lastDiaper.occurredAt)}.`
+    : 'Pas encore de couche.';
+  if (diaperOffset <= 0) return lastLine;
+  if (!mealAt) return `${lastLine} Pas encore de repas pour démarrer le rappel.`;
+  if (diaperWhen === 'before' && mealIntervalMinutes <= 0) {
+    return `${lastLine} Définis un intervalle de repas pour le rappel avant le repas.`;
+  }
+  const fire = diaperReminderAt(mealAt, mealIntervalMinutes, diaperWhen, diaperOffset);
+  const iso = fire.toISOString();
+  if (lastDiaper && lastDiaper.occurredAt >= iso) {
+    return `Couche déjà notée · ${formatTime(lastDiaper.occurredAt)}.`;
+  }
+  const whenLabel = diaperWhen === 'before' ? 'avant le prochain repas' : 'après le repas';
+  if (fire.getTime() > now) {
+    return `Rappel couche ${formatFromNow(iso, now)} (${whenLabel}, repas ${formatTime(mealAt)}).`;
+  }
+  return `Rappel couche dépassé ${formatFromNow(iso, now)} (${whenLabel}).`;
+}
+
+export function sleepAlertLine(
+  activeSleep?: { startedAt: string } | null,
+  now = Date.now(),
+): string {
+  if (activeSleep) {
+    return `Endormi depuis ${formatTime(activeSleep.startedAt)} · ${formatFromNow(activeSleep.startedAt, now)}.`;
+  }
+  return 'Pas de sieste en cours.';
+}

@@ -8,12 +8,31 @@ import {
   listBottles,
   listDiapers,
   listMeasurements,
+  listNotes,
   listPumps,
   listSessions,
   listSleep,
+  listSolidFoods,
+  listSupplements,
+  listTemperatures,
 } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
-import type { BottleFeed, DiaperEvent, FeedingSession, Measurement, PumpingSession, SleepSession } from '@/db/types';
+import type {
+  BottleFeed,
+  DiaperEvent,
+  FeedingSession,
+  Measurement,
+  MeasurementType,
+  Note,
+  PumpingSession,
+  ReminderRule,
+  SleepSession,
+  SolidFood,
+  Supplement,
+  Temperature,
+} from '@/db/types';
+import { useNow } from '@/hooks/use-now';
+import { listActivity, type ActivityItem } from '@/lib/activity';
 import {
   eachLocalDay,
   elapsedMs,
@@ -22,10 +41,40 @@ import {
   formatTime,
   localDateKey,
   periodRange,
+  startOfLocalDay,
   weekdayShort,
   type Period,
 } from '@/lib/dates';
-import { lastMealAt } from '@/lib/reminders';
+import type { DiaperWhen } from '@/lib/goals';
+import {
+  bottleMlAlertLine,
+  diaperAlertLine,
+  lastMealAt,
+  mealAlertLine,
+  sleepAlertLine,
+} from '@/lib/reminders';
+
+function latestMeasure(measures: Measurement[], type: MeasurementType) {
+  return measures.find((row) => row.type === type);
+}
+
+function StatTile({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+}) {
+  return (
+    <div className="stat">
+      <span className="muted">{label}</span>
+      <b>{value}</b>
+      {sub ? <span className="stat-sub muted">{sub}</span> : null}
+    </div>
+  );
+}
 
 export function DashboardPage() {
   const { baby, tick } = useDb();
@@ -35,8 +84,14 @@ export function DashboardPage() {
   const [diapers, setDiapers] = useState<DiaperEvent[]>([]);
   const [pumps, setPumps] = useState<PumpingSession[]>([]);
   const [sleeps, setSleeps] = useState<SleepSession[]>([]);
-  const [weights, setWeights] = useState<Measurement[]>([]);
-  const [delay, setDelay] = useState(0);
+  const [solids, setSolids] = useState<SolidFood[]>([]);
+  const [supplements, setSupplements] = useState<Supplement[]>([]);
+  const [temperatures, setTemperatures] = useState<Temperature[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [measures, setMeasures] = useState<Measurement[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [goals, setGoals] = useState<ReminderRule | undefined>();
+  const now = useNow(true, 30_000);
 
   useEffect(() => {
     if (!baby) return;
@@ -46,16 +101,26 @@ export function DashboardPage() {
       listDiapers(baby.id),
       listPumps(baby.id),
       listSleep(baby.id),
+      listSolidFoods(baby.id),
+      listSupplements(baby.id),
+      listTemperatures(baby.id),
+      listNotes(baby.id),
       listMeasurements(baby.id),
+      listActivity(baby.id, 120),
       getReminder(baby.id),
-    ]).then(([s, b, d, p, sl, m, r]) => {
+    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r]) => {
       setSessions(s);
       setBottles(b);
       setDiapers(d);
       setPumps(p);
       setSleeps(sl);
-      setWeights(m.filter((row) => row.type === 'WEIGHT'));
-      setDelay(r?.delayMinutes ?? 0);
+      setSolids(sf);
+      setSupplements(sup);
+      setTemperatures(temp);
+      setNotes(n);
+      setMeasures(m);
+      setActivity(log);
+      setGoals(r);
     });
   }, [baby, tick]);
 
@@ -76,33 +141,84 @@ export function DashboardPage() {
   );
   const bottleMl = bottlesRange.reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0);
   const stockMl = pumps.reduce((sum, row) => sum + (Number(row.remainingMl) || 0), 0);
+  const pumpedMl = pumps
+    .filter((row) => inRange(row.startedAt))
+    .reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0);
   const sleepMs = sleeps
     .filter((row) => inRange(row.startedAt))
     .reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0);
+  const diaperCount = diapers.filter((row) => inRange(row.occurredAt)).length;
+  const solidsCount = solids.filter((row) => inRange(row.eatenAt)).length;
+  const supplementsCount = supplements.filter((row) => inRange(row.givenAt)).length;
+  const notesCount = notes.filter((row) => inRange(row.notedAt)).length;
+  const tempsCount = temperatures.filter((row) => inRange(row.measuredAt)).length;
 
   const lastFeed = sessions[0];
   const lastBottle = bottles[0];
+  const lastDiaper = diapers[0];
+  const lastSolid = solids.find((row) => inRange(row.eatenAt)) ?? solids[0];
+  const lastSupplement = supplements.find((row) => inRange(row.givenAt)) ?? supplements[0];
+  const lastTemp = temperatures.find((row) => inRange(row.measuredAt)) ?? temperatures[0];
+  const lastNote = notes.find((row) => inRange(row.notedAt)) ?? notes[0];
+  const lastWeight = latestMeasure(measures, 'WEIGHT');
+  const lastHeight = latestMeasure(measures, 'HEIGHT');
+  const lastHead = latestMeasure(measures, 'HEAD_CIRCUMFERENCE');
+  const activeSleep = sleeps.find((row) => !row.endedAt);
+  const delay = goals?.delayMinutes ?? 0;
+  const bottleGoalMl = goals?.bottleMl ?? null;
+  const diaperOffset = goals?.diaperMinutes ?? 0;
+  const diaperWhen: DiaperWhen = goals?.diaperWhen === 'before' ? 'before' : 'after';
+  const todayMl = bottles
+    .filter((row) => row.fedAt >= startOfLocalDay().toISOString())
+    .reduce((sum, row) => sum + row.amountMl, 0);
+
+  const periodActivity = useMemo(
+    () => activity.filter((row) => inRange(row.at)).slice(0, 12),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- inRange dépend de period
+    [activity, period, from, todayKey],
+  );
+
   const mealAt = useMemo(() => lastMealAt(lastFeed, lastBottle), [lastFeed, lastBottle]);
 
-  const lastMealLabel = useMemo(() => {
-    if (!mealAt) return null;
-    const feedAt = lastFeed?.endedAt ?? null;
-    const bottleAt = lastBottle?.fedAt ?? null;
-    const wasBottle = Boolean(bottleAt && (!feedAt || bottleAt >= feedAt));
-    if (wasBottle && lastBottle) {
-      return `${formatDateTime(mealAt)} · biberon ${lastBottle.amountMl} ml`;
-    }
-    return `${formatDateTime(mealAt)} · tétée`;
-  }, [mealAt, lastFeed, lastBottle]);
+  const mealAlert = useMemo(
+    () =>
+      mealAlertLine({
+        feed: lastFeed,
+        bottle: lastBottle,
+        mealIntervalMinutes: delay,
+        now,
+      }),
+    [lastFeed, lastBottle, delay, now],
+  );
 
-  const nextReminder = useMemo(() => {
-    if (!mealAt || delay <= 0) return null;
-    if (lastFeed && !lastFeed.endedAt) return null;
-    const fire = new Date(mealAt);
-    fire.setMinutes(fire.getMinutes() + delay);
-    if (fire.getTime() <= Date.now()) return null;
-    return fire.toISOString();
-  }, [mealAt, delay, lastFeed]);
+  const bottleMlAlert = useMemo(() => bottleMlAlertLine(bottleGoalMl, todayMl), [bottleGoalMl, todayMl]);
+
+  const diaperAlert = useMemo(
+    () =>
+      diaperAlertLine({
+        lastDiaper,
+        mealAt,
+        mealIntervalMinutes: delay,
+        diaperWhen,
+        diaperOffset,
+        now,
+      }),
+    [lastDiaper, mealAt, delay, diaperWhen, diaperOffset, now],
+  );
+
+  const sleepAlert = useMemo(() => sleepAlertLine(activeSleep, now), [activeSleep, now]);
+
+  const formatMeasure = (row?: Measurement) => {
+    if (!row) return { value: '—', sub: '' };
+    return {
+      value: `${row.value}`.replace('.', ','),
+      sub: formatTime(row.measuredAt),
+    };
+  };
+
+  const weightFmt = formatMeasure(lastWeight);
+  const heightFmt = formatMeasure(lastHeight);
+  const headFmt = formatMeasure(lastHead);
 
   const days = eachLocalDay(
     period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
@@ -130,6 +246,8 @@ export function DashboardPage() {
     value: diapers.filter((row) => localDateKey(row.occurredAt) === day).length,
   }));
 
+  const weights = measures.filter((row) => row.type === 'WEIGHT');
+
   return (
     <div className="screen">
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
@@ -144,7 +262,9 @@ export function DashboardPage() {
           <Chip key={key} label={label} selected={period === key} onClick={() => setPeriod(key)} />
         ))}
       </div>
-      <div className="grid-2">
+
+      <p className="dash-section">Apports</p>
+      <div className="dashboard-stats">
         <div className="stat stat-meal">
           <span className="muted">Repas</span>
           <MealCircles
@@ -154,56 +274,115 @@ export function DashboardPage() {
             bottleMl={bottleMl}
           />
         </div>
-        <div className="stat">
-          <span className="muted">Couches</span>
-          <b>{diapers.filter((row) => inRange(row.occurredAt)).length}</b>
-        </div>
-        <div className="stat">
-          <span className="muted">Sommeil</span>
-          <b>{sleepMs > 0 ? formatMinutes(sleepMs) : '—'}</b>
-        </div>
-        <div className="stat">
-          <span className="muted">Stock lait</span>
-          <b>{stockMl} ml</b>
+        <div className="stat-row-2">
+          <StatTile
+            label="Diversification"
+            value={solidsCount}
+            sub={lastSolid ? lastSolid.food : '—'}
+          />
+          <StatTile
+            label="Compléments"
+            value={supplementsCount}
+            sub={lastSupplement ? lastSupplement.name : '—'}
+          />
         </div>
       </div>
+
+      <p className="dash-section">Suivi</p>
+      <div className="dashboard-stats">
+        <div className="stat-row-4">
+          <StatTile
+            label="Couches"
+            value={diaperCount}
+            sub={lastDiaper ? formatTime(lastDiaper.occurredAt) : '—'}
+          />
+          <StatTile
+            label="Sommeil"
+            value={sleepMs > 0 ? formatMinutes(sleepMs) : '—'}
+            sub={activeSleep ? 'en cours' : '—'}
+          />
+          <StatTile label="Stock lait" value={`${stockMl} ml`} sub={pumps.length ? `${pumps.length} lot(s)` : '—'} />
+          <StatTile
+            label="Tiré"
+            value={pumpedMl > 0 ? `${pumpedMl} ml` : '—'}
+            sub="sur la période"
+          />
+        </div>
+        <div className="stat-row-4">
+          <StatTile label="Poids" value={weightFmt.value} sub={lastWeight ? `kg · ${weightFmt.sub}` : 'kg'} />
+          <StatTile label="Taille" value={heightFmt.value} sub={lastHeight ? `cm · ${heightFmt.sub}` : 'cm'} />
+          <StatTile label="PC" value={headFmt.value} sub={lastHead ? `cm · ${headFmt.sub}` : 'cm'} />
+          <StatTile
+            label="Température"
+            value={lastTemp ? `${lastTemp.celsius}°` : '—'}
+            sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
+          />
+        </div>
+        <div className="stat-row-2">
+          <StatTile
+            label="Notes"
+            value={notesCount}
+            sub={lastNote ? lastNote.body.slice(0, 36) + (lastNote.body.length > 36 ? '…' : '') : '—'}
+          />
+        </div>
+      </div>
+
       <Card>
-        <h2>Dernier repas</h2>
-        {lastMealLabel ? (
-          <strong>{lastMealLabel}</strong>
-        ) : (
-          <p className="muted">Pas encore de repas.</p>
-        )}
-        <h2>Prochain rappel</h2>
-        <p className="muted">
-          {lastFeed && !lastFeed.endedAt
-            ? 'Repas en cours (tétée)'
-            : nextReminder
-              ? formatTime(nextReminder)
-              : 'Aucun rappel programmé'}
-        </p>
+        <h2>Alertes</h2>
+        <div className="alert-line">
+          <span className="muted">Repas</span>
+          <span>
+            {mealAlert}
+            {bottleMlAlert ? (
+              <>
+                <br />
+                <span className="muted">{bottleMlAlert}</span>
+              </>
+            ) : null}
+          </span>
+        </div>
+        <div className="alert-line">
+          <span className="muted">Sommeil</span>
+          <span>{sleepAlert}</span>
+        </div>
+        <div className="alert-line">
+          <span className="muted">Couche</span>
+          <span>{diaperAlert}</span>
+        </div>
       </Card>
+
+      <Card>
+        <h2>Entrées de la période</h2>
+        {periodActivity.length === 0 ? (
+          <p className="muted">Rien de noté sur cette période.</p>
+        ) : (
+          periodActivity.map((row) => (
+            <div className="line log-line-static" key={`${row.kind}-${row.id}`}>
+              <span>
+                <strong>{formatTime(row.at)}</strong>
+                <span className="muted"> · {row.title}</span>
+              </span>
+              <span className="muted">{row.detail}</span>
+            </div>
+          ))
+        )}
+      </Card>
+
       <StackedMealBars title="Repas (nombre)" data={mealBars} />
       <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
       <Bars title="Couches" data={diaperBars} tone="pee" />
-      <Card>
-        <h2>Poids (kg)</h2>
-        {weights.length === 0 ? (
-          <p className="muted">Pas encore de pesée.</p>
-        ) : weights.length === 1 ? (
-          <p>
-            <strong>{`${weights[0].value}`.replace('.', ',')} kg</strong>
-            <span className="muted"> · {formatDateTime(weights[0].measuredAt)}</span>
-          </p>
-        ) : (
+      {weights.length > 1 ? (
+        <Card>
+          <h2>Évolution poids (kg)</h2>
           <p>
             {[...weights]
               .reverse()
               .map((row) => `${row.value}`.replace('.', ','))
               .join(' → ')}
           </p>
-        )}
-      </Card>
+          <p className="muted">Dernière pesée · {formatDateTime(weights[0].measuredAt)}</p>
+        </Card>
+      ) : null}
     </div>
   );
 }
@@ -215,7 +394,7 @@ function StackedMealBars({
   title: string;
   data: { key: string; label: string; breast: number; bottle: number }[];
 }) {
-  const max = Math.max(1, ...data.map((d) => d.breast + d.bottle));
+  const max = Math.max(1, ...data.map((d) => Math.max(d.breast, d.bottle)));
   const compact = data.length > 10;
   return (
     <Card>
@@ -225,30 +404,34 @@ function StackedMealBars({
         <span className="leg-bottle">Biberon</span>
       </div>
       <div className="bars-wrap">
-        <div className={`bars ${compact ? 'compact' : ''}`}>
+        <div className={`bars meal-bars ${compact ? 'compact' : ''}`}>
           {data.map((d) => {
+            const breastH = d.breast > 0 ? (d.breast / max) * 100 : 0;
+            const bottleH = d.bottle > 0 ? (d.bottle / max) * 100 : 0;
             const total = d.breast + d.bottle;
-            const breastH = total > 0 ? (d.breast / max) * 100 : 0;
-            const bottleH = total > 0 ? (d.bottle / max) * 100 : 0;
             return (
-              <div className="bar-col" key={d.key}>
-                <div className="bar-stack">
-                  {d.bottle > 0 ? (
-                    <div
-                      className="bar bottle"
-                      style={{ height: `${Math.max(8, bottleH)}%` }}>
-                      <span className="bar-value">{d.bottle}</span>
-                    </div>
-                  ) : null}
-                  {d.breast > 0 ? (
-                    <div
-                      className="bar breast"
-                      style={{ height: `${Math.max(8, breastH)}%` }}>
-                      <span className="bar-value">{d.breast}</span>
-                    </div>
-                  ) : null}
-                  {total <= 0 ? <div className="bar empty" style={{ height: '4%' }} /> : null}
+              <div className="bar-col meal-bar-col" key={d.key}>
+                <div className="meal-bar-pair">
+                  <div className="bar-stack">
+                    {d.breast > 0 ? (
+                      <div className="bar breast" style={{ height: `${Math.max(14, breastH)}%` }}>
+                        <span className="bar-value">{d.breast}</span>
+                      </div>
+                    ) : (
+                      <div className="bar empty" style={{ height: '4%' }} />
+                    )}
+                  </div>
+                  <div className="bar-stack">
+                    {d.bottle > 0 ? (
+                      <div className="bar bottle" style={{ height: `${Math.max(14, bottleH)}%` }}>
+                        <span className="bar-value">{d.bottle}</span>
+                      </div>
+                    ) : (
+                      <div className="bar empty" style={{ height: '4%' }} />
+                    )}
+                  </div>
                 </div>
+                {total > 0 ? <span className="meal-bar-total muted">{total}</span> : null}
                 <span className="bar-label">{d.label}</span>
               </div>
             );

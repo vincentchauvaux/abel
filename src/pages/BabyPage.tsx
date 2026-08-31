@@ -16,10 +16,9 @@ import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, DiaperEvent, FeedingSession, ReminderRule, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem } from '@/lib/activity';
-import { formatAge, formatDateTime, formatFromNow, formatLongDate, formatTime, parseDecimal, startOfLocalDay } from '@/lib/dates';
+import { formatAge, formatDateTime, formatLongDate, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import {
   DIAPER_MEAL_PRESETS,
-  diaperReminderAt,
   formatBottleMlGoal,
   formatDiaperGoal,
   formatMealGoal,
@@ -29,7 +28,14 @@ import {
 } from '@/lib/goals';
 import { fetchDailyHoroscope } from '@/lib/horoscope-api';
 import { HOROSCOPE_DISCLAIMER, horoscopeFor } from '@/lib/horoscope';
-import { bottleMlAlertLine, lastMealAt, mealAlertLine, notifyDiaperFromGoals } from '@/lib/reminders';
+import {
+  bottleMlAlertLine,
+  diaperAlertLine,
+  lastMealAt,
+  mealAlertLine,
+  notifyDiaperFromGoals,
+  sleepAlertLine,
+} from '@/lib/reminders';
 
 export function BabyPage() {
   const { baby, tick } = useDb();
@@ -139,26 +145,18 @@ export function BabyPage() {
     [bottleMl, todayMl],
   );
 
-  const diaperAlert = useMemo(() => {
-    const lastLine = lastDiaper
-      ? `Dernière couche à ${formatTime(lastDiaper.occurredAt)}.`
-      : 'Pas encore de couche.';
-    if (diaperOffset <= 0) return lastLine;
-    if (!mealAt) return `${lastLine} Pas encore de repas pour démarrer le rappel.`;
-    if (diaperWhen === 'before' && delay <= 0) {
-      return `${lastLine} Définis un intervalle de repas pour le rappel avant le repas.`;
-    }
-    const fire = diaperReminderAt(mealAt, delay, diaperWhen, diaperOffset);
-    const iso = fire.toISOString();
-    if (lastDiaper && lastDiaper.occurredAt >= iso) {
-      return `Couche déjà notée · ${formatTime(lastDiaper.occurredAt)}.`;
-    }
-    const whenLabel = diaperWhen === 'before' ? 'avant le prochain repas' : 'après le repas';
-    if (fire.getTime() > now) {
-      return `Rappel couche ${formatFromNow(iso, now)} (${whenLabel}, repas ${formatTime(mealAt)}).`;
-    }
-    return `Rappel couche dépassé ${formatFromNow(iso, now)} (${whenLabel}).`;
-  }, [lastDiaper, diaperOffset, diaperWhen, mealAt, delay, now]);
+  const diaperAlert = useMemo(
+    () =>
+      diaperAlertLine({
+        lastDiaper,
+        mealAt,
+        mealIntervalMinutes: delay,
+        diaperWhen,
+        diaperOffset,
+        now,
+      }),
+    [lastDiaper, diaperOffset, diaperWhen, mealAt, delay, now],
+  );
 
   const saveIdentity = () => {
     if (!baby) return;
@@ -381,11 +379,7 @@ export function BabyPage() {
         </div>
         <div className="alert-line">
           <span className="muted">Sommeil</span>
-          <span>
-            {activeSleep
-              ? `Endormi depuis ${formatTime(activeSleep.startedAt)} · ${formatFromNow(activeSleep.startedAt, now)}.`
-              : 'Pas de sieste en cours.'}
-          </span>
+          <span>{sleepAlertLine(activeSleep, now)}</span>
         </div>
         <div className="alert-line">
           <span className="muted">Couche</span>

@@ -79,7 +79,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Cartes : **repas** (cercles sein / biberon / durée + total), couches, sommeil, stock lait. Graphiques 7 / 30 jours : repas empilés (sein + biberon), sommeil (h), couches — défilement horizontal, valeur dans chaque barre. Poids affiché dès une pesée. Pas de graphique tire-lait (le stock suffit).
+Cartes **Apports** : repas (cercles), diversification, compléments. **Suivi** : couches, sommeil, stock lait, tiré (période), poids/taille/PC, température, notes. **Alertes** repas / sommeil / couche. **Entrées de la période** : journal synthétique de tout ce qui est noté via les outils. Graphiques : repas, sommeil, couches.
 
 ## Page Bébé
 
