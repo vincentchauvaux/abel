@@ -4,7 +4,7 @@ import { AccordionSection } from '@/components/Accordion';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { BabyPhoto } from '@/components/BabyPhoto';
 import { SmartEntryForm } from '@/components/SmartEntryForm';
-import { Button, Card, Chip, Field } from '@/components/ui';
+import { Button, Card, Chip, Field, MultiSelectField } from '@/components/ui';
 import {
   getReminder,
   lastFeeding,
@@ -39,25 +39,18 @@ import {
   sleepAlertLine,
 } from '@/lib/reminders';
 
-const JOURNAL_KINDS: { key: ActivityKind | 'all'; label: string }[] = [
-  { key: 'all', label: 'Tout' },
-  { key: 'feeding', label: 'Tétée' },
-  { key: 'bottle', label: 'Biberon' },
-  { key: 'diaper', label: 'Couche' },
-  { key: 'pumping', label: 'Tire-lait' },
-  { key: 'solid', label: 'Diversif.' },
-  { key: 'supplement', label: 'Complément' },
-  { key: 'sleep', label: 'Sommeil' },
-  { key: 'temperature', label: 'Temp.' },
-  { key: 'note', label: 'Note' },
-  { key: 'measurement', label: 'Croissance' },
+const JOURNAL_KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
+  { value: 'feeding', label: 'Tétée' },
+  { value: 'bottle', label: 'Biberon' },
+  { value: 'diaper', label: 'Couche' },
+  { value: 'pumping', label: 'Tire-lait' },
+  { value: 'solid', label: 'Diversification' },
+  { value: 'supplement', label: 'Complément' },
+  { value: 'sleep', label: 'Sommeil' },
+  { value: 'temperature', label: 'Température' },
+  { value: 'note', label: 'Note' },
+  { value: 'measurement', label: 'Croissance' },
 ];
-
-function shiftJournalDay(day: string, delta: number): string {
-  const d = new Date(`${day}T12:00:00`);
-  d.setDate(d.getDate() + delta);
-  return localDateKey(d.toISOString());
-}
 
 export function BabyPage() {
   const { baby, tick } = useDb();
@@ -80,7 +73,7 @@ export function BabyPage() {
   const [showEntry, setShowEntry] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [journalDay, setJournalDay] = useState(() => localDateKey(new Date().toISOString()));
-  const [journalKind, setJournalKind] = useState<ActivityKind | 'all'>('all');
+  const [journalKinds, setJournalKinds] = useState<ActivityKind[]>([]);
   const guidedRef = useRef(false);
   const now = useNow(true, 30_000);
 
@@ -156,15 +149,14 @@ export function BabyPage() {
 
   const mealAt = useMemo(() => lastMealAt(lastFeed, lastBottle), [lastFeed, lastBottle]);
 
-  const todayKey = localDateKey(new Date(now).toISOString());
   const filteredActivity = useMemo(
     () =>
       activity.filter((row) => {
         if (localDateKey(row.at) !== journalDay) return false;
-        if (journalKind !== 'all' && row.kind !== journalKind) return false;
+        if (journalKinds.length > 0 && !journalKinds.includes(row.kind)) return false;
         return true;
       }),
-    [activity, journalDay, journalKind],
+    [activity, journalDay, journalKinds],
   );
 
   const mealAlert = useMemo(
@@ -454,42 +446,16 @@ export function BabyPage() {
       </div>
       <AccordionSection id="journal" title="Journal" open={openSection === 'journal'} onToggle={toggleSection}>
         <div className="journal-filters">
-          <div className="journal-day-row">
-            <button
-              type="button"
-              className="journal-day-nav"
-              aria-label="Jour précédent"
-              onClick={() => setJournalDay((day) => shiftJournalDay(day, -1))}>
-              ‹
-            </button>
-            <label className="field journal-day-field">
-              <span>Jour</span>
-              <input type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
-            </label>
-            <button
-              type="button"
-              className="journal-day-nav"
-              aria-label="Jour suivant"
-              disabled={journalDay >= todayKey}
-              onClick={() => setJournalDay((day) => shiftJournalDay(day, 1))}>
-              ›
-            </button>
-            {journalDay !== todayKey ? (
-              <button type="button" className="linkish journal-today" onClick={() => setJournalDay(todayKey)}>
-                Aujourd’hui
-              </button>
-            ) : null}
-          </div>
-          <div className="row journal-kind-row">
-            {JOURNAL_KINDS.map((item) => (
-              <Chip
-                key={item.key}
-                label={item.label}
-                selected={journalKind === item.key}
-                onClick={() => setJournalKind(item.key)}
-              />
-            ))}
-          </div>
+          <label className="field">
+            <span>Jour</span>
+            <input type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
+          </label>
+          <MultiSelectField
+            label="Types"
+            values={journalKinds}
+            onChange={setJournalKinds}
+            options={JOURNAL_KIND_OPTIONS}
+          />
         </div>
         <p className="muted">Appuie sur une ligne pour modifier ou supprimer.</p>
         {filteredActivity.length === 0 ? (
