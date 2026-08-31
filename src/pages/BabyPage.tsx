@@ -20,17 +20,16 @@ import { formatAge, formatDateTime, formatFromNow, formatLongDate, formatTime, p
 import {
   DIAPER_MEAL_PRESETS,
   diaperReminderAt,
-  formatBottleGoal,
+  formatBottleMlGoal,
   formatDiaperGoal,
-  formatEvery,
-  formatGoalMl,
+  formatMealGoal,
   INTERVAL_PRESETS,
   ML_PRESETS,
   type DiaperWhen,
 } from '@/lib/goals';
 import { fetchDailyHoroscope } from '@/lib/horoscope-api';
 import { HOROSCOPE_DISCLAIMER, horoscopeFor } from '@/lib/horoscope';
-import { lastMealAt, notifyDiaperFromGoals } from '@/lib/reminders';
+import { bottleMlAlertLine, lastMealAt, mealAlertLine, notifyDiaperFromGoals } from '@/lib/reminders';
 
 export function BabyPage() {
   const { baby, tick } = useDb();
@@ -38,7 +37,6 @@ export function BabyPage() {
   const [bornOn, setBornOn] = useState(baby?.bornOn ?? '');
   const [goals, setGoals] = useState<ReminderRule | undefined>();
   const [customFeed, setCustomFeed] = useState('');
-  const [customBottle, setCustomBottle] = useState('');
   const [customMl, setCustomMl] = useState('');
   const [lastFeed, setLastFeed] = useState<FeedingSession | undefined>();
   const [bottles, setBottles] = useState<BottleFeed[]>([]);
@@ -81,10 +79,7 @@ export function BabyPage() {
       setActivity(log);
       const configured =
         Boolean(r) &&
-        ((r?.delayMinutes ?? 0) > 0 ||
-          r?.bottleMinutes != null ||
-          r?.bottleMl != null ||
-          (r?.diaperMinutes ?? 0) > 0);
+        ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
       setGoalsReady(configured);
     });
   }, [baby, tick]);
@@ -94,10 +89,7 @@ export function BabyPage() {
     getReminder(baby.id).then((r) => {
       const configured =
         Boolean(r) &&
-        ((r?.delayMinutes ?? 0) > 0 ||
-          r?.bottleMinutes != null ||
-          r?.bottleMl != null ||
-          (r?.diaperMinutes ?? 0) > 0);
+        ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
       setGoalsReady(configured);
       setEditGoals(!configured);
     });
@@ -123,7 +115,6 @@ export function BabyPage() {
   const activeSleep = sleeps.find((row) => !row.endedAt);
   const delay = goals?.delayMinutes ?? 0;
   const bottleMl = goals?.bottleMl ?? null;
-  const bottleEvery = goals?.bottleMinutes === null || goals?.bottleMinutes === undefined ? delay : goals.bottleMinutes;
   const diaperOffset = goals?.diaperMinutes ?? 0;
   const diaperWhen: DiaperWhen = goals?.diaperWhen === 'before' ? 'before' : 'after';
   const todayMl = bottles
@@ -132,40 +123,21 @@ export function BabyPage() {
 
   const mealAt = useMemo(() => lastMealAt(lastFeed, lastBottle), [lastFeed, lastBottle]);
 
-  const feedingAlert = useMemo(() => {
-    if (!lastFeed) return 'Pas encore de tétée.';
-    if (!lastFeed.endedAt) return `Tétée en cours depuis ${formatTime(lastFeed.startedAt)}.`;
-    if (delay <= 0) return `Dernière tétée à ${formatTime(lastFeed.endedAt)}.`;
-    const fire = new Date(lastFeed.endedAt);
-    fire.setMinutes(fire.getMinutes() + delay);
-    const iso = fire.toISOString();
-    if (fire.getTime() > now) return `Prochaine tétée ${formatFromNow(iso, now)}.`;
-    return `Rappel tétée dépassé ${formatFromNow(iso, now)}.`;
-  }, [lastFeed, delay, now]);
+  const mealAlert = useMemo(
+    () =>
+      mealAlertLine({
+        feed: lastFeed,
+        bottle: lastBottle,
+        mealIntervalMinutes: delay,
+        now,
+      }),
+    [lastFeed, lastBottle, delay, now],
+  );
 
-  const bottleAlert = useMemo(() => {
-    const parts: string[] = [];
-    if (lastBottle) {
-      const qty =
-        bottleMl && lastBottle.amountMl !== bottleMl
-          ? `${lastBottle.amountMl} ml (objectif ${formatGoalMl(bottleMl)})`
-          : `${lastBottle.amountMl} ml`;
-      parts.push(`Dernier à ${formatTime(lastBottle.fedAt)} · ${qty}.`);
-      if (bottleEvery > 0) {
-        const fire = new Date(lastBottle.fedAt);
-        fire.setMinutes(fire.getMinutes() + bottleEvery);
-        const iso = fire.toISOString();
-        parts.push(
-          fire.getTime() > now ? `Prochain biberon ${formatFromNow(iso, now)}.` : `Biberon en retard ${formatFromNow(iso, now)}.`,
-        );
-      }
-    } else {
-      parts.push('Pas encore de biberon.');
-    }
-    if (bottleMl) parts.push(`Aujourd’hui ${todayMl} ml · ${formatGoalMl(bottleMl)} par repas.`);
-    else if (todayMl) parts.push(`Aujourd’hui ${todayMl} ml.`);
-    return parts.join(' ');
-  }, [lastBottle, bottleMl, bottleEvery, todayMl, now]);
+  const bottleMlAlert = useMemo(
+    () => bottleMlAlertLine(bottleMl, todayMl),
+    [bottleMl, todayMl],
+  );
 
   const diaperAlert = useMemo(() => {
     const lastLine = lastDiaper
@@ -174,7 +146,7 @@ export function BabyPage() {
     if (diaperOffset <= 0) return lastLine;
     if (!mealAt) return `${lastLine} Pas encore de repas pour démarrer le rappel.`;
     if (diaperWhen === 'before' && delay <= 0) {
-      return `${lastLine} Définis un intervalle de tétées pour le rappel avant le repas.`;
+      return `${lastLine} Définis un intervalle de repas pour le rappel avant le repas.`;
     }
     const fire = diaperReminderAt(mealAt, delay, diaperWhen, diaperOffset);
     const iso = fire.toISOString();
@@ -196,7 +168,7 @@ export function BabyPage() {
 
   const saveGoals = async (patch: Parameters<typeof upsertCareGoals>[1]) => {
     if (!baby) return;
-    await upsertCareGoals(baby.id, patch);
+    await upsertCareGoals(baby.id, { bottleMinutes: null, ...patch });
     const next = await getReminder(baby.id);
     setGoals(next);
     if (mealAt) await notifyDiaperFromGoals(next, mealAt);
@@ -269,11 +241,11 @@ export function BabyPage() {
         <p className="muted">Tes règles à toi. Ce n’est pas un conseil médical.</p>
         {editGoals ? (
           <>
-            <p className="goal-label">Tétées toutes les</p>
+            <p className="goal-label">Repas toutes les</p>
             <div className="row">
               {INTERVAL_PRESETS.map((item) => (
                 <Chip
-                  key={`feed-${item.minutes}`}
+                  key={`meal-${item.minutes}`}
                   label={item.label}
                   selected={delay === item.minutes}
                   onClick={() => void saveGoals({ delayMinutes: item.minutes })}
@@ -295,44 +267,10 @@ export function BabyPage() {
                 const n = Number.parseInt(customFeed, 10);
                 if (Number.isFinite(n) && n >= 0) void saveGoals({ delayMinutes: n });
               }}>
-              OK tétées
+              OK repas
             </Button>
-            <p className="goal-label">Biberon</p>
-            <p className="muted">Fréquence et quantité par repas (optionnel).</p>
-            <p className="goal-label">Toutes les</p>
-            <div className="row">
-              <Chip
-                label="Comme tétée"
-                selected={goals?.bottleMinutes == null}
-                onClick={() => void saveGoals({ bottleMinutes: null })}
-              />
-              {INTERVAL_PRESETS.map((item) => (
-                <Chip
-                  key={`bot-${item.minutes}`}
-                  label={item.label}
-                  selected={goals?.bottleMinutes === item.minutes}
-                  onClick={() => void saveGoals({ bottleMinutes: item.minutes })}
-                />
-              ))}
-            </div>
-            <label className="field">
-              <span>Personnalisé (minutes)</span>
-              <input
-                value={customBottle}
-                onChange={(e) => setCustomBottle(e.target.value)}
-                inputMode="numeric"
-                placeholder="150"
-              />
-            </label>
-            <Button
-              tone="muted"
-              onClick={() => {
-                const n = Number.parseInt(customBottle, 10);
-                if (Number.isFinite(n) && n >= 0) void saveGoals({ bottleMinutes: n });
-              }}>
-              OK fréquence
-            </Button>
-            <p className="goal-label">Quantité par repas</p>
+            <p className="goal-label">Biberon (quantité par repas)</p>
+            <p className="muted">Optionnel — pour les repas au biberon uniquement.</p>
             <div className="row">
               <Chip label="Aucune" selected={bottleMl == null} onClick={() => void saveGoals({ bottleMl: null })} />
               {ML_PRESETS.map((item) => (
@@ -367,7 +305,7 @@ export function BabyPage() {
               />
             </div>
             <p className="muted">
-              Rappel X minutes avant ou après la dernière tétée ou le dernier biberon (si Abel reste ouvert).
+              Rappel X minutes avant ou après le dernier repas (tétée ou biberon, si Abel reste ouvert).
             </p>
             <div className="row">
               {DIAPER_MEAL_PRESETS.map((item) => (
@@ -390,12 +328,12 @@ export function BabyPage() {
         ) : (
           <>
             <div className="info-line">
-              <span className="muted">Tétées</span>
-              <strong>{formatEvery(delay)}</strong>
+              <span className="muted">Repas</span>
+              <strong>{formatMealGoal(delay)}</strong>
             </div>
             <div className="info-line">
               <span className="muted">Biberon</span>
-              <strong>{formatBottleGoal(goals?.bottleMinutes, delay, bottleMl)}</strong>
+              <strong>{formatBottleMlGoal(bottleMl)}</strong>
             </div>
             <div className="info-line">
               <span className="muted">Couche</span>
@@ -430,12 +368,16 @@ export function BabyPage() {
       <Card>
         <h2>Alertes</h2>
         <div className="alert-line">
-          <span className="muted">Tétée</span>
-          <span>{feedingAlert}</span>
-        </div>
-        <div className="alert-line">
-          <span className="muted">Biberon</span>
-          <span>{bottleAlert}</span>
+          <span className="muted">Repas</span>
+          <span>
+            {mealAlert}
+            {bottleMlAlert ? (
+              <>
+                <br />
+                <span className="muted">{bottleMlAlert}</span>
+              </>
+            ) : null}
+          </span>
         </div>
         <div className="alert-line">
           <span className="muted">Sommeil</span>

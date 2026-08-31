@@ -14,7 +14,7 @@ import { useDb } from '@/db/DbProvider';
 import type { FeedingSession, PumpingSession, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatTime } from '@/lib/dates';
-import { notifyDiaperFromGoals, notifyIn } from '@/lib/reminders';
+import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 
 type ActiveItem =
   | { kind: 'feeding'; row: FeedingSession }
@@ -25,7 +25,6 @@ export function ActiveNowPanel() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
   const [items, setItems] = useState<ActiveItem[]>([]);
-  const [delay, setDelay] = useState(0);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const now = useNow(items.length > 0);
 
@@ -44,7 +43,6 @@ export function ActiveNowPanel() {
         const openPump = pumps.find((row) => row.amountMl == null);
         if (openPump) next.push({ kind: 'pumping', row: openPump });
         setItems(next);
-        setDelay(reminder?.delayMinutes ?? 0);
         setGoals(reminder);
       },
     );
@@ -54,7 +52,7 @@ export function ActiveNowPanel() {
 
   const stopFeed = async (id: string) => {
     const endedAt = await stopFeeding(id);
-    await notifyIn(delay, 'Rappel tétée');
+    await notifyMealFromGoals(goals, endedAt);
     await notifyDiaperFromGoals(goals, endedAt);
   };
 

@@ -71,21 +71,21 @@ Sur **Bébé**, la carte « Noter une entrée » commence par **Apports | Suivi*
 | Température | Saisie °C uniquement. |
 | Notes | Texte libre. |
 
-### Rappels tétées
+### Rappels repas
 
-Règle après la dernière tétée : aucun / 1 h / 2 h / 3 h / 4 h / personnalisé (aussi sur Bébé). Notification navigateur si l’onglet reste ouvert.
+Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 h / 3 h / 4 h / personnalisé (objectif Bébé + module Allaitement, même `delayMinutes`). Notification navigateur si l’onglet reste ouvert.
 
 ## Dashboard
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Graphiques 7 / 30 jours : défilement horizontal dans la carte (pas de débordement), valeur écrite dans chaque barre. Stats : tétées, couches, allaitement, biberons, tire-lait, stock lait. Poids affiché dès une pesée.
+Cartes : **repas** (cercles sein / biberon / durée + total), couches, sommeil, stock lait. Graphiques 7 / 30 jours : repas empilés (sein + biberon), sommeil (h), couches — défilement horizontal, valeur dans chaque barre. Poids affiché dès une pesée. Pas de graphique tire-lait (le stock suffit).
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (tétées toutes les X h, biberon : fréquence + ml/cl par repas sur une ligne, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
+Identité du nourrisson, séparée du compte parent : prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
 
-Le rappel tétée du module Allaitement et l’objectif tétée de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
+Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
 
 ## Auth Google
 

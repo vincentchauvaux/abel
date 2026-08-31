@@ -19,7 +19,7 @@ import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatFeedLabel, formatMinutes, formatTime, nowIso, startOfLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
 import { sideLabel } from '@/lib/labels';
-import { notifyDiaperFromGoals, notifyIn } from '@/lib/reminders';
+import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
 
@@ -65,14 +65,14 @@ export function FeedingPage() {
       if (ok === 'granted') {
         const fire = new Date(ended.endedAt).getTime() + minutes * 60_000 - Date.now();
         if (fire > 0) {
-          window.setTimeout(() => new Notification('Abel', { body: 'Rappel tétée' }), fire);
+          window.setTimeout(() => new Notification('Abel', { body: 'Rappel repas' }), fire);
         }
       }
     }
   };
 
   const afterStop = async (endedAt: string) => {
-    await notifyIn(delay, 'Rappel tétée');
+    await notifyMealFromGoals(goals, endedAt);
     await notifyDiaperFromGoals(goals, endedAt);
   };
 

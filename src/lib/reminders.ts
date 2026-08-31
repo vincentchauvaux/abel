@@ -1,6 +1,7 @@
 import type { DiaperWhen } from '@/lib/goals';
 import { diaperReminderAt } from '@/lib/goals';
 import type { ReminderRule } from '@/db/types';
+import { formatFromNow, formatTime } from '@/lib/dates';
 
 /** Notifications navigateur (onglet ouvert uniquement). */
 
@@ -67,4 +68,69 @@ export async function notifyDiaperFromGoals(goals: ReminderRule | undefined, mea
     goals?.diaperWhen,
     goals?.diaperMinutes ?? 0,
   );
+}
+
+export function mealNotifyDelayMs(
+  mealAt: string | null,
+  intervalMinutes: number,
+  now = Date.now(),
+): number | null {
+  if (!mealAt || intervalMinutes <= 0) return null;
+  const fire = new Date(mealAt);
+  fire.setMinutes(fire.getMinutes() + intervalMinutes);
+  const ms = fire.getTime() - now;
+  return ms > 0 ? ms : null;
+}
+
+export async function notifyMealFromGoals(goals: ReminderRule | undefined, mealAt: string) {
+  const ms = mealNotifyDelayMs(mealAt, goals?.delayMinutes ?? 0);
+  if (ms === null) return;
+  await notifyAfterMs(ms, 'Rappel repas');
+}
+
+export type MealAlertInput = {
+  feed?: { startedAt: string; endedAt: string | null } | null;
+  bottle?: { fedAt: string; amountMl: number } | null;
+  mealIntervalMinutes: number;
+  now?: number;
+};
+
+export function mealAlertLine(input: MealAlertInput): string {
+  const now = input.now ?? Date.now();
+  const { feed, bottle, mealIntervalMinutes } = input;
+
+  if (feed && !feed.endedAt) {
+    return `Repas en cours (tétée depuis ${formatTime(feed.startedAt)}).`;
+  }
+
+  const at = lastMealAt(feed, bottle);
+  if (!at) return 'Pas encore de repas.';
+
+  const feedAt = mealEndedAt(feed);
+  const bottleAt = bottle?.fedAt ?? null;
+  const lastWasBottle = Boolean(bottleAt && (!feedAt || bottleAt >= feedAt));
+
+  let line = lastWasBottle && bottle
+    ? `Dernier repas ${formatTime(at)} (biberon ${bottle.amountMl} ml).`
+    : `Dernier repas ${formatTime(at)} (tétée).`;
+
+  if (mealIntervalMinutes <= 0) return line;
+
+  const fire = new Date(at);
+  fire.setMinutes(fire.getMinutes() + mealIntervalMinutes);
+  const iso = fire.toISOString();
+  if (fire.getTime() > now) {
+    return `${line} Prochain repas ${formatFromNow(iso, now)}.`;
+  }
+  return `${line} Rappel repas dépassé ${formatFromNow(iso, now)}.`;
+}
+
+export function bottleMlAlertLine(
+  goalMl: number | null | undefined,
+  todayMl: number,
+): string | null {
+  if (!goalMl || goalMl <= 0) {
+    return todayMl > 0 ? `Aujourd’hui ${todayMl} ml de biberon.` : null;
+  }
+  return `Aujourd’hui ${todayMl} ml · objectif ${goalMl} ml par repas biberon.`;
 }

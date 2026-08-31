@@ -21,7 +21,7 @@ import { useDb } from '@/db/DbProvider';
 import type { DiaperKind, MeasurementType, MilkType, PumpingSession, Side } from '@/db/types';
 import { formatTime, fromDatetimeLocalValue, parseDecimal, toDatetimeLocalValue } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
-import { notifyDiaperFromGoals } from '@/lib/reminders';
+import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
 
 export type SmartEntryType =
@@ -134,6 +134,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     }
     const at = atIso();
     await logFeedingNow(baby.id, chosen, at);
+    await notifyMealFromGoals(goals, at);
     await notifyDiaperFromGoals(goals, at);
     await finish(`Tétée ${sideLabel[chosen].toLowerCase()} notée`);
   };
@@ -166,6 +167,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           return;
         }
         await addBottle(baby.id, milkType, qty, at, milkType === 'BREAST_MILK' ? stockId : null);
+        await notifyMealFromGoals(goals, at);
         await notifyDiaperFromGoals(goals, at);
         await finish(`Biberon ${qty} ml noté`);
         return;

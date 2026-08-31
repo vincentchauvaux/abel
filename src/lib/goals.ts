@@ -47,7 +47,18 @@ export function formatEvery(minutes: number): string {
   return `toutes les ${minutes} min`;
 }
 
-/** Libellé biberon : fréquence (+ quantité optionnelle). */
+/** Intervalle repas (sein ou biberon). */
+export function formatMealGoal(minutes: number): string {
+  return formatEvery(minutes);
+}
+
+/** Libellé biberon : quantité ml optionnelle par repas. */
+export function formatBottleMlGoal(bottleMl: number | null | undefined): string {
+  if (bottleMl && bottleMl > 0) return formatGoalMl(bottleMl);
+  return 'non définie';
+}
+
+/** @deprecated utiliser formatMealGoal + formatBottleMlGoal */
 export function formatBottleGoal(
   bottleMinutes: number | null | undefined,
   feedingMinutes: number,

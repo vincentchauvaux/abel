@@ -7,7 +7,7 @@ import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, MilkType, PumpingSession } from '@/db/types';
 import { formatDateTime, formatTime, nowIso, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import { milkLabel } from '@/lib/labels';
-import { notifyDiaperFromGoals } from '@/lib/reminders';
+import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 
 export function BottlePage() {
   const { baby, tick } = useDb();
@@ -109,6 +109,7 @@ export function BottlePage() {
               await addBottle(baby.id, milkType, qty, fedAt, milkType === 'BREAST_MILK' ? stockId : null);
               setAmount('');
               setStockId(null);
+              await notifyMealFromGoals(goals, fedAt);
               await notifyDiaperFromGoals(goals, fedAt);
             } catch {
               window.alert('Stock insuffisant pour cette quantité.');
