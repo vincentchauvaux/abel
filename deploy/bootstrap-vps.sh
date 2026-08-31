@@ -55,18 +55,21 @@ fi
 # Schéma / migrations (amount_ml nullable, remaining_ml, pumping_session_id, etc.)
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d abel -f "$ROOT/server/schema.sql" >/dev/null
 
+# Front statique (Vite → dist/)
+bash "$ROOT/deploy/build-front.sh"
+
 # Rate limit zone (une fois dans http {})
 if ! grep -q 'zone=abel_api' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    limit_req_zone $binary_remote_addr zone=abel_api:10m rate=30r/m;' /etc/nginx/nginx.conf
 fi
 
-# API sur le hostname VPS (le front reste sur GitHub Pages)
+# API + front statique sur le hostname VPS
 cp "$ROOT/deploy/nginx-abel.conf.example" /etc/nginx/snippets/abel.conf
 if ! grep -q 'snippets/abel.conf' /etc/nginx/sites-enabled/streamtv; then
   sed -i '/include snippets\/hakou-live.conf;/a\    include snippets/abel.conf;' /etc/nginx/sites-enabled/streamtv
 fi
 
-# Désactiver un éventuel vhost abel.be (front = GitHub Pages)
+# Désactiver un éventuel vhost abel.be en doublon (tout passe par /abel/ sur le hostname OVH)
 rm -f /etc/nginx/sites-enabled/abel.be
 
 nginx -t
@@ -81,5 +84,7 @@ sleep 1
 curl -fsS http://127.0.0.1:3030/health
 echo
 curl -fsS https://127.0.0.1/abel/api/health --resolve vps-e09ed6db.vps.ovh.net:443:127.0.0.1 || curl -fsSk https://vps-e09ed6db.vps.ovh.net/abel/api/health
+echo
+curl -fsS https://127.0.0.1/abel/ --resolve vps-e09ed6db.vps.ovh.net:443:127.0.0.1 | head -c 200 || curl -fsSk https://vps-e09ed6db.vps.ovh.net/abel/ | head -c 200
 echo
 echo DEPLOY_OK
