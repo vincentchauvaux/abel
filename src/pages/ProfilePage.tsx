@@ -20,14 +20,14 @@ import {
 } from '@/lib/google';
 import { deleteRemoteAccount, downloadJson, exportLocalData, wipeLocalData } from '@/lib/privacy';
 import { LEGAL_ROUTES } from '@/lib/site';
-import { runSync, subscribeSync, type SyncState } from '@/lib/sync';
+import { runSync, pullFromServer, subscribeSync, type SyncState } from '@/lib/sync';
 
 const SYNC_LABEL: Record<SyncState, string> = {
   idle: 'Pas encore synchronisé',
   syncing: 'Synchronisation…',
-  ok: 'À jour sur le VPS',
+  ok: 'À jour — données centralisées sur le VPS',
   auth: 'Session sync expirée',
-  offline: 'Hors ligne — les données restent ici',
+  offline: 'Hors ligne — cache local, envoi dès que possible',
   error: 'Sync impossible pour le moment',
 };
 
@@ -153,9 +153,27 @@ export function ProfilePage() {
               </>
             ) : (
               <>
+                <p className="muted">
+                  Tes données sont centralisées sur le VPS. L’appareil garde un cache pour le hors ligne.
+                </p>
                 <p className="muted">{SYNC_LABEL[syncState]}</p>
                 <Button tone="muted" onClick={() => void runSync()}>
                   Synchroniser maintenant
+                </Button>
+                <Button
+                  tone="muted"
+                  disabled={busy !== ''}
+                  onClick={async () => {
+                    setBusy('pull');
+                    try {
+                      const ok = await pullFromServer();
+                      if (!ok) setGoogleError('Rien à récupérer ou session expirée.');
+                      else setGoogleError('');
+                    } finally {
+                      setBusy('');
+                    }
+                  }}>
+                  {busy === 'pull' ? 'Récupération…' : 'Récupérer depuis le VPS'}
                 </Button>
               </>
             )}
@@ -173,7 +191,7 @@ export function ProfilePage() {
         ) : GOOGLE_CLIENT_ID ? (
           <>
             <p className="muted">
-              Connecte-toi pour sauvegarder tétées et couches sur le VPS, et les retrouver sur un autre appareil. En te
+              Connecte-toi pour centraliser tétées et couches sur le VPS et les retrouver sur chaque appareil. En te
               connectant, tu acceptes la{' '}
               <Link to={LEGAL_ROUTES.privacy}>politique de confidentialité</Link> et les{' '}
               <Link to={LEGAL_ROUTES.cgu}>conditions d’utilisation</Link>.

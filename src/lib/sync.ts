@@ -1,4 +1,11 @@
-import { applyRemoteRecords, collectPending, markPushed } from '@/db/api';
+import {
+  collectPending,
+  getBaby,
+  isPlaceholderBaby,
+  markPushed,
+  mirrorRemoteSnapshot,
+  type SyncPayload,
+} from '@/db/api';
 import { notifyDb } from '@/db/client';
 import { readGoogleToken, SYNC_URL } from '@/lib/google';
 
@@ -37,6 +44,46 @@ export function scheduleSync(delayMs = 1200) {
   }, delayMs);
 }
 
+type SyncResponse = {
+  babyId: string | null;
+  records: SyncPayload;
+};
+
+async function fetchRemoteSnapshot(token: string, method: 'GET' | 'POST', body?: unknown): Promise<SyncResponse | 'auth' | 'error'> {
+  const res = await fetch(`${SYNC_URL}/sync`, {
+    method,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 401) return 'auth';
+  if (!res.ok) return 'error';
+  return (await res.json()) as SyncResponse;
+}
+
+/** Télécharge le snapshot VPS et remplace le cache local. */
+export async function pullFromServer(): Promise<boolean> {
+  const token = readGoogleToken();
+  if (!token || !navigator.onLine) return false;
+
+  const payload = await fetchRemoteSnapshot(token, 'GET');
+  if (payload === 'auth') {
+    setState('auth');
+    return false;
+  }
+  if (payload === 'error') return false;
+  if (!payload.babyId) return false;
+
+  await mirrorRemoteSnapshot(payload.records, payload.babyId);
+  skipSchedule = true;
+  notifyDb();
+  skipSchedule = false;
+  setState('ok');
+  return true;
+}
+
 export async function runSync(): Promise<SyncState> {
   if (inFlight) {
     queued = true;
@@ -55,26 +102,24 @@ export async function runSync(): Promise<SyncState> {
   inFlight = true;
   setState('syncing');
   try {
-    const changes = await collectPending();
-    const res = await fetch(`${SYNC_URL}/sync`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ changes }),
-    });
-    if (res.status === 401) {
+    const local = await getBaby();
+    const skipPlaceholder = local ? await isPlaceholderBaby(local) : false;
+
+    if (skipPlaceholder) {
+      const pulled = await pullFromServer();
+      if (pulled) return lastState;
+    }
+
+    const changes = await collectPending({ skipPlaceholderBaby: skipPlaceholder });
+    const payload = await fetchRemoteSnapshot(token, 'POST', { changes });
+    if (payload === 'auth') {
       setState('auth');
       return lastState;
     }
-    if (!res.ok) throw new Error('sync');
-    const payload = (await res.json()) as {
-      babyId: string | null;
-      records: Parameters<typeof applyRemoteRecords>[0];
-    };
+    if (payload === 'error') throw new Error('sync');
+
     await markPushed(changes);
-    await applyRemoteRecords(payload.records, payload.babyId);
+    await mirrorRemoteSnapshot(payload.records, payload.babyId);
     skipSchedule = true;
     notifyDb();
     skipSchedule = false;

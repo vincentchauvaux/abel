@@ -356,6 +356,22 @@ async function canonicalBabyId(client, sub) {
   return rows[0]?.id ?? null;
 }
 
+function isPlaceholderBabyRow(baby) {
+  const name = (baby.name || '').trim();
+  return !baby.bornOn && (name === 'Bébé' || name === '');
+}
+
+async function handlePull(user) {
+  const client = await pool.connect();
+  try {
+    const babyId = await canonicalBabyId(client, user.sub);
+    if (!babyId) return { babyId: null, records: emptyRecords() };
+    return { babyId, records: await dumpUser(babyId) };
+  } finally {
+    client.release();
+  }
+}
+
 async function handleSync(user, body) {
   const changes = body?.changes && typeof body.changes === 'object' ? body.changes : {};
   const client = await pool.connect();
@@ -366,6 +382,7 @@ async function handleSync(user, body) {
     const incomingBabies = Array.isArray(changes.babies) ? changes.babies : [];
     for (const baby of incomingBabies) {
       if (baby.userId && baby.userId !== user.sub) continue;
+      if (babyId && isPlaceholderBabyRow(baby)) continue;
       const record = { ...baby, userId: user.sub };
       if (babyId && record.id !== babyId) {
         record.id = babyId;
@@ -530,6 +547,20 @@ const server = createServer(async (req, res) => {
         return;
       }
       send(res, 200, payload);
+      return;
+    }
+    if (req.method === 'GET' && url.pathname === '/sync') {
+      if (overRateLimit(req, 'sync')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const result = await handlePull(user);
+      send(res, 200, result);
       return;
     }
     if (req.method === 'POST' && url.pathname === '/sync') {

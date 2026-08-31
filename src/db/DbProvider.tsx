@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
-import { scheduleSync } from '@/lib/sync';
+import { readGoogleToken } from '@/lib/google';
+import { pullFromServer, scheduleSync } from '@/lib/sync';
 
 type DbContextValue = {
   baby: Baby | null;
@@ -18,13 +19,27 @@ export function DbProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    ensureBaby()
-      .then((row) => {
+    void (async () => {
+      try {
+        if (readGoogleToken() && navigator.onLine) {
+          const pulled = await pullFromServer();
+          if (pulled) {
+            setBaby((await getBaby()) ?? null);
+            setReady(true);
+            scheduleSync(400);
+            return;
+          }
+        }
+        const row = await ensureBaby();
         setBaby(row);
         setReady(true);
         scheduleSync(400);
-      })
-      .catch(() => setReady(true));
+      } catch {
+        const row = await ensureBaby();
+        setBaby(row);
+        setReady(true);
+      }
+    })();
   }, []);
 
   useEffect(() => {

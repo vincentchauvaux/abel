@@ -701,13 +701,95 @@ export type SyncPayload = Record<SyncTable, Array<Record<string, unknown>>>;
 
 const BABY_ID_TABLES = SYNC_TABLES.filter((name) => name !== 'babies' && name !== 'feedingSegments');
 
-export async function collectPending(): Promise<SyncPayload> {
+export async function collectPending(options?: { skipPlaceholderBaby?: boolean }): Promise<SyncPayload> {
   const changes = {} as SyncPayload;
+  let skipBabyId: string | null = null;
+  if (options?.skipPlaceholderBaby) {
+    const local = await getBaby();
+    if (local && (await isPlaceholderBaby(local))) skipBabyId = local.id;
+  }
   for (const name of SYNC_TABLES) {
-    const rows = await db.table(name).toArray();
-    changes[name] = rows.filter((row) => row.syncStatus === 'pending');
+    let rows = await db.table(name).toArray();
+    rows = rows.filter((row) => row.syncStatus === 'pending');
+    if (skipBabyId) {
+      if (name === 'babies') {
+        rows = rows.filter((row) => row.id !== skipBabyId);
+      } else if (name === 'reminderRules') {
+        rows = rows.filter((row) => row.babyId !== skipBabyId);
+      }
+    }
+    changes[name] = rows;
   }
   return changes;
+}
+
+/** Profil vide créé automatiquement avant toute saisie. */
+export async function isPlaceholderBaby(baby: Baby): Promise<boolean> {
+  if (baby.bornOn) return false;
+  const name = baby.name.trim();
+  if (name !== 'Bébé' && name !== '') return false;
+  return !(await hasLocalActivity(baby.id));
+}
+
+export async function hasLocalActivity(babyId: string): Promise<boolean> {
+  const checks = await Promise.all([
+    db.feedingSessions.where('babyId').equals(babyId).count(),
+    db.bottleFeeds.where('babyId').equals(babyId).count(),
+    db.diaperEvents.where('babyId').equals(babyId).count(),
+    db.pumpingSessions.where('babyId').equals(babyId).count(),
+    db.solidFoods.where('babyId').equals(babyId).count(),
+    db.supplements.where('babyId').equals(babyId).count(),
+    db.sleepSessions.where('babyId').equals(babyId).count(),
+    db.temperatures.where('babyId').equals(babyId).count(),
+    db.notes.where('babyId').equals(babyId).count(),
+    db.measurements.where('babyId').equals(babyId).count(),
+  ]);
+  return checks.some((n) => n > 0);
+}
+
+/** Remplace le cache local par le snapshot VPS (source de vérité). */
+export async function mirrorRemoteSnapshot(records: SyncPayload, canonicalBabyId: string | null) {
+  const remoteIds = Object.fromEntries(
+    SYNC_TABLES.map((name) => [
+      name,
+      new Set((records[name] ?? []).map((row) => String(row.id ?? '')).filter(Boolean)),
+    ]),
+  ) as Record<SyncTable, Set<string>>;
+
+  await db.transaction('rw', SYNC_TABLES.map((name) => db.table(name)), async () => {
+    for (const name of SYNC_TABLES) {
+      for (const row of records[name] ?? []) {
+        const id = String(row.id ?? '');
+        if (!id) continue;
+        await db.table(name).put({ ...row, syncStatus: 'synced' });
+      }
+    }
+
+    if (!canonicalBabyId) return;
+
+    for (const row of await db.babies.toArray()) {
+      if (!remoteIds.babies.has(row.id)) await db.babies.delete(row.id);
+    }
+
+    for (const name of SYNC_TABLES) {
+      if (name === 'babies' || name === 'feedingSegments') continue;
+      for (const row of await db.table(name).toArray()) {
+        const id = String(row.id);
+        const babyId = 'babyId' in row ? String(row.babyId) : '';
+        if (babyId === canonicalBabyId && !remoteIds[name].has(id)) {
+          await db.table(name).delete(id);
+        }
+      }
+    }
+
+    for (const row of await db.feedingSegments.toArray()) {
+      const id = String(row.id);
+      if (remoteIds.feedingSegments.has(id)) continue;
+      const session = await db.feedingSessions.get(row.feedingSessionId);
+      if (session?.babyId === canonicalBabyId) await db.feedingSegments.delete(id);
+    }
+  });
+  notifyDb();
 }
 
 export async function remapBabyId(from: string, to: string) {
@@ -731,23 +813,7 @@ export async function remapBabyId(from: string, to: string) {
 }
 
 export async function applyRemoteRecords(records: SyncPayload, canonicalBabyId: string | null) {
-  const local = await getBaby();
-  if (local && canonicalBabyId && local.id !== canonicalBabyId) {
-    await remapBabyId(local.id, canonicalBabyId);
-  }
-  await db.transaction('rw', SYNC_TABLES.map((name) => db.table(name)), async () => {
-    for (const name of SYNC_TABLES) {
-      const rows = records[name] ?? [];
-      for (const row of rows) {
-        const id = String(row.id ?? '');
-        if (!id) continue;
-        const existing = await db.table(name).get(id);
-        if (!existing || String(row.updatedAt ?? '') >= String(existing.updatedAt)) {
-          await db.table(name).put({ ...row, syncStatus: 'synced' });
-        }
-      }
-    }
-  });
+  await mirrorRemoteSnapshot(records, canonicalBabyId);
 }
 
 export async function markPushed(changes: SyncPayload) {
