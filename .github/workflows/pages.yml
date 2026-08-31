@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
+          VITE_BASE_PATH: /abel/
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_SYNC_URL: ${{ secrets.VITE_SYNC_URL }}
       - uses: actions/upload-pages-artifact@v3

@@ -37,8 +37,10 @@ src/
 
 ## Hébergement
 
-- **App web** : GitHub Pages — `https://vincentchauvaux.github.io/abel/`
-- **API / sync** : VPS OVH `https://vps-e09ed6db.vps.ovh.net/abel/api/` (Node `127.0.0.1:3030`, PostgreSQL local)
+- **App web** : **https://mimom.be/** (OVH VPS — front statique + API)
+- **Miroir** : GitHub Pages — `https://vincentchauvaux.github.io/abel/`
+- **API / sync** : `https://mimom.be/api/` (Node `127.0.0.1:3030`, PostgreSQL local sur le VPS)
+- DNS : voir [`deploy/DNS-mimom.be.md`](deploy/DNS-mimom.be.md) (zone OVH → `51.178.44.114`)
 
 Pages se déploie via GitHub Actions (workflow `.github/workflows/pages.yml`). Dans le repo : **Settings → Pages → Source = GitHub Actions** (pas « Deploy from a branch », sinon écran blanc / 404 sur `main.tsx`).
 
@@ -94,7 +96,7 @@ Créer le client OAuth « Application Web » : https://console.cloud.google.com/
 
 Identifiants : https://console.cloud.google.com/apis/credentials
 
-Origines JS autorisées : `https://vincentchauvaux.github.io` et `http://localhost:5173`.
+Origines JS autorisées : `https://mimom.be`, `https://www.mimom.be`, `https://vincentchauvaux.github.io` et `http://localhost:5173`.
 
 Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus par `.github/workflows/pages.yml`).
 
@@ -102,7 +104,7 @@ Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus
 
 API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
-- URL : `https://vps-e09ed6db.vps.ovh.net/abel/api/`
+- URL : `https://mimom.be/api/` (alias legacy : `https://vps-e09ed6db.vps.ovh.net/abel/api/`)
 - Horoscope du jour : `GET /horoscope?sign=taurus` (proxy ohmanda / viewbits, traduction FR, repli local par jour)
 - Suppression compte : `DELETE /account` (auth Google, soft-delete toutes les données liées)
 - Auth : jeton Google Identity Services (même Client ID que le front)
@@ -156,7 +158,7 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 | Local | IndexedDB via Dexie |
 | Routing | react-router HashRouter (GitHub Pages) |
 | Auth | Google Identity Services |
-| Hébergement | GitHub Pages |
+| Hébergement | OVH VPS (mimom.be) + miroir GitHub Pages |
 | Sync | VPS OVH `vps-e09ed6db.vps.ovh.net` (Node + Postgres) |
 | Backend | VPS OVH uniquement |
 

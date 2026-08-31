@@ -334,8 +334,8 @@ export function ProfilePage() {
               </a>
             </p>
             <p className="muted">
-              Origines autorisées : <code>https://vincentchauvaux.github.io</code> et{' '}
-              <code>http://localhost:5173</code>.
+              Origines autorisées : <code>https://mimom.be</code>, <code>https://www.mimom.be</code>,{' '}
+              <code>https://vincentchauvaux.github.io</code> et <code>http://localhost:5173</code>.
             </p>
           </>
         )}
@@ -479,8 +479,8 @@ export function ProfilePage() {
       </AccordionSection>
       <AccordionSection id="about" title="Sync et hors ligne" open={openSection === 'about'} onToggle={toggleSection}>
         <p className="muted">
-          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers{' '}
-          vps-e09ed6db.vps.ovh.net (France, OVH).
+          L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Abel envoie les données vers mimom.be
+          (France, OVH).
         </p>
       </AccordionSection>
     </div>

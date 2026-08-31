@@ -2,6 +2,8 @@
 #   include /etc/nginx/snippets/abel-map.conf;
 map $http_origin $abel_cors_origin {
     default "";
+    "https://mimom.be" $http_origin;
+    "https://www.mimom.be" $http_origin;
     "https://vincentchauvaux.github.io" $http_origin;
     "http://localhost:5173" $http_origin;
     "http://127.0.0.1:5173" $http_origin;

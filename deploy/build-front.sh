@@ -26,7 +26,8 @@ if [ -z "${VITE_GOOGLE_CLIENT_ID:-}" ]; then
   exit 1
 fi
 
-export VITE_SYNC_URL="${VITE_SYNC_URL:-https://vps-e09ed6db.vps.ovh.net/abel/api}"
+export VITE_BASE_PATH="${VITE_BASE_PATH:-/}"
+export VITE_SYNC_URL="${VITE_SYNC_URL:-https://mimom.be/api}"
 
 npm ci
 npm run build

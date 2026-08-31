@@ -87,15 +87,33 @@ if ! grep -q 'snippets/abel-map.conf' /etc/nginx/nginx.conf; then
   sed -i '/http {/a\    include /etc/nginx/snippets/abel-map.conf;' /etc/nginx/nginx.conf
 fi
 
-# API sur le hostname VPS (le front reste sur GitHub Pages)
+# API sur le hostname VPS (GitHub Pages miroir) + site mimom.be
 cp "$ROOT/deploy/nginx-abel-map.conf.example" /etc/nginx/snippets/abel-map.conf
 cp "$ROOT/deploy/nginx-abel.conf.example" /etc/nginx/snippets/abel.conf
 if ! grep -q 'snippets/abel.conf' /etc/nginx/sites-enabled/streamtv; then
   sed -i '/include snippets\/hakou-live.conf;/a\    include snippets/abel.conf;' /etc/nginx/sites-enabled/streamtv
 fi
 
-# Désactiver un éventuel vhost abel.be (front = GitHub Pages)
+# Front Abel sur mimom.be (build base / + API /api/)
+export VITE_BASE_PATH=/
+export VITE_SYNC_URL="${VITE_SYNC_URL:-https://mimom.be/api}"
+if [ -z "${GOOGLE_CLIENT_ID:-}" ] && [ -f "$ROOT/server/.env" ]; then
+  GOOGLE_CLIENT_ID="$(grep '^GOOGLE_CLIENT_ID=' "$ROOT/server/.env" | cut -d= -f2- || true)"
+  export GOOGLE_CLIENT_ID
+fi
+bash "$ROOT/deploy/build-front.sh"
+mkdir -p /var/www/mimom
+rsync -a --delete "$ROOT/dist/" /var/www/mimom/
+
+cp "$ROOT/deploy/nginx-mimom.be.conf.example" /etc/nginx/sites-available/mimom.be
+ln -sf /etc/nginx/sites-available/mimom.be /etc/nginx/sites-enabled/mimom.be
+
+# Désactiver d’anciens vhosts Abel dédiés
 rm -f /etc/nginx/sites-enabled/abel.be
+
+if dig +short mimom.be A | grep -qE '^[0-9]'; then
+  certbot --nginx -d mimom.be -d www.mimom.be --non-interactive --agree-tos --redirect --expand 2>/dev/null || true
+fi
 
 nginx -t
 systemctl reload nginx
@@ -110,4 +128,8 @@ curl -fsS http://127.0.0.1:3030/health
 echo
 curl -fsS https://127.0.0.1/abel/api/health --resolve vps-e09ed6db.vps.ovh.net:443:127.0.0.1 || curl -fsSk https://vps-e09ed6db.vps.ovh.net/abel/api/health
 echo
+if dig +short mimom.be A | grep -qE '^[0-9]'; then
+  curl -fsSk "https://mimom.be/api/health" || curl -fsS "http://mimom.be/api/health" || true
+  echo
+fi
 echo DEPLOY_OK
