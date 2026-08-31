@@ -695,9 +695,16 @@ h2 {
   margin: 0;
 }
 
-.zodiac-symbol {
-  font-size: 1.8rem;
-  line-height: 1;
+.zodiac-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--primary) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--primary) 22%, var(--border));
+  display: grid;
+  place-items: center;
+  color: var(--primary);
+  flex-shrink: 0;
 }
 
 .alert-line {
