@@ -142,13 +142,14 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
     });
   }
   for (const row of notes) {
-    const todoTag = row.isTodo ? (row.doneAt ? ' · fait' : ' · à faire') : '';
+    const done = row.isTodo && row.doneAt;
+    const openTodo = row.isTodo && !row.doneAt;
     items.push({
       id: row.id,
       kind: 'note',
-      at: row.notedAt,
-      title: 'Note',
-      detail: `${row.body.slice(0, 80)}${todoTag}`,
+      at: done ? row.doneAt! : row.notedAt,
+      title: done ? 'Note · fait' : 'Note',
+      detail: `${row.body.slice(0, 80)}${openTodo ? ' · à faire' : ''}`,
     });
   }
   for (const row of measures) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
@@ -58,10 +59,6 @@ import {
   sleepAlertLine,
 } from '@/lib/reminders';
 
-function latestMeasure(measures: Measurement[], type: MeasurementType) {
-  return measures.find((row) => row.type === type);
-}
-
 function StatTile({
   label,
   value,
@@ -78,6 +75,35 @@ function StatTile({
       <span className="muted">{label}</span>
       <b className={valueClassName}>{value}</b>
       {sub ? <span className="stat-sub muted">{sub}</span> : null}
+    </div>
+  );
+}
+
+function latestMeasure(measures: Measurement[], type: MeasurementType) {
+  return measures.find((row) => row.type === type);
+}
+
+type FollowRow = {
+  label: string;
+  value: string | number;
+  sub?: string;
+  to: string;
+  valueClassName?: string;
+};
+
+function FollowRowItem({ label, value, sub, to, valueClassName }: FollowRow) {
+  return (
+    <div className="dash-follow-row">
+      <div className="dash-follow-main">
+        <span className="muted">{label}</span>
+        <div className="dash-follow-values">
+          <strong className={valueClassName}>{value}</strong>
+          {sub ? <span className="muted dash-follow-sub">{sub}</span> : null}
+        </div>
+      </div>
+      <Link to={to} className="dash-follow-add" aria-label={`Ajouter · ${label}`}>
+        +
+      </Link>
     </div>
   );
 }
@@ -233,6 +259,58 @@ export function DashboardPage() {
   const heightFmt = formatMeasure(lastHeight);
   const headFmt = formatMeasure(lastHead);
 
+  const followRows: FollowRow[] = [
+    {
+      label: 'Couches',
+      value: diaperCount,
+      sub: lastDiaper ? formatTime(lastDiaper.occurredAt) : '—',
+      to: '/diapers',
+    },
+    {
+      label: 'Sommeil',
+      value: sleepMs > 0 ? formatMinutes(sleepMs) : '—',
+      sub: activeSleep ? 'en cours' : '—',
+      to: '/sleep',
+    },
+    {
+      label: 'Stock lait',
+      value: `${stockMl} ml`,
+      sub: pumps.length ? `${pumps.length} lot(s)` : '—',
+      to: '/pumping',
+    },
+    {
+      label: 'Tiré',
+      value: pumpedMl > 0 ? `${pumpedMl} ml` : '—',
+      sub: 'sur la période',
+      to: '/pumping',
+    },
+    {
+      label: 'Poids',
+      value: lastWeight ? `${weightFmt.value} kg` : '—',
+      sub: lastWeight ? weightFmt.sub : undefined,
+      to: '/growth',
+    },
+    {
+      label: 'Taille',
+      value: lastHeight ? `${heightFmt.value} cm` : '—',
+      sub: lastHeight ? heightFmt.sub : undefined,
+      to: '/growth',
+    },
+    {
+      label: 'PC',
+      value: lastHead ? `${headFmt.value} cm` : '—',
+      sub: lastHead ? headFmt.sub : undefined,
+      to: '/growth',
+    },
+    {
+      label: 'Temp.',
+      value: lastTemp ? `${formatTemperature(lastTemp.celsius)}°` : '—',
+      sub: lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`,
+      to: '/temperature',
+      valueClassName: lastTemp ? temperatureLevelClass(lastTemp.celsius) : undefined,
+    },
+  ];
+
   const days = eachLocalDay(
     period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
   );
@@ -269,6 +347,13 @@ export function DashboardPage() {
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
       <ActiveNowPanel />
       <PeriodSelector value={period} onChange={setPeriod} />
+
+      <p className="dash-section">Suivi</p>
+      <div className="dash-follow-list">
+        {followRows.map((row) => (
+          <FollowRowItem key={row.label} {...row} />
+        ))}
+      </div>
 
       <p className="dash-section">Apports</p>
       <div className="dashboard-stats">
@@ -313,39 +398,6 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <p className="dash-section">Suivi</p>
-      <div className="dashboard-stats">
-        <div className="stat-row-4">
-          <StatTile
-            label="Couches"
-            value={diaperCount}
-            sub={lastDiaper ? formatTime(lastDiaper.occurredAt) : '—'}
-          />
-          <StatTile
-            label="Sommeil"
-            value={sleepMs > 0 ? formatMinutes(sleepMs) : '—'}
-            sub={activeSleep ? 'en cours' : '—'}
-          />
-          <StatTile label="Stock lait" value={`${stockMl} ml`} sub={pumps.length ? `${pumps.length} lot(s)` : '—'} />
-          <StatTile
-            label="Tiré"
-            value={pumpedMl > 0 ? `${pumpedMl} ml` : '—'}
-            sub="sur la période"
-          />
-        </div>
-        <div className="stat-row-4">
-          <StatTile label="Poids" value={weightFmt.value} sub={lastWeight ? `kg · ${weightFmt.sub}` : 'kg'} />
-          <StatTile label="Taille" value={heightFmt.value} sub={lastHeight ? `cm · ${heightFmt.sub}` : 'cm'} />
-          <StatTile label="PC" value={headFmt.value} sub={lastHead ? `cm · ${headFmt.sub}` : 'cm'} />
-          <StatTile
-            label="Temp."
-            value={lastTemp ? `${formatTemperature(lastTemp.celsius)}°` : '—'}
-            valueClassName={lastTemp ? temperatureLevelClass(lastTemp.celsius) : undefined}
-            sub={lastTemp ? formatTime(lastTemp.measuredAt) : `${tempsCount} mesure(s)`}
-          />
-        </div>
-      </div>
-
       <AccordionSection
         id="notes"
         title="Notes"
@@ -375,7 +427,7 @@ export function DashboardPage() {
               ) : (
                 <div key={row.id} className="dash-note-item">
                   <span className="muted">
-                    {formatDateTime(row.notedAt)}
+                    {formatDateTime(row.isTodo && row.doneAt ? row.doneAt : row.notedAt)}
                     {row.isTodo && row.doneAt ? ' · fait' : ''}
                   </span>
                   <p>{row.body}</p>
