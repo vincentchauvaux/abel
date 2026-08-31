@@ -46,7 +46,7 @@ export type ActivityItem = {
   detail: string;
 };
 
-export async function listActivity(babyId: string, limit = 80): Promise<ActivityItem[]> {
+export async function listActivity(babyId: string, limit?: number): Promise<ActivityItem[]> {
   const [sessions, segments, bottles, diapers, pumps, solids, supplements, sleeps, temps, notes, measures] =
     await Promise.all([
       listSessions(babyId),
@@ -158,7 +158,8 @@ export async function listActivity(babyId: string, limit = 80): Promise<Activity
     });
   }
 
-  return items.sort((a, b) => b.at.localeCompare(a.at)).slice(0, limit);
+  const sorted = items.sort((a, b) => b.at.localeCompare(a.at));
+  return limit ? sorted.slice(0, limit) : sorted;
 }
 
 export type ActivityRecord =

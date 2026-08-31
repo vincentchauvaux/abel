@@ -17,8 +17,8 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, DiaperEvent, FeedingSession, ReminderRule, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { listActivity, type ActivityItem } from '@/lib/activity';
-import { formatAge, formatDateTime, formatLongDate, parseDecimal, startOfLocalDay } from '@/lib/dates';
+import { listActivity, type ActivityItem, type ActivityKind } from '@/lib/activity';
+import { formatAge, formatLongDate, formatTime, localDateKey, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import {
   DIAPER_MEAL_PRESETS,
   formatBottleMlGoal,
@@ -38,6 +38,26 @@ import {
   notifyDiaperFromGoals,
   sleepAlertLine,
 } from '@/lib/reminders';
+
+const JOURNAL_KINDS: { key: ActivityKind | 'all'; label: string }[] = [
+  { key: 'all', label: 'Tout' },
+  { key: 'feeding', label: 'Tétée' },
+  { key: 'bottle', label: 'Biberon' },
+  { key: 'diaper', label: 'Couche' },
+  { key: 'pumping', label: 'Tire-lait' },
+  { key: 'solid', label: 'Diversif.' },
+  { key: 'supplement', label: 'Complément' },
+  { key: 'sleep', label: 'Sommeil' },
+  { key: 'temperature', label: 'Temp.' },
+  { key: 'note', label: 'Note' },
+  { key: 'measurement', label: 'Croissance' },
+];
+
+function shiftJournalDay(day: string, delta: number): string {
+  const d = new Date(`${day}T12:00:00`);
+  d.setDate(d.getDate() + delta);
+  return localDateKey(d.toISOString());
+}
 
 export function BabyPage() {
   const { baby, tick } = useDb();
@@ -59,6 +79,8 @@ export function BabyPage() {
   const [goalsReady, setGoalsReady] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
+  const [journalDay, setJournalDay] = useState(() => localDateKey(new Date().toISOString()));
+  const [journalKind, setJournalKind] = useState<ActivityKind | 'all'>('all');
   const guidedRef = useRef(false);
   const now = useNow(true, 30_000);
 
@@ -133,6 +155,17 @@ export function BabyPage() {
     .reduce((sum, row) => sum + row.amountMl, 0);
 
   const mealAt = useMemo(() => lastMealAt(lastFeed, lastBottle), [lastFeed, lastBottle]);
+
+  const todayKey = localDateKey(new Date(now).toISOString());
+  const filteredActivity = useMemo(
+    () =>
+      activity.filter((row) => {
+        if (localDateKey(row.at) !== journalDay) return false;
+        if (journalKind !== 'all' && row.kind !== journalKind) return false;
+        return true;
+      }),
+    [activity, journalDay, journalKind],
+  );
 
   const mealAlert = useMemo(
     () =>
@@ -420,18 +453,60 @@ export function BabyPage() {
         )}
       </div>
       <AccordionSection id="journal" title="Journal" open={openSection === 'journal'} onToggle={toggleSection}>
+        <div className="journal-filters">
+          <div className="journal-day-row">
+            <button
+              type="button"
+              className="journal-day-nav"
+              aria-label="Jour précédent"
+              onClick={() => setJournalDay((day) => shiftJournalDay(day, -1))}>
+              ‹
+            </button>
+            <label className="field journal-day-field">
+              <span>Jour</span>
+              <input type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
+            </label>
+            <button
+              type="button"
+              className="journal-day-nav"
+              aria-label="Jour suivant"
+              disabled={journalDay >= todayKey}
+              onClick={() => setJournalDay((day) => shiftJournalDay(day, 1))}>
+              ›
+            </button>
+            {journalDay !== todayKey ? (
+              <button type="button" className="linkish journal-today" onClick={() => setJournalDay(todayKey)}>
+                Aujourd’hui
+              </button>
+            ) : null}
+          </div>
+          <div className="row journal-kind-row">
+            {JOURNAL_KINDS.map((item) => (
+              <Chip
+                key={item.key}
+                label={item.label}
+                selected={journalKind === item.key}
+                onClick={() => setJournalKind(item.key)}
+              />
+            ))}
+          </div>
+        </div>
         <p className="muted">Appuie sur une ligne pour modifier ou supprimer.</p>
-        {activity.length === 0 ? (
-          <p className="muted">Pas encore d’entrée.</p>
+        {filteredActivity.length === 0 ? (
+          <p className="muted">
+            {activity.some((row) => localDateKey(row.at) === journalDay)
+              ? 'Aucune entrée pour ce filtre.'
+              : 'Aucune entrée ce jour-là.'}
+          </p>
         ) : (
-          activity.map((row) => (
+          filteredActivity.map((row) => (
             <button
               key={`${row.kind}-${row.id}`}
               type="button"
               className="line log-line"
               onClick={() => setEditing(row)}>
               <span>
-                <strong>{formatDateTime(row.at)}</strong>
+                <strong>{formatTime(row.at)}</strong>
                 <span className="muted"> · {row.title}</span>
               </span>
               <span className="muted">{row.detail}</span>

@@ -183,7 +183,7 @@ babies (name, bornOn, photoUrl)
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.
 
-Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier), journal chronologique éditable (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré). Édition journal : tétée (sein, état, durée), sommeil (début, durée), biberon/tire-lait (ml, durée tire-lait), couche, diversification, complément, température, mesures, notes.
+Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier), journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré). Édition journal : tétée (sein, état, durée), sommeil (début, durée), biberon/tire-lait (ml, durée tire-lait), couche, diversification, complément, température, mesures, notes.
 
 ## Conventions agent
 

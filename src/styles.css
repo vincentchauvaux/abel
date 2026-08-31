@@ -1129,6 +1129,55 @@ h2 {
   margin: 8px 0;
 }
 
+.journal-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.journal-day-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.journal-day-field {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.journal-day-field input {
+  width: 100%;
+}
+
+.journal-day-nav {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text);
+}
+
+.journal-day-nav:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.journal-today {
+  flex: 0 0 100%;
+}
+
+.journal-kind-row {
+  gap: 8px;
+}
+
 .entry-above-journal .btn {
   width: 100%;
 }
