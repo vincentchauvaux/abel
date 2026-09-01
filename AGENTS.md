@@ -37,7 +37,7 @@ src/
 
 ## Hébergement
 
-- **App web** : **https://mimom.be/** (OVH VPS — front statique + API)
+- **App web** : **https://mimom.be/** (OVH VPS — front statique + API) — **PWA installable** (standalone)
 - **Miroir** : GitHub Pages — `https://vincentchauvaux.github.io/abel/`
 - **API / sync** : `https://mimom.be/api/` (Node `127.0.0.1:3030`, PostgreSQL local sur le VPS)
 - DNS : voir [`deploy/DNS-mimom.be.md`](deploy/DNS-mimom.be.md) (zone OVH → `51.178.44.114`)
@@ -156,7 +156,7 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 
 | Besoin | Choix |
 |---|---|
-| App | React 19 + Vite (TypeScript) |
+| App | React 19 + Vite (TypeScript) + PWA (`vite-plugin-pwa`) |
 | UI | CSS, mobile-first, lucide-react |
 | Local | IndexedDB via Dexie |
 | Routing | react-router HashRouter (GitHub Pages) |
@@ -166,6 +166,59 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 | Backend | VPS OVH uniquement |
 
 Pas d’app native Expo. Pas de Next.js pour la V1 web.
+
+## PWA
+
+Mimom est une **Progressive Web App** installable (standalone), en plus du fonctionnement navigateur déjà offline-first (IndexedDB / Dexie). Le Service Worker ne stocke **pas** les données métier ni les jetons : il ne met en cache que la coquille (HTML/JS/CSS/icônes).
+
+### Manifest
+
+Généré au build par `vite-plugin-pwa` (`manifest.webmanifest`) selon `VITE_BASE_PATH` :
+
+- **mimom.be** (`VITE_BASE_PATH=/`) : `start_url` / `scope` = `/`
+- **GitHub Pages** (`VITE_BASE_PATH=/abel/`) : `start_url` / `scope` = `/abel/`
+- Local : `npm run dev` → `http://localhost:5173/abel/` (SW **désactivé** en dev)
+
+`display: standalone`, `orientation: portrait`, `theme_color` `#C45C4A`, `background_color` `#F6F1EA`. Icônes existantes : `favicon-192.png` (192) et `logo.png` / `apple-touch-icon.png` (512), `any` + `maskable`.
+
+### Service Worker
+
+Fichier `sw.js` (Workbox, `generateSW`) :
+
+| Ressource | Stratégie |
+|---|---|
+| JS / CSS / HTML / icônes (précache, hashés) | cache-first |
+| Navigation SPA | `index.html` en repli **hors** `/api/` |
+| `/api/` (sync, session, sharing, invites, account, horoscope) | **NetworkOnly** — jamais en cache |
+| Google Identity (`accounts.google.com`, gstatic, googleapis) | **NetworkOnly** |
+
+`skipWaiting` / `clientsClaim` **off** : une nouvelle version s’active au prochain lancement, sans recharger pendant une tétée ou un sommeil en cours. IndexedDB n’est jamais vidé par une MAJ du SW.
+
+### Installation
+
+- **Android / Chrome / Edge** : icône d’installation du navigateur (pas de bouton factice).
+- **iOS Safari** : Partager → Sur l’écran d’accueil. Aide discrète dans **Profil → Sync et hors ligne** si on n’est pas déjà en standalone.
+- **Ordinateur** : installer depuis Chrome / Edge (HTTPS).
+
+### Hors ligne
+
+Saisie = IndexedDB immédiat (inchangé). Le SW permet d’**ouvrir** l’app sans réseau. La sync reprend dès que le réseau et la session Abel sont là.
+
+### Limitations iOS
+
+- Pas de `beforeinstallprompt` : uniquement « Sur l’écran d’accueil ».
+- Notifications : comme aujourd’hui, tant que l’app/PWA est ouverte (pas de push APNs).
+- GIS : la connexion Google peut être plus capricieuse en standalone ; la **session Abel** (90 j) évite de se reconnecter à chaque ouverture.
+- SW : iOS 16.4+ est fiable ; versions plus anciennes : Add to Home Screen sans cache SW complet.
+
+### Test
+
+1. `npm run build` puis `npm run preview` (ou déploiement mimom.be).
+2. Chrome DevTools → Application → Manifest + Service Workers.
+3. Mode airplane : recharger l’app installée, noter une couche, revenir en ligne, sync.
+4. iPhone : Safari → écran d’accueil → lancement sans barre d’adresse.
+
+Nginx (mimom.be) : `sw.js` et `manifest.webmanifest` en `Cache-Control: no-cache` (voir `deploy/nginx-mimom.be.conf.example`).
 
 ## Modèle de données
 

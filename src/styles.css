@@ -61,6 +61,12 @@ a {
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
+@media (display-mode: standalone) {
+  .app {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
 .screen {
   flex: 1;
   min-width: 0;

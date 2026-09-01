@@ -21,6 +21,7 @@ import {
 } from '@/lib/google';
 import { deleteRemoteAccount, downloadJson, exportLocalData, wipeLocalData } from '@/lib/privacy';
 import { LEGAL_ROUTES } from '@/lib/site';
+import { shouldShowIosInstallHint } from '@/lib/pwa';
 import {
   acceptInvite,
   cancelInvite,
@@ -529,6 +530,9 @@ export function ProfilePage() {
           L’app marche hors ligne. Dès qu’il y a du réseau et un compte Google, Mimom envoie les données vers mimom.be
           (France, OVH).
         </p>
+        {shouldShowIosInstallHint() ? (
+          <p className="muted">Pour l’installer sur l’iPhone : Partager → Sur l’écran d’accueil.</p>
+        ) : null}
       </AccordionSection>
     </div>
   );

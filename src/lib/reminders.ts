@@ -3,7 +3,7 @@ import { diaperReminderAt } from '@/lib/goals';
 import type { ReminderRule } from '@/db/types';
 import { formatFromNow, formatTime } from '@/lib/dates';
 
-/** Notifications navigateur (onglet ouvert uniquement). */
+/** Notifications navigateur (onglet ou PWA ouverte). Pas de push distant. */
 
 export async function notifyAfterMs(ms: number, body: string) {
   if (ms <= 0 || !('Notification' in window)) return;

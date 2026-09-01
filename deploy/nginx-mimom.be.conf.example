@@ -47,6 +47,17 @@ server {
         add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
     }
 
+    location = /sw.js {
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
+    location = /manifest.webmanifest {
+        add_header Cache-Control "no-cache" always;
+        default_type application/manifest+json;
+        try_files $uri =404;
+    }
+
     location / {
         try_files $uri $uri/ /index.html;
     }
