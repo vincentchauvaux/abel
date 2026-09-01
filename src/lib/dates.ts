@@ -178,3 +178,41 @@ export function fromDatetimeLocalValue(local: string): string {
   return new Date(local).toISOString();
 }
 
+/** Minutes arrondies entre deux valeurs `<input type="datetime-local">` (peut être négatif). */
+export function minutesBetweenLocal(startLocal: string, endLocal: string): number | null {
+  if (!startLocal.trim() || !endLocal.trim()) return null;
+  const start = new Date(startLocal).getTime();
+  const end = new Date(endLocal).getTime();
+  if (!Number.isFinite(start) || !Number.isFinite(end)) return null;
+  return Math.round((end - start) / 60_000);
+}
+
+/** Valeur datetime-local = début + minutes. */
+export function addMinutesToLocal(startLocal: string, minutes: number): string {
+  if (!startLocal.trim()) return '';
+  return toDatetimeLocalValue(addMinutesIso(fromDatetimeLocalValue(startLocal), minutes));
+}
+
+export function splitDatetimeLocal(local: string): { date: string; time: string } {
+  const [date = '', time = ''] = local.split('T');
+  return { date, time: time.slice(0, 5) };
+}
+
+export function joinDatetimeLocal(date: string, time: string): string {
+  if (!date.trim()) return '';
+  return `${date}T${time.trim() || '00:00'}`;
+}
+
+/** Heure de fin + date du début ; si l’heure est avant le début, on passe au lendemain. */
+export function endLocalFromStartAndTime(startLocal: string, endTime: string): string {
+  if (!startLocal.trim() || !endTime.trim()) return '';
+  const { date } = splitDatetimeLocal(startLocal);
+  let end = joinDatetimeLocal(date, endTime);
+  const startMs = new Date(startLocal).getTime();
+  const endMs = new Date(end).getTime();
+  if (Number.isFinite(startMs) && Number.isFinite(endMs) && endMs < startMs) {
+    end = addMinutesToLocal(end, 1440);
+  }
+  return end;
+}
+

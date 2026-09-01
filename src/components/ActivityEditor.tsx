@@ -30,10 +30,15 @@ import type { Side } from '@/db/types';
 import type { ActivityItem } from '@/lib/activity';
 import {
   addMinutesIso,
+  addMinutesToLocal,
   elapsedMs,
+  endLocalFromStartAndTime,
   formatDateTime,
   fromDatetimeLocalValue,
+  joinDatetimeLocal,
+  minutesBetweenLocal,
   parseDecimal,
+  splitDatetimeLocal,
   toDatetimeLocalValue,
 } from '@/lib/dates';
 import { diaperLabel, milkLabel, sideLabel } from '@/lib/labels';
@@ -48,6 +53,7 @@ type SleepStatus = 'open' | 'done';
 
 export function ActivityEditor({ item, onClose }: Props) {
   const [when, setWhen] = useState(toDatetimeLocalValue(item.at));
+  const [endedWhen, setEndedWhen] = useState('');
   const [amount, setAmount] = useState('');
   const [text, setText] = useState('');
   const [kind, setKind] = useState('');
@@ -60,6 +66,81 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [noteTodo, setNoteTodo] = useState(false);
   const [noteDone, setNoteDone] = useState(false);
   const [error, setError] = useState('');
+
+  const timed = item.kind === 'feeding' || item.kind === 'sleep' || item.kind === 'pumping';
+  const showEnd =
+    (item.kind === 'feeding' && feedStatus === 'done') ||
+    (item.kind === 'sleep' && sleepStatus === 'done') ||
+    item.kind === 'pumping';
+  const { date: startDate, time: startTime } = splitDatetimeLocal(when);
+  const { date: endDate, time: endTime } = splitDatetimeLocal(endedWhen);
+  const endNextDay = Boolean(startDate && endDate && endDate > startDate);
+
+  const applyRangeToDuration = (startLocal: string, endLocal: string, setMins: (value: string) => void) => {
+    const mins = minutesBetweenLocal(startLocal, endLocal);
+    if (mins == null) return;
+    setMins(mins < 0 ? '' : String(mins));
+  };
+
+  const syncDurationFromRange = (startLocal: string, endLocal: string) => {
+    if (!endLocal.trim()) return;
+    if (item.kind === 'feeding' && feedStatus === 'done') applyRangeToDuration(startLocal, endLocal, setFeedMinutes);
+    else if (item.kind === 'sleep' && sleepStatus === 'done') applyRangeToDuration(startLocal, endLocal, setSleepMinutes);
+    else if (item.kind === 'pumping') applyRangeToDuration(startLocal, endLocal, setPumpDuration);
+  };
+
+  const applyDurationToEnd = (minutesText: string) => {
+    const mins = parseDecimal(minutesText);
+    if (mins == null || mins < 0 || !when) return;
+    setEndedWhen(addMinutesToLocal(when, Math.round(mins)));
+  };
+
+  const handleDateChange = (nextDate: string) => {
+    const nextWhen = joinDatetimeLocal(nextDate, startTime);
+    const mins = endedWhen ? minutesBetweenLocal(when, endedWhen) : null;
+    setWhen(nextWhen);
+    if (mins != null && mins >= 0) setEndedWhen(addMinutesToLocal(nextWhen, mins));
+  };
+
+  const handleStartTimeChange = (nextTime: string) => {
+    const nextWhen = joinDatetimeLocal(startDate, nextTime);
+    setWhen(nextWhen);
+    syncDurationFromRange(nextWhen, endedWhen);
+  };
+
+  const handleEndTimeChange = (nextTime: string) => {
+    if (!nextTime.trim()) {
+      setEndedWhen('');
+      return;
+    }
+    const nextEnd = endLocalFromStartAndTime(when, nextTime);
+    setEndedWhen(nextEnd);
+    syncDurationFromRange(when, nextEnd);
+  };
+
+  const handleDurationChange = (next: string, target: 'feeding' | 'sleep' | 'pumping') => {
+    if (target === 'feeding') setFeedMinutes(next);
+    else if (target === 'sleep') setSleepMinutes(next);
+    else setPumpDuration(next);
+    applyDurationToEnd(next);
+  };
+
+  const endedAtFromForm = (startIso: string): string | { error: string } => {
+    if (endedWhen.trim()) {
+      const end = fromDatetimeLocalValue(endedWhen);
+      if (new Date(end).getTime() <= new Date(startIso).getTime()) {
+        return { error: 'La fin doit être après le début.' };
+      }
+      return end;
+    }
+    const mins = parseDecimal(
+      item.kind === 'sleep' ? sleepMinutes : item.kind === 'pumping' ? pumpDuration : feedMinutes,
+    );
+    if (mins === null || mins <= 0) {
+      return { error: 'Indique l’heure de fin ou la durée en minutes.' };
+    }
+    return addMinutesIso(startIso, Math.round(mins));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +164,13 @@ export function ActivityEditor({ item, onClose }: Props) {
           setAmount(row.amountMl != null ? String(row.amountMl) : '');
           setWhen(toDatetimeLocalValue(row.startedAt));
           if (row.side) setSide(row.side);
-          if (row.durationMinutes != null) setPumpDuration(String(row.durationMinutes));
+          if (row.durationMinutes != null) {
+            setPumpDuration(String(row.durationMinutes));
+            setEndedWhen(addMinutesToLocal(toDatetimeLocalValue(row.startedAt), row.durationMinutes));
+          } else {
+            setPumpDuration('');
+            setEndedWhen('');
+          }
         }
       } else if (item.kind === 'feeding') {
         const row = await db.feedingSessions.get(item.id);
@@ -95,12 +182,15 @@ export function ActivityEditor({ item, onClose }: Props) {
             setFeedStatus('open');
             const mins = Math.max(1, Math.round(elapsedMs(row.startedAt, null) / 60_000));
             setFeedMinutes(String(mins));
+            setEndedWhen('');
           } else if (row.endedAt === row.startedAt || elapsedMs(row.startedAt, row.endedAt) < 15_000) {
             setFeedStatus('noted');
             setFeedMinutes('');
+            setEndedWhen('');
           } else {
             setFeedStatus('done');
             setFeedMinutes(String(Math.max(1, Math.round(elapsedMs(row.startedAt, row.endedAt) / 60_000))));
+            setEndedWhen(toDatetimeLocalValue(row.endedAt));
           }
         }
       } else if (item.kind === 'solid') {
@@ -122,11 +212,13 @@ export function ActivityEditor({ item, onClose }: Props) {
           if (!row.endedAt) {
             setSleepStatus('open');
             setSleepMinutes(String(Math.max(1, Math.round(elapsedMs(row.startedAt, null) / 60_000))));
+            setEndedWhen('');
           } else {
             setSleepStatus('done');
             setSleepMinutes(
               String(Math.max(1, Math.round(elapsedMs(row.startedAt, row.endedAt) / 60_000))),
             );
+            setEndedWhen(toDatetimeLocalValue(row.endedAt));
           }
         }
       } else if (item.kind === 'temperature') {
@@ -180,7 +272,15 @@ export function ActivityEditor({ item, onClose }: Props) {
           setError('Quantité invalide.');
           return;
         }
-        const pumpMins = pumpDuration.trim() ? parseDecimal(pumpDuration) : null;
+        let pumpMins = pumpDuration.trim() ? parseDecimal(pumpDuration) : null;
+        if (endedWhen.trim()) {
+          const computed = minutesBetweenLocal(when, endedWhen);
+          if (computed != null && computed < 0) {
+            setError('La fin doit être après le début.');
+            return;
+          }
+          if (!pumpDuration.trim() && computed != null && computed > 0) pumpMins = computed;
+        }
         if (pumpDuration.trim() && (pumpMins === null || pumpMins <= 0)) {
           setError('Durée invalide.');
           return;
@@ -208,12 +308,12 @@ export function ActivityEditor({ item, onClose }: Props) {
         } else if (feedStatus === 'noted') {
           endedAt = at;
         } else {
-          const mins = parseDecimal(feedMinutes);
-          if (mins === null || mins <= 0) {
-            setError('Indique la durée en minutes.');
+          const end = endedAtFromForm(at);
+          if (typeof end === 'object') {
+            setError(end.error);
             return;
           }
-          endedAt = addMinutesIso(at, Math.round(mins));
+          endedAt = end;
         }
         await updateFeedingSession(item.id, { startedAt: at, endedAt });
         await setFeedingSide(item.id, side);
@@ -235,15 +335,12 @@ export function ActivityEditor({ item, onClose }: Props) {
           }
           await updateSleep(item.id, { startedAt: at, endedAt: null });
         } else {
-          const mins = parseDecimal(sleepMinutes);
-          if (mins === null || mins <= 0) {
-            setError('Indique la durée en minutes.');
+          const end = endedAtFromForm(at);
+          if (typeof end === 'object') {
+            setError(end.error);
             return;
           }
-          await updateSleep(item.id, {
-            startedAt: at,
-            endedAt: addMinutesIso(at, Math.round(mins)),
-          });
+          await updateSleep(item.id, { startedAt: at, endedAt: end });
         }
       } else if (item.kind === 'temperature') {
         const n = parseDecimal(amount);
@@ -294,12 +391,64 @@ export function ActivityEditor({ item, onClose }: Props) {
         <h2>
           {item.title} · {formatDateTime(item.at)}
         </h2>
-        <label className="field">
-          <span>
-            {item.kind === 'sleep' || item.kind === 'feeding' ? 'Début' : 'Date et heure'}
-          </span>
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-        </label>
+        {timed ? (
+          <>
+            <label className="field">
+              <span>Date</span>
+              <input type="date" value={startDate} onChange={(e) => handleDateChange(e.target.value)} />
+            </label>
+            {showEnd ? (
+              <div className="grid-2">
+                <label className="field">
+                  <span>Début</span>
+                  <input type="time" value={startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span>{item.kind === 'pumping' ? 'Fin (facultatif)' : 'Fin'}</span>
+                  <input type="time" value={endTime} onChange={(e) => handleEndTimeChange(e.target.value)} />
+                </label>
+              </div>
+            ) : (
+              <label className="field">
+                <span>Début</span>
+                <input type="time" value={startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
+              </label>
+            )}
+            {endNextDay ? <p className="muted">Fin le lendemain.</p> : null}
+          </>
+        ) : (
+          <label className="field">
+            <span>Date et heure</span>
+            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          </label>
+        )}
+        {item.kind === 'feeding' && feedStatus === 'done' ? (
+          <Field
+            label="Durée (min)"
+            value={feedMinutes}
+            onChange={(value) => handleDurationChange(value, 'feeding')}
+            placeholder="15"
+            inputMode="decimal"
+          />
+        ) : null}
+        {item.kind === 'sleep' && sleepStatus === 'done' ? (
+          <Field
+            label="Durée (min)"
+            value={sleepMinutes}
+            onChange={(value) => handleDurationChange(value, 'sleep')}
+            placeholder="90"
+            inputMode="decimal"
+          />
+        ) : null}
+        {item.kind === 'pumping' ? (
+          <Field
+            label="Durée (min, facultatif)"
+            value={pumpDuration}
+            onChange={(value) => handleDurationChange(value, 'pumping')}
+            placeholder="15"
+            inputMode="decimal"
+          />
+        ) : null}
 
         {item.kind === 'sleep' ? (
           <>
@@ -311,6 +460,7 @@ export function ActivityEditor({ item, onClose }: Props) {
                 onClick={() => {
                   setSleepStatus('open');
                   if (!sleepMinutes.trim()) setSleepMinutes('1');
+                  setEndedWhen('');
                 }}
               />
               <Chip
@@ -318,19 +468,14 @@ export function ActivityEditor({ item, onClose }: Props) {
                 selected={sleepStatus === 'done'}
                 onClick={() => {
                   setSleepStatus('done');
-                  if (!sleepMinutes.trim()) setSleepMinutes('60');
+                  const mins = parseDecimal(sleepMinutes);
+                  const nextMins = mins != null && mins > 0 ? Math.round(mins) : 60;
+                  setSleepMinutes(String(nextMins));
+                  setEndedWhen((prev) => prev || addMinutesToLocal(when, nextMins));
                 }}
               />
             </div>
-            {sleepStatus === 'done' ? (
-              <Field
-                label="Durée (min)"
-                value={sleepMinutes}
-                onChange={setSleepMinutes}
-                placeholder="90"
-                inputMode="decimal"
-              />
-            ) : (
+            {sleepStatus === 'done' ? null : (
               <p className="muted">Sommeil en cours — tu peux aussi le terminer depuis Outils ou le Dashboard.</p>
             )}
           </>
@@ -352,6 +497,7 @@ export function ActivityEditor({ item, onClose }: Props) {
                 onClick={() => {
                   setFeedStatus('noted');
                   setFeedMinutes('');
+                  setEndedWhen('');
                 }}
               />
               <Chip
@@ -360,6 +506,7 @@ export function ActivityEditor({ item, onClose }: Props) {
                 onClick={() => {
                   setFeedStatus('open');
                   if (!feedMinutes.trim()) setFeedMinutes('1');
+                  setEndedWhen('');
                 }}
               />
               <Chip
@@ -367,19 +514,13 @@ export function ActivityEditor({ item, onClose }: Props) {
                 selected={feedStatus === 'done'}
                 onClick={() => {
                   setFeedStatus('done');
-                  if (!feedMinutes.trim()) setFeedMinutes('10');
+                  const mins = parseDecimal(feedMinutes);
+                  const nextMins = mins != null && mins > 0 ? Math.round(mins) : 10;
+                  setFeedMinutes(String(nextMins));
+                  setEndedWhen((prev) => prev || addMinutesToLocal(when, nextMins));
                 }}
               />
             </div>
-            {feedStatus === 'done' ? (
-              <Field
-                label="Durée (min)"
-                value={feedMinutes}
-                onChange={setFeedMinutes}
-                placeholder="15"
-                inputMode="decimal"
-              />
-            ) : null}
             {feedStatus === 'open' ? (
               <p className="muted">Le minuteur continue sur Allaitement. Tu pourras terminer là-bas ou saisir une durée ici en passant en Terminée.</p>
             ) : (
@@ -396,13 +537,6 @@ export function ActivityEditor({ item, onClose }: Props) {
                 <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />
               ))}
             </div>
-            <Field
-              label="Durée (min, facultatif)"
-              value={pumpDuration}
-              onChange={setPumpDuration}
-              placeholder="15"
-              inputMode="decimal"
-            />
           </>
         ) : null}
 
