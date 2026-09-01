@@ -406,12 +406,35 @@ export function ProfilePage() {
                 {sharing.members.length ? (
                   <div className="sharing-block">
                     <p className="goal-label">Personnes avec accès</p>
-                    {sharing.members.map((member, index) => (
-                      <p key={`${member.label}-${index}`} className="muted" style={{ margin: '4px 0' }}>
-                        {member.label}
-                        {member.role === 'owner' ? ' · propriétaire' : ' · co-parent'}
-                      </p>
-                    ))}
+                    {sharing.members.map((member, index) => {
+                      const title = member.isYou
+                        ? member.name || 'Vous'
+                        : member.name || member.email || member.label;
+                      const role = member.role === 'owner' ? 'Propriétaire' : 'Co-parent';
+                      return (
+                        <div key={`${member.email || member.label}-${index}`} className="google-user sharing-member">
+                          {member.picture ? (
+                            <img src={member.picture} alt="" />
+                          ) : (
+                            <span className="sharing-member-avatar" aria-hidden>
+                              {(title || '?').slice(0, 1).toUpperCase()}
+                            </span>
+                          )}
+                          <div>
+                            <strong>
+                              {title}
+                              {member.isYou ? ' (vous)' : ''}
+                            </strong>
+                            {member.email ? (
+                              <p className="muted google-user-email" style={{ fontSize: emailFontSize(member.email) }}>
+                                {member.email}
+                              </p>
+                            ) : null}
+                            <p className="muted sharing-member-role">{role}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : null}
                 {sharing.members.length < 2 ? (

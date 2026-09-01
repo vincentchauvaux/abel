@@ -462,6 +462,20 @@ function normalizeEmail(email) {
   return (email || '').trim().toLowerCase();
 }
 
+async function upsertUserProfile(db, user) {
+  if (!user?.sub) return;
+  await db.query(
+    `INSERT INTO user_profiles (user_id, email, name, picture, updated_at)
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       email = CASE WHEN EXCLUDED.email <> '' THEN EXCLUDED.email ELSE user_profiles.email END,
+       name = CASE WHEN EXCLUDED.name <> '' THEN EXCLUDED.name ELSE user_profiles.name END,
+       picture = CASE WHEN EXCLUDED.picture <> '' THEN EXCLUDED.picture ELSE user_profiles.picture END,
+       updated_at = NOW()`,
+    [user.sub, normalizeEmail(user.email), user.name || '', user.picture || ''],
+  );
+}
+
 async function ensureOwnerMembership(client, babyId, sub, ts = new Date().toISOString()) {
   const { rows } = await client.query(
     `SELECT id FROM baby_members
@@ -529,6 +543,7 @@ async function handleSharingGet(user) {
   const client = await pool.connect();
   try {
     await expirePendingInvites(client);
+    await upsertUserProfile(client, user);
     const access = await resolveBabyAccess(client, user);
     const email = normalizeEmail(user.email);
     const received = email
@@ -563,13 +578,34 @@ async function handleSharingGet(user) {
     const babyName = await getBabyName(client, access.babyId);
     const members = (
       await client.query(
-        `SELECT role, user_id FROM baby_members
-         WHERE baby_id = $1 AND deleted_at IS NULL ORDER BY joined_at ASC`,
+        `SELECT m.role, m.user_id,
+            COALESCE(NULLIF(p.email, ''), NULLIF(s.email, ''), CASE WHEN m.role = 'member' THEN NULLIF(inv.invited_email, '') END, '') AS email,
+            COALESCE(NULLIF(p.name, ''), '') AS name,
+            COALESCE(NULLIF(p.picture, ''), '') AS picture
+         FROM baby_members m
+         LEFT JOIN user_profiles p ON p.user_id = m.user_id
+         LEFT JOIN LATERAL (
+           SELECT email FROM auth_sessions
+           WHERE user_id = m.user_id AND email <> ''
+           ORDER BY last_used_at DESC
+           LIMIT 1
+         ) s ON true
+         LEFT JOIN LATERAL (
+           SELECT invited_email FROM baby_invites
+           WHERE baby_id = m.baby_id AND status = 'accepted'
+           ORDER BY responded_at DESC NULLS LAST
+           LIMIT 1
+         ) inv ON true
+         WHERE m.baby_id = $1 AND m.deleted_at IS NULL
+         ORDER BY m.joined_at ASC`,
         [access.babyId],
       )
     ).rows.map((row) => ({
       role: row.role,
       isYou: row.user_id === user.sub,
+      email: row.email || '',
+      name: row.name || '',
+      picture: row.picture || '',
       label: row.user_id === user.sub ? 'Vous' : row.role === 'owner' ? 'Propriétaire' : 'Co-parent',
     }));
 
@@ -690,6 +726,7 @@ async function handleInviteAccept(user, inviteId) {
        VALUES ($1, $2, $3, 'member', $4, $4)`,
       [randomUUID(), invite.baby_id, user.sub, ts],
     );
+    await upsertUserProfile(client, { ...user, email });
     await client.query(
       `UPDATE baby_invites SET status = 'accepted', responded_at = $2 WHERE id = $1`,
       [inviteId, ts],
@@ -961,6 +998,14 @@ async function ensureSchema() {
          WHERE m.baby_id = b.id AND m.user_id = b.user_id AND m.deleted_at IS NULL
        )`,
   );
+  await pool.query(
+    `INSERT INTO user_profiles (user_id, email, name, picture, updated_at)
+     SELECT DISTINCT ON (user_id) user_id, email, '', '', NOW()
+     FROM auth_sessions
+     WHERE email <> ''
+     ORDER BY user_id, last_used_at DESC
+     ON CONFLICT (user_id) DO NOTHING`,
+  );
 }
 
 function send(res, status, body) {
@@ -1010,6 +1055,7 @@ const server = createServer(async (req, res) => {
         return;
       }
       const session = await createAbelSession(googleUser);
+      await upsertUserProfile(pool, googleUser);
       send(res, 200, {
         token: session.token,
         expiresAt: session.expiresAt,

@@ -132,14 +132,15 @@ Pages accessibles depuis **Profil** ou `/legal/*` :
 
 Bandeau de consentement à la première visite (stockage local). Connexion Google = acceptation explicite de la sync vers le VPS.
 
-**Profil** : export JSON, effacement local, `DELETE /account` (propriétaire = suppression bébé pour tous ; co-parent = quitter le partage). Accordéon **Co-parent** : inviter par e-mail, accepter/refuser les invitations reçues.
+**Profil** : export JSON, effacement local, `DELETE /account` (propriétaire = suppression bébé pour tous ; co-parent = quitter le partage). Accordéon **Co-parent** : inviter par e-mail, accepter/refuser les invitations reçues ; liste des personnes avec accès (nom, e-mail Google, photo).
 
 ## Co-parent
 
 - Invitation depuis **Profil → Co-parent** par l’e-mail Google du co-parent (valable 7 jours).
 - L’invité voit l’invitation dans son **Profil** (badge sur l’onglet) une fois connecté avec ce compte.
+- La section Co-parent affiche le **profil** de chaque personne (nom, e-mail, photo Google).
 - **Droits égaux** : saisie, sync, lecture pour les deux (1 propriétaire + 1 co-parent max).
-- Tables VPS : `baby_members`, `baby_invites`, `auth_sessions` ; accès sync via membership, pas seulement `babies.user_id`.
+- Tables VPS : `baby_members`, `baby_invites`, `auth_sessions`, `user_profiles` ; accès sync via membership, pas seulement `babies.user_id`.
 
 ## Sécurité
 

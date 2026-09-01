@@ -204,3 +204,11 @@ CREATE TABLE IF NOT EXISTS auth_sessions (
 CREATE INDEX IF NOT EXISTS auth_sessions_user
   ON auth_sessions (user_id)
   WHERE revoked_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS user_profiles (
+  user_id TEXT PRIMARY KEY,
+  email TEXT NOT NULL DEFAULT '',
+  name TEXT NOT NULL DEFAULT '',
+  picture TEXT NOT NULL DEFAULT '',
+  updated_at TIMESTAMPTZ NOT NULL
+);

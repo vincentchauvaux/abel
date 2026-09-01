@@ -4,6 +4,9 @@ export type SharingMember = {
   role: 'owner' | 'member';
   isYou: boolean;
   label: string;
+  email?: string;
+  name?: string;
+  picture?: string;
 };
 
 export type SharingInvite = {
