@@ -16,6 +16,12 @@ server {
         allow all;
     }
 
+    location = /.well-known/assetlinks.json {
+        add_header Cache-Control "no-cache" always;
+        default_type application/json;
+        try_files $uri =404;
+    }
+
     location = /api {
         return 301 $scheme://$host/api/;
     }

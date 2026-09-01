@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "be.mimom.twa",
+      "sha256_cert_fingerprints": [
+        "80:BB:BB:E2:9E:B2:0B:96:36:3E:BB:28:1F:1C:15:F2:1E:57:FD:F5:7D:4D:2A:33:59:E5:A9:4B:0D:2E:73:7E"
+      ]
+    }
+  }
+]

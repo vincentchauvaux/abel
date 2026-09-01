@@ -220,6 +220,18 @@ Saisie = IndexedDB immédiat (inchangé). Le SW permet d’**ouvrir** l’app sa
 
 Nginx (mimom.be) : `sw.js` et `manifest.webmanifest` en `Cache-Control: no-cache` (voir `deploy/nginx-mimom.be.conf.example`).
 
+### Google Play (TWA, optionnel)
+
+Enveloppe Android autour du site, **pas** une réécriture native. Guide : [`store/android/README.md`](store/android/README.md).
+
+- Package : **`be.mimom.twa`** (PWABuilder, septembre 2026)
+- AAB / APK : zip Play (copie locale gitignorée `store/android/Mimom.aab`)
+- Digital Asset Links : `https://mimom.be/.well-known/assetlinks.json` (empreinte PWABuilder déjà dedans ; ajouter le SHA-256 **Play App Signing** avec `store/android/set-fingerprint.sh`)
+- Keystore : **hors git** (`signing.keystore` + `signing-key-info.txt` du zip Play)
+- Compte Play : 25 $ une fois, upload `.aab`
+- Les mises à jour de mimom.be se voient sans republier l’AAB
+- **App Store Apple** : hors périmètre (zip iOS PWABuilder = projet Xcode `be.mimom`, souvent refusé)
+
 ## Modèle de données
 
 ```

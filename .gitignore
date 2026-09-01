@@ -18,6 +18,7 @@ expo-env.d.ts
 *.p8
 *.p12
 *.key
+*.keystore
 *.mobileprovision
 
 # Metro
@@ -47,3 +48,7 @@ example
 # generated native folders
 /ios
 /android
+store/android/android/
+store/android/*.aab
+store/android/*.apk
+store/android/signing-key-info.txt

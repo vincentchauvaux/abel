@@ -1,0 +1,40 @@
+{
+  "packageId": "be.mimom.twa",
+  "host": "mimom.be",
+  "name": "Mimom",
+  "launcherName": "Mimom",
+  "display": "standalone",
+  "themeColor": "#C45C4A",
+  "themeColorDark": "#A34838",
+  "navigationColor": "#C45C4A",
+  "navigationColorDark": "#A34838",
+  "navigationDividerColor": "#C45C4A",
+  "navigationDividerColorDark": "#A34838",
+  "backgroundColor": "#F6F1EA",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://mimom.be/logo.png",
+  "maskableIconUrl": "https://mimom.be/logo.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "./signing.keystore",
+    "alias": "my-key-alias"
+  },
+  "appVersionName": "1",
+  "appVersionCode": 1,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://mimom.be/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "isChromeOSOnly": false,
+  "fullScopeUrl": "https://mimom.be/",
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": []
+}
