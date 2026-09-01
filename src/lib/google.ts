@@ -15,6 +15,14 @@ export const SYNC_URL = (import.meta.env.VITE_SYNC_URL || 'https://mimom.be/api'
 export const GOOGLE_CLIENT_CONSOLE_URL = 'https://console.cloud.google.com/auth/clients';
 export const GOOGLE_CREDENTIALS_URL = 'https://console.cloud.google.com/apis/credentials';
 
+function notifyAuth() {
+  window.dispatchEvent(new Event('abel-auth'));
+}
+
+function isGoogleIdToken(token: string): boolean {
+  return token.split('.').length === 3;
+}
+
 declare global {
   interface Window {
     google?: {
@@ -79,17 +87,64 @@ function payloadExp(credential: string): number | null {
 export function writeGoogleSession(user: GoogleUser, credential: string) {
   writeGoogleUser(user);
   localStorage.setItem(TOKEN_KEY, credential);
+  notifyAuth();
+}
+
+export function clearAuthToken() {
+  if (!localStorage.getItem(TOKEN_KEY)) return;
+  localStorage.removeItem(TOKEN_KEY);
+  notifyAuth();
 }
 
 export function readGoogleToken(): string | null {
   const token = localStorage.getItem(TOKEN_KEY);
   if (!token) return null;
+  if (!isGoogleIdToken(token)) return token;
   const exp = payloadExp(token);
   if (exp && exp < Date.now() + 30_000) {
     localStorage.removeItem(TOKEN_KEY);
+    notifyAuth();
     return null;
   }
   return token;
+}
+
+/** Échange un jeton Google (1 h) contre une session Abel (90 jours, renouvelée à l’usage). */
+export async function exchangeGoogleSession(credential: string): Promise<boolean> {
+  if (!credential || !navigator.onLine) return false;
+  try {
+    const res = await fetch(`${SYNC_URL}/session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ credential }),
+    });
+    if (!res.ok) return false;
+    const body = (await res.json()) as { token?: string };
+    if (!body.token) return false;
+    localStorage.setItem(TOKEN_KEY, body.token);
+    notifyAuth();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function completeGoogleSignIn(user: GoogleUser, credential: string): Promise<void> {
+  writeGoogleSession(user, credential);
+  await exchangeGoogleSession(credential);
+}
+
+/** Si le stockage contient encore un JWT Google, le convertit en session Abel. */
+export async function ensureAbelSession(): Promise<void> {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token || !isGoogleIdToken(token)) return;
+  const exp = payloadExp(token);
+  if (exp && exp < Date.now() + 30_000) {
+    localStorage.removeItem(TOKEN_KEY);
+    notifyAuth();
+    return;
+  }
+  await exchangeGoogleSession(token);
 }
 
 function loadGis(): Promise<void> {
@@ -144,7 +199,15 @@ export async function renderGoogleButton(
 }
 
 export function signOutGoogle() {
+  const token = localStorage.getItem(TOKEN_KEY);
   writeGoogleUser(null);
   localStorage.removeItem(TOKEN_KEY);
+  notifyAuth();
   window.google?.accounts.id.disableAutoSelect();
+  if (token && navigator.onLine) {
+    void fetch(`${SYNC_URL}/session`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    }).catch(() => undefined);
+  }
 }

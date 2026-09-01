@@ -1,4 +1,4 @@
-import { readGoogleToken, SYNC_URL } from '@/lib/google';
+import { clearAuthToken, readGoogleToken, SYNC_URL } from '@/lib/google';
 
 export type SharingMember = {
   role: 'owner' | 'member';
@@ -45,7 +45,10 @@ async function sharingFetch<T>(
       ...init?.headers,
     },
   });
-  if (res.status === 401) return 'auth';
+  if (res.status === 401) {
+    clearAuthToken();
+    return 'auth';
+  }
   if (res.status === 429) return 'rate_limit';
   if (!res.ok) {
     try {

@@ -7,7 +7,7 @@ import {
   type SyncPayload,
 } from '@/db/api';
 import { notifyDb } from '@/db/client';
-import { readGoogleToken, SYNC_URL } from '@/lib/google';
+import { clearAuthToken, readGoogleToken, SYNC_URL } from '@/lib/google';
 
 export type SyncState = 'idle' | 'syncing' | 'ok' | 'auth' | 'offline' | 'error' | 'rate_limit';
 
@@ -79,7 +79,10 @@ async function fetchRemoteSnapshot(
     },
     body: body ? JSON.stringify(body) : undefined,
   });
-  if (res.status === 401) return 'auth';
+  if (res.status === 401) {
+    clearAuthToken();
+    return 'auth';
+  }
   if (res.status === 429) return 'rate_limit';
   if (!res.ok) return 'error';
   return (await res.json()) as SyncResponse;

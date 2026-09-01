@@ -189,3 +189,18 @@ CREATE TABLE IF NOT EXISTS baby_invites (
 CREATE UNIQUE INDEX IF NOT EXISTS baby_invites_one_pending
   ON baby_invites (baby_id, invited_email)
   WHERE status = 'pending';
+
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  id UUID PRIMARY KEY,
+  token_hash TEXT NOT NULL UNIQUE,
+  user_id TEXT NOT NULL,
+  email TEXT NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  last_used_at TIMESTAMPTZ NOT NULL,
+  revoked_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS auth_sessions_user
+  ON auth_sessions (user_id)
+  WHERE revoked_at IS NULL;

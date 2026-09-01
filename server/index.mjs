@@ -1,5 +1,5 @@
 import { createServer } from 'node:http';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -290,7 +290,11 @@ const RATE_LIMITS = {
   account: { max: 5, windowMs: 60_000 },
   sharing: { max: 60, windowMs: 60_000 },
   invites: { max: 10, windowMs: 3_600_000 },
+  session: { max: 30, windowMs: 15 * 60 * 1000 },
 };
+
+const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
+const MAX_SESSIONS_PER_USER = 8;
 
 const MAX_BABY_MEMBERS = 2;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -325,15 +329,98 @@ function securityHeaders(res) {
   res.setHeader('Cache-Control', 'no-store');
 }
 
-async function verifyUser(req) {
+function bearerToken(req) {
   const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : '';
+  return header.startsWith('Bearer ') ? header.slice(7) : '';
+}
+
+function looksLikeJwt(token) {
+  return token.split('.').length === 3;
+}
+
+function hashToken(token) {
+  return createHash('sha256').update(token).digest('hex');
+}
+
+async function verifyGoogleIdToken(token) {
+  const ticket = await google.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
+  const payload = ticket.getPayload();
+  if (!payload?.sub) return null;
+  return {
+    sub: payload.sub,
+    email: payload.email || '',
+    name: payload.name || payload.email || '',
+    picture: payload.picture || '',
+  };
+}
+
+async function verifyAbelSession(token) {
+  const hash = hashToken(token);
+  const { rows } = await pool.query(
+    `SELECT user_id, email, expires_at, last_used_at, revoked_at
+     FROM auth_sessions WHERE token_hash = $1`,
+    [hash],
+  );
+  const row = rows[0];
+  if (!row || row.revoked_at) return null;
+  const now = Date.now();
+  if (new Date(row.expires_at).getTime() <= now) return null;
+
+  const lastUsed = new Date(row.last_used_at).getTime();
+  const expiresAt = new Date(row.expires_at).getTime();
+  const needTouch = now - lastUsed > 60 * 60 * 1000;
+  const needExtend = expiresAt - now < SESSION_TTL_MS / 2;
+  if (needTouch || needExtend) {
+    const nextExp = needExtend ? new Date(now + SESSION_TTL_MS) : row.expires_at;
+    await pool.query(
+      `UPDATE auth_sessions SET last_used_at = NOW(), expires_at = $2 WHERE token_hash = $1`,
+      [hash, nextExp],
+    );
+  }
+  return { sub: row.user_id, email: row.email || '' };
+}
+
+async function createAbelSession(user) {
+  const token = randomBytes(32).toString('base64url');
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
+  await pool.query(
+    `INSERT INTO auth_sessions (id, token_hash, user_id, email, created_at, expires_at, last_used_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $5)`,
+    [randomUUID(), hashToken(token), user.sub, user.email || '', now, expiresAt],
+  );
+  await pool.query(
+    `WITH keep AS (
+       SELECT id FROM auth_sessions
+       WHERE user_id = $1 AND revoked_at IS NULL
+       ORDER BY last_used_at DESC
+       LIMIT $2
+     )
+     UPDATE auth_sessions SET revoked_at = NOW()
+     WHERE user_id = $1 AND revoked_at IS NULL AND id NOT IN (SELECT id FROM keep)`,
+    [user.sub, MAX_SESSIONS_PER_USER],
+  );
+  return { token, expiresAt: expiresAt.toISOString() };
+}
+
+async function revokeAbelSession(token) {
+  if (!token) return;
+  await pool.query(
+    `UPDATE auth_sessions SET revoked_at = NOW() WHERE token_hash = $1 AND revoked_at IS NULL`,
+    [hashToken(token)],
+  );
+}
+
+async function verifyUser(req) {
+  const token = bearerToken(req);
   if (!token) return null;
+  if (!looksLikeJwt(token)) {
+    return verifyAbelSession(token);
+  }
   try {
-    const ticket = await google.verifyIdToken({ idToken: token, audience: GOOGLE_CLIENT_ID });
-    const payload = ticket.getPayload();
-    if (!payload?.sub) return null;
-    return { sub: payload.sub, email: payload.email || '' };
+    const payload = await verifyGoogleIdToken(token);
+    if (!payload) return null;
+    return { sub: payload.sub, email: payload.email };
   } catch {
     return null;
   }
@@ -898,6 +985,49 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://127.0.0.1');
   try {
     if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+      send(res, 200, { ok: true });
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/session') {
+      if (overRateLimit(req, 'session')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const body = await readBody(req);
+      const credential = typeof body.credential === 'string' ? body.credential : '';
+      if (!credential) {
+        send(res, 400, { error: 'credential' });
+        return;
+      }
+      let googleUser;
+      try {
+        googleUser = await verifyGoogleIdToken(credential);
+      } catch {
+        googleUser = null;
+      }
+      if (!googleUser) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const session = await createAbelSession(googleUser);
+      send(res, 200, {
+        token: session.token,
+        expiresAt: session.expiresAt,
+        user: {
+          sub: googleUser.sub,
+          email: googleUser.email,
+          name: googleUser.name,
+          picture: googleUser.picture,
+        },
+      });
+      return;
+    }
+    if (req.method === 'DELETE' && url.pathname === '/session') {
+      if (overRateLimit(req, 'session')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      await revokeAbelSession(bearerToken(req));
       send(res, 200, { ok: true });
       return;
     }

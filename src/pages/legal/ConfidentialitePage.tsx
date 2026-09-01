@@ -24,7 +24,8 @@ export function ConfidentialitePage() {
         </li>
         <li>
           <strong>Si vous connectez Google</strong> : identifiant Google (<code>sub</code>), nom, e-mail, photo de
-          profil ; les données bébé ci-dessus sont copiées sur le VPS OVH pour la sauvegarde multi-appareils.
+          profil ; une session Abel (jeton sur l’appareil, 90 jours renouvelés à l’usage) ; les données bébé ci-dessus
+          sont copiées sur le VPS OVH pour la sauvegarde multi-appareils.
         </li>
         <li>
           <strong>Co-parent</strong> : si vous invitez ou acceptez un partage, l’autre parent (identifié par son
@@ -71,7 +72,7 @@ export function ConfidentialitePage() {
       <h2>Durées de conservation</h2>
       <ul>
         <li>Données locales : jusqu’à suppression par vous ou effacement du navigateur.</li>
-        <li>Session Google : durée du jeton Google (stockage local).</li>
+        <li>Session Abel : jusqu’à 90 jours d’inactivité (renouvelée à chaque usage), ou jusqu’à déconnexion / suppression du compte.</li>
         <li>Données serveur : tant que le compte Google reste lié, ou jusqu’à suppression via Profil.</li>
         <li>Cache horoscope : 24 h dans le navigateur.</li>
       </ul>

@@ -13,11 +13,11 @@ import {
   GOOGLE_CLIENT_ID,
   GOOGLE_CREDENTIALS_URL,
   type GoogleUser,
+  completeGoogleSignIn,
   readGoogleToken,
   readGoogleUser,
   renderGoogleButton,
   signOutGoogle,
-  writeGoogleSession,
 } from '@/lib/google';
 import { deleteRemoteAccount, downloadJson, exportLocalData, wipeLocalData } from '@/lib/privacy';
 import { LEGAL_ROUTES } from '@/lib/site';
@@ -112,7 +112,10 @@ export function ProfilePage() {
   }, [sharing?.pendingInvitesCount]);
 
   useEffect(() => {
-    setHasToken(Boolean(readGoogleToken()));
+    const onAuth = () => setHasToken(Boolean(readGoogleToken()));
+    onAuth();
+    window.addEventListener('abel-auth', onAuth);
+    return () => window.removeEventListener('abel-auth', onAuth);
   }, [syncState]);
 
   useEffect(() => {
@@ -122,7 +125,7 @@ export function ProfilePage() {
     setGoogleError('');
     renderGoogleButton(buttonHost.current, async (next, credential) => {
       if (!hasLegalConsent()) return;
-      writeGoogleSession(next, credential);
+      await completeGoogleSignIn(next, credential);
       setUser(next);
       setHasToken(true);
       const id = babyIdRef.current;

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
-import { readGoogleToken } from '@/lib/google';
+import { ensureAbelSession, readGoogleToken } from '@/lib/google';
 import { fetchSharing } from '@/lib/sharing';
 import { pullFromServer, schedulePull, scheduleSync } from '@/lib/sync';
 
@@ -57,6 +57,7 @@ export function DbProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void (async () => {
       try {
+        if (navigator.onLine) await ensureAbelSession();
         if (readGoogleToken() && navigator.onLine) {
           const pulled = await pullFromServer();
           if (pulled) {

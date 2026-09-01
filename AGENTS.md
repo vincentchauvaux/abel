@@ -106,8 +106,9 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
 - URL : `https://mimom.be/api/` (alias legacy : `https://vps-e09ed6db.vps.ovh.net/abel/api/`)
 - Horoscope du jour : `GET /horoscope?sign=taurus` (proxy ohmanda / viewbits, traduction FR, repli local par jour)
-- Suppression compte : `DELETE /account` (auth Google, soft-delete toutes les données liées)
-- Auth : jeton Google Identity Services (même Client ID que le front)
+- Session : `POST /session` (échange jeton Google → session Abel 90 j) ; `DELETE /session` (déconnexion)
+- Suppression compte : `DELETE /account` (auth, soft-delete toutes les données liées)
+- Auth : Google Identity Services pour se connecter ; le VPS échange le jeton Google (1 h) contre une **session Abel** (`POST /session`, 90 jours glissants). `DELETE /session` à la déconnexion.
 - **Source de vérité** : PostgreSQL sur le VPS quand Google est connecté. IndexedDB = cache hors ligne.
 - `GET /sync` : télécharge le snapshot complet ; `POST /sync` : envoie les modifications en attente puis renvoie le snapshot.
 - **Co-parent** : `GET /sharing`, `POST /invites`, `POST /invites/:id/accept|decline`, `DELETE /invites/:id` — invitation par e-mail Google, acceptation dans Profil, accès sync identique (max 2 personnes).
@@ -118,7 +119,7 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 
 Déploiement : `GOOGLE_CLIENT_ID=... deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, Postgres, PM2, Nginx). Snippet : `deploy/nginx-abel.conf.example` (déclarer `limit_req_zone` dans `http {}`).
 
-La session Google est stockée localement. Sans jeton valide, l’app continue hors ligne. Sur Profil : rien d’alarmant si la sync est OK ; bouton Google de reconnexion seulement si le jeton a expiré.
+La session Abel est stockée localement (pas le jeton Google, trop court). Sans session valide, l’app continue hors ligne. Sur Profil : rien d’alarmant si la sync est OK ; bouton Google de reconnexion seulement si la session a expiré (90 jours sans usage) ou a été révoquée.
 
 ## Légal et confidentialité
 
@@ -138,14 +139,14 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 - Invitation depuis **Profil → Co-parent** par l’e-mail Google du co-parent (valable 7 jours).
 - L’invité voit l’invitation dans son **Profil** (badge sur l’onglet) une fois connecté avec ce compte.
 - **Droits égaux** : saisie, sync, lecture pour les deux (1 propriétaire + 1 co-parent max).
-- Tables VPS : `baby_members`, `baby_invites` ; accès sync via membership, pas seulement `babies.user_id`.
+- Tables VPS : `baby_members`, `baby_invites`, `auth_sessions` ; accès sync via membership, pas seulement `babies.user_id`.
 
 ## Sécurité
 
 - API en écoute `127.0.0.1` uniquement, derrière Nginx HTTPS.
 - CORS restreint aux origines Abel.
-- Auth Google obligatoire pour `/sync`, `/sharing`, `/invites` et `DELETE /account`.
-- Rate limiting API (`/horoscope`, `/sync`, `/sharing`, `/invites`, `/account`) + Nginx `limit_req`.
+- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/invites` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
+- Rate limiting API (`/horoscope`, `/sync`, `/sharing`, `/invites`, `/account`, `/session`) + Nginx `limit_req`.
 - En-têtes : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (nginx).
 - `VITE_GOOGLE_CLIENT_ID` via secrets — pas de Client ID en dur dans le code.
 - Pas de cookies de traçage tiers.

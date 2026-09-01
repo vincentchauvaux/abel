@@ -1,7 +1,7 @@
 import { db } from '@/db/client';
 import { SYNC_TABLES } from '@/db/api';
 import { clearLegalConsent } from '@/lib/consent';
-import { readGoogleToken, signOutGoogle, SYNC_URL } from '@/lib/google';
+import { clearAuthToken, readGoogleToken, signOutGoogle, SYNC_URL } from '@/lib/google';
 
 const HOROSCOPE_CACHE_PREFIX = 'abel-horoscope-';
 
@@ -52,7 +52,10 @@ export async function deleteRemoteAccount(): Promise<
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (res.status === 401) return 'auth';
+    if (res.status === 401) {
+      clearAuthToken();
+      return 'auth';
+    }
     if (!res.ok) return 'error';
     const body = (await res.json()) as { action?: 'deleted' | 'left' | 'none' };
     return { ok: true, action: body.action ?? 'deleted' };
