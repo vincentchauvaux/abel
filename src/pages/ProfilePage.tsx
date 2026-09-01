@@ -64,8 +64,8 @@ export function ProfilePage() {
   const babyIdRef = useRef(baby?.id);
   babyIdRef.current = baby?.id;
   const needsReconnect = Boolean(user && (!hasToken || syncState === 'auth'));
-  const syncOk = syncState === 'ok' && !needsReconnect;
-  const syncTone = syncOk ? 'success' : 'muted';
+  const showSyncActions =
+    !needsReconnect && (syncState === 'error' || syncState === 'offline' || syncState === 'rate_limit');
 
   const loadSharing = async () => {
     if (!readGoogleToken()) {
@@ -288,24 +288,29 @@ export function ProfilePage() {
                   Tes données sont centralisées sur le VPS. L’appareil garde un cache pour le hors ligne.
                 </p>
                 {SYNC_LABEL[syncState] ? <p className="muted">{SYNC_LABEL[syncState]}</p> : null}
-                <Button tone={syncTone} onClick={() => void runSync()}>
-                  Synchroniser maintenant
-                </Button>
-                <Button
-                  tone={syncTone}
-                  disabled={busy !== ''}
-                  onClick={async () => {
-                    setBusy('pull');
-                    try {
-                      const ok = await pullFromServer();
-                      if (!ok) setGoogleError('Rien à récupérer ou session expirée.');
-                      else setGoogleError('');
-                    } finally {
-                      setBusy('');
-                    }
-                  }}>
-                  {busy === 'pull' ? 'Récupération…' : 'Récupérer depuis le VPS'}
-                </Button>
+                {showSyncActions ? (
+                  <>
+                    <Button tone="muted" onClick={() => void runSync()}>
+                      Synchroniser maintenant
+                    </Button>
+                    <Button
+                      tone="muted"
+                      disabled={busy !== ''}
+                      onClick={async () => {
+                        setBusy('pull');
+                        try {
+                          const ok = await pullFromServer();
+                          if (!ok) setGoogleError('Rien à récupérer ou session expirée.');
+                          else setGoogleError('');
+                        } finally {
+                          setBusy('');
+                        }
+                      }}>
+                      {busy === 'pull' ? 'Récupération…' : 'Récupérer depuis le VPS'}
+                    </Button>
+                    {googleError ? <p className="muted">{googleError}</p> : null}
+                  </>
+                ) : null}
               </>
             )}
             <Button

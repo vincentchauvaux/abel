@@ -112,7 +112,7 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - **Source de vérité** : PostgreSQL sur le VPS quand Google est connecté. IndexedDB = cache hors ligne.
 - `GET /sync` : télécharge le snapshot complet ; `POST /sync` : envoie les modifications en attente puis renvoie le snapshot.
 - **Co-parent** : `GET /sharing`, `POST /invites`, `POST /invites/:id/accept|decline`, `DELETE /invites/:id` — invitation par e-mail Google, acceptation dans Profil, accès sync identique (max 2 personnes).
-- Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : bouton **Récupérer depuis le VPS**.
+- Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : boutons **Synchroniser maintenant** / **Récupérer depuis le VPS** seulement si la sync a échoué, est hors ligne ou limitée.
 - Un bébé par compte Google ; un profil vide local ne remplace pas les données serveur.
 - Offline-first : saisie locale immédiate, envoi dès réseau + session Google.
 - **Co-parent temps réel (onglet ouvert)** : push auto ~2 s après chaque changement (~0,6 s pour start/stop chrono) ; pull VPS toutes les 20 s + au retour sur l’onglet, pour que l’autre parent voie tétée/sommeil/tire-lait en cours.
