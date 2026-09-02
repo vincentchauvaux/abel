@@ -3,8 +3,49 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
 import { ensureAbelSession, readGoogleToken } from '@/lib/google';
-import { fetchSharing } from '@/lib/sharing';
+import { fetchSharing, type SharingMember, type SharingRole } from '@/lib/sharing';
 import { pullFromServer, schedulePull, scheduleSync } from '@/lib/sync';
+
+const SHARING_META_KEY = 'abel-sharing-meta';
+
+export type SharingActor = {
+  userId: string;
+  name: string;
+  picture: string;
+};
+
+type SharingMeta = {
+  role: SharingRole | null;
+  members: SharingActor[];
+};
+
+function actorsFromMembers(members: SharingMember[]): SharingActor[] {
+  return members
+    .filter((row) => row.userId)
+    .map((row) => ({
+      userId: row.userId,
+      name: row.name || row.email || row.label || '',
+      picture: row.picture || '',
+    }));
+}
+
+function readSharingMeta(): SharingMeta {
+  try {
+    const raw = localStorage.getItem(SHARING_META_KEY);
+    if (!raw) return { role: null, members: [] };
+    const parsed = JSON.parse(raw) as SharingMeta;
+    return {
+      role: parsed.role === 'owner' || parsed.role === 'member' || parsed.role === 'guardian' ? parsed.role : null,
+      members: Array.isArray(parsed.members) ? parsed.members.filter((row) => row?.userId) : [],
+    };
+  } catch {
+    return { role: null, members: [] };
+  }
+}
+
+function writeSharingMeta(meta: SharingMeta) {
+  localStorage.setItem(SHARING_META_KEY, JSON.stringify(meta));
+}
 
 function sameBaby(a: Baby | null, b: Baby | null): boolean {
   if (a === b) return true;
@@ -24,6 +65,8 @@ type DbContextValue = {
   tick: number;
   ready: boolean;
   pendingInvitesCount: number;
+  sharingRole: SharingRole | null;
+  sharingMembers: SharingActor[];
   refreshSharing: () => Promise<void>;
 };
 
@@ -32,26 +75,44 @@ const DbContext = createContext<DbContextValue>({
   tick: 0,
   ready: false,
   pendingInvitesCount: 0,
+  sharingRole: null,
+  sharingMembers: [],
   refreshSharing: async () => {},
 });
 
 export function DbProvider({ children }: { children: ReactNode }) {
+  const cached = readSharingMeta();
   const [baby, setBaby] = useState<Baby | null>(null);
   const [tick, setTick] = useState(0);
   const [ready, setReady] = useState(false);
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
+  const [sharingRole, setSharingRole] = useState<SharingRole | null>(cached.role);
+  const [sharingMembers, setSharingMembers] = useState<SharingActor[]>(cached.members);
+
+  const applyMeta = (meta: SharingMeta) => {
+    setSharingRole(meta.role);
+    setSharingMembers(meta.members);
+    writeSharingMeta(meta);
+  };
 
   const refreshSharing = async () => {
     if (!readGoogleToken()) {
       setPendingInvitesCount(0);
+      applyMeta({ role: null, members: [] });
       return;
     }
     const state = await fetchSharing();
-    if (state === 'auth' || state === 'error' || state === 'rate_limit' || 'error' in state) {
+    if (state === 'auth') {
+      setPendingInvitesCount(0);
+      applyMeta({ role: null, members: [] });
+      return;
+    }
+    if (state === 'error' || state === 'rate_limit' || 'error' in state) {
       setPendingInvitesCount(0);
       return;
     }
     setPendingInvitesCount(state.pendingInvitesCount);
+    applyMeta({ role: state.role, members: actorsFromMembers(state.members) });
   };
 
   useEffect(() => {
@@ -126,7 +187,8 @@ export function DbProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <DbContext.Provider value={{ baby, tick, ready, pendingInvitesCount, refreshSharing }}>
+    <DbContext.Provider
+      value={{ baby, tick, ready, pendingInvitesCount, sharingRole, sharingMembers, refreshSharing }}>
       {children}
     </DbContext.Provider>
   );

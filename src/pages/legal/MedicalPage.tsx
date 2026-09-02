@@ -29,8 +29,8 @@ export function MedicalPage() {
 
       <h2>Température et croissance</h2>
       <p>
-        Les courbes et valeurs sont un historique. En cas de fièvre, perte de poids ou inquiétude, contactez les
-        urgences ou votre médecin selon la gravité.
+        Les courbes et valeurs (dont l’IMC indicatif) sont un historique personnel, pas un diagnostic. En cas de
+        fièvre, perte de poids ou inquiétude, contactez les urgences ou votre médecin selon la gravité.
       </p>
 
       <h2>Horoscope et lectures traditionnelles</h2>

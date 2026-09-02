@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { ModuleHeader } from '@/components/Layout';
+import { GrowthChart } from '@/components/GrowthChart';
 import { Button, Card, Field } from '@/components/ui';
 import { addMeasurement, listMeasurements } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
@@ -24,6 +25,11 @@ export function GrowthPage() {
   return (
     <div className="screen">
       <ModuleHeader title="Croissance" toolId="growth" />
+      <GrowthChart
+        weights={rows.filter((row) => row.type === 'WEIGHT')}
+        heights={rows.filter((row) => row.type === 'HEIGHT')}
+        bornOn={baby?.bornOn}
+      />
       {TYPES.map((type) => {
         const list = rows.filter((row) => row.type === type);
         return (

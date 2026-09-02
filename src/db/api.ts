@@ -20,6 +20,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { nowIso } from '@/lib/dates';
+import { readGoogleUser } from '@/lib/google';
 import { measurementUnit } from '@/lib/labels';
 
 function stamp() {
@@ -30,6 +31,10 @@ function stamp() {
     deletedAt: null as string | null,
     syncStatus: 'pending' as const,
   };
+}
+
+function actorStamp() {
+  return { createdBy: readGoogleUser()?.sub ?? null };
 }
 
 function touch() {
@@ -101,6 +106,7 @@ export async function startFeeding(babyId: string, side: Side) {
     babyId,
     startedAt: now,
     endedAt: null,
+    ...actorStamp(),
     ...stamp(),
   });
   await db.feedingSegments.add({
@@ -122,6 +128,7 @@ export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
     babyId,
     startedAt: at,
     endedAt: at,
+    ...actorStamp(),
     ...stamp(),
   });
   await db.feedingSegments.add({
@@ -171,6 +178,7 @@ export async function addDiaper(babyId: string, kind: DiaperKind, occurredAt = n
     babyId,
     kind,
     occurredAt,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -200,6 +208,7 @@ export async function startPumping(babyId: string) {
     remainingMl: null,
     durationMinutes: null,
     side: null,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDbUrgent();
@@ -224,6 +233,7 @@ export async function addPumping(
     remainingMl: values.amountMl,
     durationMinutes: values.durationMinutes ?? null,
     side: values.side ?? null,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -296,6 +306,7 @@ export async function addBottle(
       amountMl,
       fedAt,
       pumpingSessionId,
+      ...actorStamp(),
       ...stamp(),
     });
   });
@@ -357,6 +368,7 @@ export async function addMeasurement(babyId: string, type: MeasurementType, valu
     value,
     unit: measurementUnit[type],
     measuredAt: nowIso(),
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -468,6 +480,7 @@ export async function addSolidFood(babyId: string, food: string, eatenAt = nowIs
     babyId,
     food: food.trim(),
     eatenAt,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -495,6 +508,7 @@ export async function addSupplement(babyId: string, name: string, givenAt = nowI
     babyId,
     name: name.trim(),
     givenAt,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -533,6 +547,7 @@ export async function startSleep(babyId: string, startedAt = nowIso()) {
     babyId,
     startedAt,
     endedAt: null,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDbUrgent();
@@ -556,6 +571,7 @@ export async function addTemperature(babyId: string, celsius: number, measuredAt
     babyId,
     celsius,
     measuredAt,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -590,6 +606,7 @@ export async function addNote(
     notedAt,
     isTodo,
     doneAt: null,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
@@ -705,6 +722,7 @@ export async function addMeasurementAt(babyId: string, type: MeasurementType, va
     value,
     unit: measurementUnit[type],
     measuredAt,
+    ...actorStamp(),
     ...stamp(),
   });
   notifyDb();

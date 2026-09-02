@@ -1,7 +1,11 @@
 import { clearAuthToken, readGoogleToken, SYNC_URL } from '@/lib/google';
 
+export type SharingRole = 'owner' | 'member' | 'guardian';
+export type InviteRole = 'member' | 'guardian';
+
 export type SharingMember = {
-  role: 'owner' | 'member';
+  role: SharingRole;
+  userId: string;
   isYou: boolean;
   label: string;
   email?: string;
@@ -13,19 +17,21 @@ export type SharingInvite = {
   id: string;
   email?: string;
   status?: string;
+  role?: InviteRole;
   expiresAt: string;
 };
 
 export type ReceivedInvite = {
   id: string;
   babyName: string;
+  role?: InviteRole;
   expiresAt: string;
 };
 
 export type SharingState = {
   babyId: string | null;
   babyName: string | null;
-  role: 'owner' | 'member' | null;
+  role: SharingRole | null;
   members: SharingMember[];
   sentInvites: SharingInvite[];
   receivedInvites: ReceivedInvite[];
@@ -69,10 +75,13 @@ export async function fetchSharing(): Promise<ApiResult<SharingState>> {
   return sharingFetch<SharingState>('/sharing');
 }
 
-export async function createInvite(email: string): Promise<ApiResult<{ ok: true; id: string }>> {
+export async function createInvite(
+  email: string,
+  role: InviteRole = 'member',
+): Promise<ApiResult<{ ok: true; id: string }>> {
   return sharingFetch('/invites', {
     method: 'POST',
-    body: JSON.stringify({ email }),
+    body: JSON.stringify({ email, role }),
   });
 }
 
@@ -88,10 +97,15 @@ export async function cancelInvite(id: string): Promise<ApiResult<{ ok: true }>>
   return sharingFetch(`/invites/${id}`, { method: 'DELETE' });
 }
 
+export async function removeGuardian(userId: string): Promise<ApiResult<{ ok: true }>> {
+  return sharingFetch(`/members/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+
 export const INVITE_ERROR_LABEL: Record<string, string> = {
   invalid_email: 'Adresse e-mail invalide.',
   self_invite: 'Tu ne peux pas t’inviter toi-même.',
   max_members: 'Ce bébé a déjà un co-parent.',
+  max_guardians: 'Ce bébé a déjà le maximum de gardiens.',
   already_invited: 'Une invitation est déjà en attente pour cet e-mail.',
   has_own_baby: 'Tu as déjà un profil bébé sur ce compte. Utilise un autre compte Google.',
   already_member: 'Tu fais déjà partie de ce bébé.',
@@ -99,3 +113,13 @@ export const INVITE_ERROR_LABEL: Record<string, string> = {
   forbidden: 'Action non autorisée.',
   not_found: 'Invitation introuvable.',
 };
+
+export function inviteRoleOf(invite: { role?: string } | null | undefined): InviteRole {
+  return invite?.role === 'guardian' ? 'guardian' : 'member';
+}
+
+export function memberRoleTitle(role: SharingRole): string {
+  if (role === 'owner') return 'Propriétaire';
+  if (role === 'guardian') return 'Gardien';
+  return 'Co-parent';
+}

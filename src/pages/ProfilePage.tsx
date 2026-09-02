@@ -28,7 +28,12 @@ import {
   createInvite,
   declineInvite,
   fetchSharing,
+  inviteRoleOf,
   INVITE_ERROR_LABEL,
+  memberRoleTitle,
+  removeGuardian,
+  type InviteRole,
+  type SharingMember,
   type SharingState,
 } from '@/lib/sharing';
 import { runSync, pullFromServer, subscribeSync, type SyncState } from '@/lib/sync';
@@ -50,6 +55,51 @@ function emailFontSize(email: string) {
   return undefined;
 }
 
+function SharingPerson({
+  member,
+  onRemove,
+  busy,
+}: {
+  member: SharingMember;
+  onRemove?: () => void;
+  busy?: boolean;
+}) {
+  const title = member.isYou ? member.name || 'Vous' : member.name || member.email || member.label;
+  return (
+    <div className="google-user sharing-member">
+      {member.picture ? (
+        <img src={member.picture} alt="" />
+      ) : (
+        <span className="sharing-member-avatar" aria-hidden>
+          {(title || '?').slice(0, 1).toUpperCase()}
+        </span>
+      )}
+      <div>
+        <strong>
+          {title}
+          {member.isYou ? ' (vous)' : ''}
+        </strong>
+        {member.email ? (
+          <p className="muted google-user-email" style={{ fontSize: emailFontSize(member.email) }}>
+            {member.email}
+          </p>
+        ) : null}
+        <p className="muted sharing-member-role">{memberRoleTitle(member.role)}</p>
+      </div>
+      {onRemove ? (
+        <button
+          type="button"
+          className="icon-btn"
+          aria-label="Retirer le gardien"
+          disabled={busy}
+          onClick={onRemove}>
+          <X size={18} aria-hidden />
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export function ProfilePage() {
   const { baby, refreshSharing } = useDb();
   const [user, setUser] = useState<GoogleUser | null>(readGoogleUser);
@@ -61,6 +111,7 @@ export function ProfilePage() {
   const [sharing, setSharing] = useState<SharingState | null>(null);
   const [sharingError, setSharingError] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [guardianEmail, setGuardianEmail] = useState('');
   const buttonHost = useRef<HTMLDivElement>(null);
   const babyIdRef = useRef(baby?.id);
   babyIdRef.current = baby?.id;
@@ -107,10 +158,14 @@ export function ProfilePage() {
   }, [user, hasToken, needsReconnect, baby?.id]);
 
   useEffect(() => {
-    if (sharing?.pendingInvitesCount) {
+    const received = sharing?.receivedInvites ?? [];
+    if (!received.length) return;
+    if (received.some((invite) => inviteRoleOf(invite) === 'member')) {
       setOpenSection('coparent');
+    } else {
+      setOpenSection('gardien');
     }
-  }, [sharing?.pendingInvitesCount]);
+  }, [sharing?.pendingInvitesCount, sharing?.receivedInvites]);
 
   useEffect(() => {
     const onAuth = () => setHasToken(Boolean(readGoogleToken()));
@@ -168,11 +223,11 @@ export function ProfilePage() {
   };
 
   const wipeRemote = async () => {
-    const isMember = sharing?.role === 'member';
+    const isShared = sharing?.role === 'member' || sharing?.role === 'guardian';
     if (
       !window.confirm(
-        isMember
-          ? 'Quitter le bébé partagé sur le VPS ? Les données restent accessibles pour l’autre parent. Les données locales sur cet appareil ne seront pas effacées.'
+        isShared
+          ? 'Quitter le bébé partagé sur le VPS ? Les données restent accessibles pour les autres. Les données locales sur cet appareil ne seront pas effacées.'
           : 'Supprimer toutes les données du bébé sur le VPS pour tout le monde ? Les données locales sur cet appareil ne seront pas effacées automatiquement.',
       )
     ) {
@@ -198,12 +253,12 @@ export function ProfilePage() {
     }
   };
 
-  const sendInvite = async () => {
-    if (!inviteEmail.trim()) return;
+  const sendInvite = async (email: string, role: InviteRole, clear: () => void) => {
+    if (!email.trim()) return;
     setBusy('invite');
     setSharingError('');
     try {
-      const result = await createInvite(inviteEmail.trim());
+      const result = await createInvite(email.trim(), role);
       if (result === 'auth') {
         setSharingError('Session expirée.');
         return;
@@ -220,7 +275,7 @@ export function ProfilePage() {
         setSharingError(INVITE_ERROR_LABEL[result.error] ?? 'Invitation impossible.');
         return;
       }
-      setInviteEmail('');
+      clear();
       await loadSharing();
     } finally {
       setBusy('');
@@ -253,6 +308,45 @@ export function ProfilePage() {
       setBusy('');
     }
   };
+
+  const kickGuardian = async (userId: string) => {
+    setBusy('remove');
+    setSharingError('');
+    try {
+      const result = await removeGuardian(userId);
+      if (result === 'auth') {
+        setSharingError('Session expirée.');
+        return;
+      }
+      if (result === 'rate_limit' || result === 'error') {
+        setSharingError('Action impossible pour le moment.');
+        return;
+      }
+      if (typeof result === 'object' && 'error' in result) {
+        setSharingError(INVITE_ERROR_LABEL[result.error] ?? 'Action impossible.');
+        return;
+      }
+      await loadSharing();
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const receivedCoparent = (sharing?.receivedInvites ?? []).filter((invite) => inviteRoleOf(invite) === 'member');
+  const receivedGuardian = (sharing?.receivedInvites ?? []).filter((invite) => inviteRoleOf(invite) === 'guardian');
+  const pendingCoparentInvites = (sharing?.sentInvites ?? []).filter(
+    (row) => row.status === 'pending' && inviteRoleOf(row) === 'member',
+  );
+  const pendingGuardianInvites = (sharing?.sentInvites ?? []).filter(
+    (row) => row.status === 'pending' && inviteRoleOf(row) === 'guardian',
+  );
+  const familyMembers = (sharing?.members ?? []).filter((row) => row.role === 'owner' || row.role === 'member');
+  const guardians = (sharing?.members ?? []).filter((row) => row.role === 'guardian');
+  const hasCoparent = familyMembers.some((row) => row.role === 'member');
+  const canInviteCoparent = sharing?.role === 'owner' && !hasCoparent;
+  const canInviteGuardian = sharing?.role === 'owner' || sharing?.role === 'member';
+  const sharingRoleLabel =
+    sharing?.role === 'guardian' ? ' (gardien)' : sharing?.role === 'member' ? ' (co-parent)' : ' (propriétaire)';
 
   return (
     <div className="screen">
@@ -369,22 +463,22 @@ export function ProfilePage() {
         open={openSection === 'coparent'}
         onToggle={toggleSection}
         action={
-          sharing?.pendingInvitesCount ? (
-            <span className="dash-notes-badge">{sharing.pendingInvitesCount} reçue(s)</span>
+          receivedCoparent.length ? (
+            <span className="dash-notes-badge">{receivedCoparent.length} reçue(s)</span>
           ) : null
         }>
         {!user || needsReconnect ? (
           <p className="muted">Connecte-toi avec Google pour inviter un co-parent ou accepter une invitation.</p>
         ) : (
           <>
-            {sharingError ? <p className="muted">{sharingError}</p> : null}
-            {sharing?.receivedInvites.length ? (
+            {sharingError && openSection === 'coparent' ? <p className="muted">{sharingError}</p> : null}
+            {receivedCoparent.length ? (
               <div className="sharing-block">
                 <p className="goal-label">Invitations reçues</p>
-                {sharing.receivedInvites.map((invite) => (
+                {receivedCoparent.map((invite) => (
                   <div key={invite.id} className="sharing-invite-card">
                     <p>
-                      Invitation à suivre <strong>{invite.babyName}</strong>
+                      Invitation à suivre <strong>{invite.babyName}</strong> en co-parent
                     </p>
                     <div className="row">
                       <Button disabled={busy !== ''} onClick={() => void respondInvite(invite.id, 'accept')}>
@@ -402,43 +496,17 @@ export function ProfilePage() {
               <>
                 <p className="muted">
                   Bébé partagé : <strong>{sharing.babyName}</strong>
-                  {sharing.role === 'member' ? ' (co-parent)' : ' (propriétaire)'}
+                  {sharingRoleLabel}
                 </p>
-                {sharing.members.length ? (
+                {familyMembers.length ? (
                   <div className="sharing-block">
                     <p className="goal-label">Personnes avec accès</p>
-                    {sharing.members.map((member, index) => {
-                      const title = member.isYou
-                        ? member.name || 'Vous'
-                        : member.name || member.email || member.label;
-                      const role = member.role === 'owner' ? 'Propriétaire' : 'Co-parent';
-                      return (
-                        <div key={`${member.email || member.label}-${index}`} className="google-user sharing-member">
-                          {member.picture ? (
-                            <img src={member.picture} alt="" />
-                          ) : (
-                            <span className="sharing-member-avatar" aria-hidden>
-                              {(title || '?').slice(0, 1).toUpperCase()}
-                            </span>
-                          )}
-                          <div>
-                            <strong>
-                              {title}
-                              {member.isYou ? ' (vous)' : ''}
-                            </strong>
-                            {member.email ? (
-                              <p className="muted google-user-email" style={{ fontSize: emailFontSize(member.email) }}>
-                                {member.email}
-                              </p>
-                            ) : null}
-                            <p className="muted sharing-member-role">{role}</p>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {familyMembers.map((member, index) => (
+                      <SharingPerson key={`${member.userId || member.email || index}`} member={member} />
+                    ))}
                   </div>
                 ) : null}
-                {sharing.members.length < 2 ? (
+                {canInviteCoparent ? (
                   <div className="sharing-block">
                     <p className="goal-label">Inviter par e-mail Google</p>
                     <Field
@@ -451,42 +519,156 @@ export function ProfilePage() {
                     <p className="muted">
                       La personne doit se connecter avec ce compte Google. L’invitation apparaît dans son Profil.
                     </p>
-                    <Button disabled={busy !== '' || !inviteEmail.trim()} onClick={() => void sendInvite()}>
+                    <Button
+                      disabled={busy !== '' || !inviteEmail.trim()}
+                      onClick={() => void sendInvite(inviteEmail, 'member', () => setInviteEmail(''))}>
                       {busy === 'invite' ? 'Envoi…' : 'Envoyer l’invitation'}
                     </Button>
                   </div>
-                ) : (
+                ) : sharing?.role === 'owner' && hasCoparent ? (
                   <p className="muted">Ce bébé est déjà partagé avec un co-parent.</p>
-                )}
-                {sharing.sentInvites.some((row) => row.status === 'pending') ? (
+                ) : null}
+                {pendingCoparentInvites.length ? (
                   <div className="sharing-block">
                     <p className="goal-label">Invitations envoyées</p>
-                    {sharing.sentInvites
-                      .filter((row) => row.status === 'pending')
-                      .map((invite) => (
-                        <div key={invite.id} className="sharing-invite-row">
-                          <span className="muted sharing-invite-email">{invite.email}</span>
-                          <button
-                            type="button"
-                            className="icon-btn"
-                            aria-label="Annuler l’invitation"
-                            disabled={busy !== ''}
-                            onClick={async () => {
-                              setBusy('cancel');
-                              await cancelInvite(invite.id);
-                              await loadSharing();
-                              setBusy('');
-                            }}>
-                            <X size={18} aria-hidden />
-                          </button>
-                        </div>
-                      ))}
+                    {pendingCoparentInvites.map((invite) => (
+                      <div key={invite.id} className="sharing-invite-row">
+                        <span className="muted sharing-invite-email">{invite.email}</span>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label="Annuler l’invitation"
+                          disabled={busy !== ''}
+                          onClick={async () => {
+                            setBusy('cancel');
+                            await cancelInvite(invite.id);
+                            await loadSharing();
+                            setBusy('');
+                          }}>
+                          <X size={18} aria-hidden />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 ) : null}
               </>
-            ) : !sharing?.receivedInvites.length ? (
+            ) : !receivedCoparent.length ? (
               <p className="muted">
                 Synchronise d’abord un bébé depuis cette page, puis invite ton co-parent par son e-mail Google.
+              </p>
+            ) : null}
+          </>
+        )}
+      </AccordionSection>
+      <AccordionSection
+        id="gardien"
+        title="Gardien"
+        open={openSection === 'gardien'}
+        onToggle={toggleSection}
+        action={
+          receivedGuardian.length ? (
+            <span className="dash-notes-badge">{receivedGuardian.length} reçue(s)</span>
+          ) : null
+        }>
+        {!user || needsReconnect ? (
+          <p className="muted">Connecte-toi avec Google pour inviter un gardien ou accepter une invitation.</p>
+        ) : (
+          <>
+            {sharingError && openSection === 'gardien' ? <p className="muted">{sharingError}</p> : null}
+            {receivedGuardian.length ? (
+              <div className="sharing-block">
+                <p className="goal-label">Invitations reçues</p>
+                {receivedGuardian.map((invite) => (
+                  <div key={invite.id} className="sharing-invite-card">
+                    <p>
+                      Invitation à garder <strong>{invite.babyName}</strong>
+                    </p>
+                    <p className="muted">Saisie des repas et couches, sans modifier la fiche Bébé.</p>
+                    <div className="row">
+                      <Button disabled={busy !== ''} onClick={() => void respondInvite(invite.id, 'accept')}>
+                        Accepter
+                      </Button>
+                      <Button tone="muted" disabled={busy !== ''} onClick={() => void respondInvite(invite.id, 'decline')}>
+                        Refuser
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            {sharing?.babyId ? (
+              <>
+                {sharing.role === 'guardian' ? (
+                  <p className="muted">
+                    Tu es gardien de <strong>{sharing.babyName}</strong>. Tu peux noter des entrées, pas modifier
+                    l’identité ni les objectifs.
+                  </p>
+                ) : (
+                  <p className="muted">
+                    Un gardien (nounou, grands-parents…) note les tétées et couches. Il ne peut pas changer la fiche
+                    Bébé.
+                  </p>
+                )}
+                {guardians.length ? (
+                  <div className="sharing-block">
+                    <p className="goal-label">Gardiens</p>
+                    {guardians.map((member, index) => (
+                      <SharingPerson
+                        key={`${member.userId || member.email || index}`}
+                        member={member}
+                        busy={busy !== ''}
+                        onRemove={
+                          canInviteGuardian && !member.isYou ? () => void kickGuardian(member.userId) : undefined
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {canInviteGuardian ? (
+                  <div className="sharing-block">
+                    <p className="goal-label">Inviter par e-mail Google</p>
+                    <Field
+                      label="E-mail du gardien"
+                      value={guardianEmail}
+                      onChange={setGuardianEmail}
+                      placeholder="gardien@exemple.com"
+                      inputMode="text"
+                    />
+                    <p className="muted">Jusqu’à 5 gardiens. Même compte Google que pour se connecter à Mimom.</p>
+                    <Button
+                      disabled={busy !== '' || !guardianEmail.trim()}
+                      onClick={() => void sendInvite(guardianEmail, 'guardian', () => setGuardianEmail(''))}>
+                      {busy === 'invite' ? 'Envoi…' : 'Envoyer l’invitation'}
+                    </Button>
+                  </div>
+                ) : null}
+                {pendingGuardianInvites.length > 0 && canInviteGuardian ? (
+                  <div className="sharing-block">
+                    <p className="goal-label">Invitations envoyées</p>
+                    {pendingGuardianInvites.map((invite) => (
+                      <div key={invite.id} className="sharing-invite-row">
+                        <span className="muted sharing-invite-email">{invite.email}</span>
+                        <button
+                          type="button"
+                          className="icon-btn"
+                          aria-label="Annuler l’invitation"
+                          disabled={busy !== ''}
+                          onClick={async () => {
+                            setBusy('cancel');
+                            await cancelInvite(invite.id);
+                            await loadSharing();
+                            setBusy('');
+                          }}>
+                          <X size={18} aria-hidden />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+              </>
+            ) : !receivedGuardian.length ? (
+              <p className="muted">
+                Synchronise d’abord un bébé, puis invite un gardien par son e-mail Google.
               </p>
             ) : null}
           </>
@@ -508,7 +690,7 @@ export function ProfilePage() {
           <Button tone="danger" disabled={busy !== '' || needsReconnect} onClick={() => void wipeRemote()}>
             {busy === 'remote'
               ? 'Traitement…'
-              : sharing?.role === 'member'
+              : sharing?.role === 'member' || sharing?.role === 'guardian'
                 ? 'Quitter le bébé partagé (VPS)'
                 : 'Supprimer le bébé sur le VPS'}
           </Button>

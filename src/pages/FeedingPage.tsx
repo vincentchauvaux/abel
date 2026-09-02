@@ -24,7 +24,7 @@ import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
 
 export function FeedingPage() {
-  const { baby, tick } = useDb();
+  const { baby, tick, sharingRole } = useDb();
   const [sessions, setSessions] = useState<FeedingSession[]>([]);
   const [segments, setSegments] = useState<FeedingSegment[]>([]);
   const [delay, setDelay] = useState(0);
@@ -168,6 +168,7 @@ export function FeedingPage() {
           );
         })}
       </Card>
+      {sharingRole !== 'guardian' ? (
       <Card>
         <h2>Rappel après la dernière tétée</h2>
         <p className="muted">Même réglage que sur Bébé. S’affiche si Abel reste ouvert dans le navigateur.</p>
@@ -194,6 +195,7 @@ export function FeedingPage() {
           OK
         </Button>
       </Card>
+      ) : null}
     </div>
   );
 }

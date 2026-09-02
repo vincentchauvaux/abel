@@ -63,6 +63,7 @@ const TABLES = {
       babyId: 'baby_id',
       startedAt: 'started_at',
       endedAt: 'ended_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -90,6 +91,7 @@ const TABLES = {
       amountMl: 'amount_ml',
       fedAt: 'fed_at',
       pumpingSessionId: 'pumping_session_id',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -102,6 +104,7 @@ const TABLES = {
       babyId: 'baby_id',
       kind: 'kind',
       occurredAt: 'occurred_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -117,6 +120,7 @@ const TABLES = {
       remainingMl: 'remaining_ml',
       durationMinutes: 'duration_minutes',
       side: 'side',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -131,6 +135,7 @@ const TABLES = {
       value: 'value',
       unit: 'unit',
       measuredAt: 'measured_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -159,6 +164,7 @@ const TABLES = {
       babyId: 'baby_id',
       food: 'food',
       eatenAt: 'eaten_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -171,6 +177,7 @@ const TABLES = {
       babyId: 'baby_id',
       name: 'name',
       givenAt: 'given_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -183,6 +190,7 @@ const TABLES = {
       babyId: 'baby_id',
       startedAt: 'started_at',
       endedAt: 'ended_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -195,6 +203,7 @@ const TABLES = {
       babyId: 'baby_id',
       celsius: 'celsius',
       measuredAt: 'measured_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -209,6 +218,7 @@ const TABLES = {
       notedAt: 'noted_at',
       isTodo: 'is_todo',
       doneAt: 'done_at',
+      createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',
       deletedAt: 'deleted_at',
@@ -296,7 +306,8 @@ const RATE_LIMITS = {
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 const MAX_SESSIONS_PER_USER = 8;
 
-const MAX_BABY_MEMBERS = 2;
+const MAX_COPARENTS = 1;
+const MAX_GUARDIANS = 5;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 const rateBuckets = new Map();
@@ -441,7 +452,13 @@ async function readBody(req) {
 async function upsert(client, sqlTable, row) {
   const cols = Object.keys(row);
   const vals = cols.map((_, i) => `$${i + 1}`);
-  const updates = cols.filter((c) => c !== 'id').map((c) => `${c} = EXCLUDED.${c}`);
+  const updates = cols
+    .filter((c) => c !== 'id')
+    .map((c) =>
+      c === 'created_by'
+        ? `${c} = COALESCE(${sqlTable}.${c}, EXCLUDED.${c})`
+        : `${c} = EXCLUDED.${c}`,
+    );
   await client.query(
     `INSERT INTO ${sqlTable} (${cols.join(', ')}) VALUES (${vals.join(', ')})
      ON CONFLICT (id) DO UPDATE SET ${updates.join(', ')}
@@ -507,12 +524,38 @@ async function resolveBabyAccess(client, user) {
   return { babyId, role: 'owner' };
 }
 
-async function countActiveMembers(client, babyId) {
+async function countMembersByRole(client, babyId, role) {
   const { rows } = await client.query(
-    `SELECT COUNT(*)::int AS n FROM baby_members WHERE baby_id = $1 AND deleted_at IS NULL`,
-    [babyId],
+    `SELECT COUNT(*)::int AS n FROM baby_members
+     WHERE baby_id = $1 AND role = $2 AND deleted_at IS NULL`,
+    [babyId, role],
   );
   return rows[0]?.n ?? 0;
+}
+
+async function countPendingInvitesByRole(client, babyId, role) {
+  const { rows } = await client.query(
+    `SELECT COUNT(*)::int AS n FROM baby_invites
+     WHERE baby_id = $1 AND role = $2 AND status = 'pending' AND expires_at > NOW()`,
+    [babyId, role],
+  );
+  return rows[0]?.n ?? 0;
+}
+
+function parseInviteRole(value) {
+  if (value === 'guardian' || value === 'member') return value;
+  return null;
+}
+
+function memberRoleLabel(role, isYou) {
+  if (isYou) return 'Vous';
+  if (role === 'owner') return 'Propriétaire';
+  if (role === 'guardian') return 'Gardien';
+  return 'Co-parent';
+}
+
+function canManageSharing(role) {
+  return role === 'owner' || role === 'member';
 }
 
 async function expirePendingInvites(client) {
@@ -549,7 +592,7 @@ async function handleSharingGet(user) {
     const received = email
       ? (
           await client.query(
-            `SELECT i.id, i.baby_id, i.expires_at, b.name AS baby_name
+            `SELECT i.id, i.baby_id, i.expires_at, i.role, b.name AS baby_name
              FROM baby_invites i
              JOIN babies b ON b.id = i.baby_id AND b.deleted_at IS NULL
              WHERE i.invited_email = $1 AND i.status = 'pending' AND i.expires_at > NOW()
@@ -559,6 +602,7 @@ async function handleSharingGet(user) {
         ).rows.map((row) => ({
           id: row.id,
           babyName: row.baby_name,
+          role: row.role === 'guardian' ? 'guardian' : 'member',
           expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at,
         }))
       : [];
@@ -579,7 +623,7 @@ async function handleSharingGet(user) {
     const members = (
       await client.query(
         `SELECT m.role, m.user_id,
-            COALESCE(NULLIF(p.email, ''), NULLIF(s.email, ''), CASE WHEN m.role = 'member' THEN NULLIF(inv.invited_email, '') END, '') AS email,
+            COALESCE(NULLIF(p.email, ''), NULLIF(s.email, ''), CASE WHEN m.role IN ('member', 'guardian') THEN NULLIF(inv.invited_email, '') END, '') AS email,
             COALESCE(NULLIF(p.name, ''), '') AS name,
             COALESCE(NULLIF(p.picture, ''), '') AS picture
          FROM baby_members m
@@ -602,16 +646,17 @@ async function handleSharingGet(user) {
       )
     ).rows.map((row) => ({
       role: row.role,
+      userId: row.user_id,
       isYou: row.user_id === user.sub,
       email: row.email || '',
       name: row.name || '',
       picture: row.picture || '',
-      label: row.user_id === user.sub ? 'Vous' : row.role === 'owner' ? 'Propriétaire' : 'Co-parent',
+      label: memberRoleLabel(row.role, row.user_id === user.sub),
     }));
 
     const sentInvites = (
       await client.query(
-        `SELECT id, invited_email, status, expires_at FROM baby_invites
+        `SELECT id, invited_email, status, expires_at, role FROM baby_invites
          WHERE baby_id = $1 AND status IN ('pending', 'accepted', 'declined', 'cancelled', 'expired')
          ORDER BY created_at DESC LIMIT 20`,
         [access.babyId],
@@ -620,6 +665,7 @@ async function handleSharingGet(user) {
       id: row.id,
       email: row.invited_email,
       status: row.status,
+      role: row.role === 'guardian' ? 'guardian' : 'member',
       expiresAt: row.expires_at instanceof Date ? row.expires_at.toISOString() : row.expires_at,
     }));
 
@@ -645,18 +691,26 @@ async function handleInviteCreate(user, body) {
   if (normalizeEmail(user.email) === invitedEmail) {
     return { status: 400, body: { error: 'self_invite' } };
   }
+  const role = parseInviteRole(body?.role) ?? 'member';
 
   const client = await pool.connect();
   const ts = new Date().toISOString();
   try {
     await expirePendingInvites(client);
     const access = await resolveBabyAccess(client, user);
-    if (!access.babyId) {
+    if (!access.babyId || !canManageSharing(access.role)) {
       return { status: 403, body: { error: 'forbidden' } };
     }
-    const members = await countActiveMembers(client, access.babyId);
-    if (members >= MAX_BABY_MEMBERS) {
+    if (role === 'member' && access.role !== 'owner') {
+      return { status: 403, body: { error: 'forbidden' } };
+    }
+    const active = await countMembersByRole(client, access.babyId, role);
+    const pendingCount = await countPendingInvitesByRole(client, access.babyId, role);
+    if (role === 'member' && active + pendingCount >= MAX_COPARENTS) {
       return { status: 409, body: { error: 'max_members' } };
+    }
+    if (role === 'guardian' && active + pendingCount >= MAX_GUARDIANS) {
+      return { status: 409, body: { error: 'max_guardians' } };
     }
     const pending = await client.query(
       `SELECT id FROM baby_invites
@@ -669,9 +723,9 @@ async function handleInviteCreate(user, body) {
     const id = randomUUID();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS).toISOString();
     await client.query(
-      `INSERT INTO baby_invites (id, baby_id, invited_email, invited_by, status, expires_at, created_at)
-       VALUES ($1, $2, $3, $4, 'pending', $5, $6)`,
-      [id, access.babyId, invitedEmail, user.sub, expiresAt, ts],
+      `INSERT INTO baby_invites (id, baby_id, invited_email, invited_by, status, expires_at, created_at, role)
+       VALUES ($1, $2, $3, $4, 'pending', $5, $6, $7)`,
+      [id, access.babyId, invitedEmail, user.sub, expiresAt, ts, role],
     );
     return { status: 201, body: { ok: true, id, expiresAt } };
   } finally {
@@ -716,15 +770,20 @@ async function handleInviteAccept(user, inviteId) {
       await client.query('ROLLBACK');
       return { status: 409, body: { error: 'has_own_baby' } };
     }
-    const members = await countActiveMembers(client, invite.baby_id);
-    if (members >= MAX_BABY_MEMBERS) {
+    const inviteRole = invite.role === 'guardian' ? 'guardian' : 'member';
+    const active = await countMembersByRole(client, invite.baby_id, inviteRole);
+    if (inviteRole === 'member' && active >= MAX_COPARENTS) {
       await client.query('ROLLBACK');
       return { status: 409, body: { error: 'max_members' } };
     }
+    if (inviteRole === 'guardian' && active >= MAX_GUARDIANS) {
+      await client.query('ROLLBACK');
+      return { status: 409, body: { error: 'max_guardians' } };
+    }
     await client.query(
       `INSERT INTO baby_members (id, baby_id, user_id, role, joined_at, created_at)
-       VALUES ($1, $2, $3, 'member', $4, $4)`,
-      [randomUUID(), invite.baby_id, user.sub, ts],
+       VALUES ($1, $2, $3, $4, $5, $5)`,
+      [randomUUID(), invite.baby_id, user.sub, inviteRole, ts],
     );
     await upsertUserProfile(client, { ...user, email });
     await client.query(
@@ -775,11 +834,46 @@ async function handleInviteCancel(user, inviteId) {
     if (!access.babyId || invite.baby_id !== access.babyId) {
       return { status: 403, body: { error: 'forbidden' } };
     }
+    if (!canManageSharing(access.role)) {
+      return { status: 403, body: { error: 'forbidden' } };
+    }
     if (invite.status !== 'pending') return { status: 410, body: { error: 'expired' } };
     await client.query(`UPDATE baby_invites SET status = 'cancelled', responded_at = $2 WHERE id = $1`, [
       inviteId,
       ts,
     ]);
+    return { status: 200, body: { ok: true } };
+  } finally {
+    client.release();
+  }
+}
+
+async function handleRemoveMember(user, targetUserId) {
+  if (!targetUserId) {
+    return { status: 400, body: { error: 'not_found' } };
+  }
+  const client = await pool.connect();
+  const ts = new Date().toISOString();
+  try {
+    const access = await resolveBabyAccess(client, user);
+    if (!access.babyId || !canManageSharing(access.role)) {
+      return { status: 403, body: { error: 'forbidden' } };
+    }
+    const { rows } = await client.query(
+      `SELECT user_id, role FROM baby_members
+       WHERE baby_id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+      [access.babyId, targetUserId],
+    );
+    const target = rows[0];
+    if (!target) return { status: 404, body: { error: 'not_found' } };
+    if (target.role !== 'guardian') {
+      return { status: 403, body: { error: 'forbidden' } };
+    }
+    await client.query(
+      `UPDATE baby_members SET deleted_at = $3
+       WHERE baby_id = $1 AND user_id = $2 AND deleted_at IS NULL`,
+      [access.babyId, targetUserId, ts],
+    );
     return { status: 200, body: { ok: true } };
   } finally {
     client.release();
@@ -816,7 +910,8 @@ async function handleSync(user, body) {
     let babyId = access.babyId;
     const ownerUserId = babyId ? await getOwnerUserId(client, babyId) : null;
 
-    const incomingBabies = Array.isArray(changes.babies) ? changes.babies : [];
+    const incomingBabies =
+      access.role === 'guardian' ? [] : Array.isArray(changes.babies) ? changes.babies : [];
     for (const baby of incomingBabies) {
       if (access.role === 'member') {
         if (!babyId) continue;
@@ -868,6 +963,7 @@ async function handleSync(user, body) {
 
     for (const key of PUSH_ORDER) {
       if (key === 'babies') continue;
+      if (access.role === 'guardian' && key === 'reminderRules') continue;
       const def = TABLES[key];
       const rows = Array.isArray(changes[key]) ? changes[key] : [];
       for (const raw of rows) {
@@ -930,7 +1026,7 @@ async function deleteAccount(user) {
       return { action: 'none' };
     }
 
-    if (access.role === 'member') {
+    if (access.role === 'member' || access.role === 'guardian') {
       await client.query(
         `UPDATE baby_members SET deleted_at = $2 WHERE baby_id = $1 AND user_id = $3 AND deleted_at IS NULL`,
         [access.babyId, ts, user.sub],
@@ -1177,6 +1273,21 @@ const server = createServer(async (req, res) => {
         return;
       }
       const result = await handleInviteCancel(user, inviteDelete[1]);
+      send(res, result.status, result.body);
+      return;
+    }
+    const memberDelete = url.pathname.match(/^\/members\/([^/]+)$/);
+    if (req.method === 'DELETE' && memberDelete) {
+      if (overRateLimit(req, 'sharing')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const result = await handleRemoveMember(user, decodeURIComponent(memberDelete[1]));
       send(res, result.status, result.body);
       return;
     }

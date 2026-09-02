@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AccordionSection } from '@/components/Accordion';
+import { JournalLine } from '@/components/JournalLine';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { BabyPhoto } from '@/components/BabyPhoto';
 import { SmartEntryForm } from '@/components/SmartEntryForm';
@@ -18,8 +19,7 @@ import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, DiaperEvent, FeedingSession, ReminderRule, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem, type ActivityKind } from '@/lib/activity';
-import { formatAge, formatLongDate, formatTime, localDateKey, parseDecimal, startOfLocalDay } from '@/lib/dates';
-import { temperatureLevelClass } from '@/lib/temperature';
+import { formatAge, formatLongDate, localDateKey, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import {
   DIAPER_MEAL_PRESETS,
   formatBottleMlGoal,
@@ -54,7 +54,7 @@ const JOURNAL_KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
 ];
 
 export function BabyPage() {
-  const { baby, tick } = useDb();
+  const { baby, tick, sharingRole } = useDb();
   const [name, setName] = useState(baby?.name ?? '');
   const [bornOn, setBornOn] = useState(baby?.bornOn ?? '');
   const [photoUrl, setPhotoUrl] = useState<string | null>(baby?.photoUrl ?? null);
@@ -77,6 +77,7 @@ export function BabyPage() {
   const [journalKinds, setJournalKinds] = useState<ActivityKind[]>([]);
   const guidedRef = useRef(false);
   const now = useNow(true, 30_000);
+  const canEditBaby = sharingRole !== 'guardian';
 
   const toggleSection = (id: string) => {
     setOpenSection((prev) => (prev === id ? null : id));
@@ -90,8 +91,8 @@ export function BabyPage() {
 
   useEffect(() => {
     if (!baby) return;
-    setEditIdentity(!(baby.bornOn && baby.name));
-  }, [baby?.bornOn, baby?.name]);
+    setEditIdentity(canEditBaby && !(baby.bornOn && baby.name));
+  }, [baby?.bornOn, baby?.name, canEditBaby]);
 
   useEffect(() => {
     if (!baby) return;
@@ -113,14 +114,14 @@ export function BabyPage() {
         Boolean(r) &&
         ((r?.delayMinutes ?? 0) > 0 || r?.bottleMl != null || (r?.diaperMinutes ?? 0) > 0);
       setGoalsReady(configured);
-      setEditGoals(!configured);
+      setEditGoals(canEditBaby && !configured);
       if (!guidedRef.current) {
-        if (!(baby.bornOn && baby.name)) setOpenSection('identity');
-        else if (!configured) setOpenSection('goals');
+        if (canEditBaby && !(baby.bornOn && baby.name)) setOpenSection('identity');
+        else if (canEditBaby && !configured) setOpenSection('goals');
         guidedRef.current = true;
       }
     });
-  }, [baby, tick]);
+  }, [baby, tick, canEditBaby]);
 
   const horoscope = bornOn ? horoscopeFor(bornOn) : null;
 
@@ -224,7 +225,7 @@ export function BabyPage() {
         open={openSection === 'identity'}
         onToggle={toggleSection}
         action={
-          !editIdentity ? (
+          canEditBaby && !editIdentity ? (
             <button
               type="button"
               className="linkish"
@@ -274,7 +275,7 @@ export function BabyPage() {
         open={openSection === 'goals'}
         onToggle={toggleSection}
         action={
-          !editGoals && goalsReady ? (
+          canEditBaby && !editGoals && goalsReady ? (
             <button
               type="button"
               className="linkish"
@@ -473,19 +474,7 @@ export function BabyPage() {
           </p>
         ) : (
           filteredActivity.map((row) => (
-            <button
-              key={`${row.kind}-${row.id}`}
-              type="button"
-              className="line log-line"
-              onClick={() => setEditing(row)}>
-              <span>
-                <strong>{formatTime(row.at)}</strong>
-                <span className="muted"> · {row.title}</span>
-              </span>
-              <span className={row.tempCelsius != null ? temperatureLevelClass(row.tempCelsius) : 'muted'}>
-                {row.detail}
-              </span>
-            </button>
+            <JournalLine key={`${row.kind}-${row.id}`} item={row} onClick={() => setEditing(row)} />
           ))
         )}
       </AccordionSection>

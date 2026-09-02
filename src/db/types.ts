@@ -23,6 +23,7 @@ export type FeedingSession = Stamp & {
   babyId: string;
   startedAt: string;
   endedAt: string | null;
+  createdBy?: string | null;
 };
 export type FeedingSegment = Stamp & {
   id: string;
@@ -39,12 +40,14 @@ export type BottleFeed = Stamp & {
   fedAt: string;
   /** Tirage consommé (lait maternel en stock). */
   pumpingSessionId: string | null;
+  createdBy?: string | null;
 };
 export type DiaperEvent = Stamp & {
   id: string;
   babyId: string;
   kind: DiaperKind;
   occurredAt: string;
+  createdBy?: string | null;
 };
 export type PumpingSession = Stamp & {
   id: string;
@@ -55,6 +58,7 @@ export type PumpingSession = Stamp & {
   remainingMl: number | null;
   durationMinutes: number | null;
   side: Side | null;
+  createdBy?: string | null;
 };
 export type Measurement = Stamp & {
   id: string;
@@ -63,6 +67,7 @@ export type Measurement = Stamp & {
   value: number;
   unit: string;
   measuredAt: string;
+  createdBy?: string | null;
 };
 export type DiaperWhen = 'before' | 'after';
 
@@ -81,24 +86,28 @@ export type SolidFood = Stamp & {
   babyId: string;
   food: string;
   eatenAt: string;
+  createdBy?: string | null;
 };
 export type Supplement = Stamp & {
   id: string;
   babyId: string;
   name: string;
   givenAt: string;
+  createdBy?: string | null;
 };
 export type SleepSession = Stamp & {
   id: string;
   babyId: string;
   startedAt: string;
   endedAt: string | null;
+  createdBy?: string | null;
 };
 export type Temperature = Stamp & {
   id: string;
   babyId: string;
   celsius: number;
   measuredAt: string;
+  createdBy?: string | null;
 };
 export type Note = Stamp & {
   id: string;
@@ -108,4 +117,5 @@ export type Note = Stamp & {
   /** Afficher sur le dashboard jusqu’à marquage fait. */
   isTodo: boolean;
   doneAt: string | null;
+  createdBy?: string | null;
 };

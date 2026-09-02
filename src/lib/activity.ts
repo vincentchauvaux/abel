@@ -46,6 +46,7 @@ export type ActivityItem = {
   title: string;
   detail: string;
   tempCelsius?: number;
+  createdBy?: string | null;
 };
 
 export async function listActivity(babyId: string, limit?: number): Promise<ActivityItem[]> {
@@ -78,6 +79,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       at: activityAt(row.startedAt, row.endedAt),
       title: 'Tétée',
       detail: `${row.endedAt ? formatFeedLabel(row.startedAt, row.endedAt) : 'en cours'}${sides ? ` · ${sides}` : ''}`,
+      createdBy: row.createdBy ?? null,
     });
   }
 
@@ -88,6 +90,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       at: row.fedAt,
       title: 'Biberon',
       detail: `${row.amountMl} ml · ${milkLabel[row.milkType]}${row.pumpingSessionId ? ' · stock' : ''}`,
+      createdBy: row.createdBy ?? null,
     });
   }
 
@@ -98,6 +101,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       at: row.occurredAt,
       title: 'Couche',
       detail: diaperLabel[row.kind],
+      createdBy: row.createdBy ?? null,
     });
   }
 
@@ -111,14 +115,29 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
         row.amountMl == null
           ? 'à compléter'
           : `${row.amountMl} ml · reste ${row.remainingMl ?? 0} ml`,
+      createdBy: row.createdBy ?? null,
     });
   }
 
   for (const row of solids) {
-    items.push({ id: row.id, kind: 'solid', at: row.eatenAt, title: 'Diversification', detail: row.food });
+    items.push({
+      id: row.id,
+      kind: 'solid',
+      at: row.eatenAt,
+      title: 'Diversification',
+      detail: row.food,
+      createdBy: row.createdBy ?? null,
+    });
   }
   for (const row of supplements) {
-    items.push({ id: row.id, kind: 'supplement', at: row.givenAt, title: 'Complément', detail: row.name });
+    items.push({
+      id: row.id,
+      kind: 'supplement',
+      at: row.givenAt,
+      title: 'Complément',
+      detail: row.name,
+      createdBy: row.createdBy ?? null,
+    });
   }
   for (const row of sleeps) {
     items.push({
@@ -129,6 +148,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       detail: row.endedAt
         ? formatMinutes(elapsedMs(row.startedAt, row.endedAt))
         : 'en cours',
+      createdBy: row.createdBy ?? null,
     });
   }
   for (const row of temps) {
@@ -139,6 +159,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       title: 'Température',
       detail: `${formatTemperature(row.celsius)} °C`,
       tempCelsius: row.celsius,
+      createdBy: row.createdBy ?? null,
     });
   }
   for (const row of notes) {
@@ -150,6 +171,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       at: done ? row.doneAt! : row.notedAt,
       title: done ? 'Note · fait' : 'Note',
       detail: `${row.body.slice(0, 80)}${openTodo ? ' · à faire' : ''}`,
+      createdBy: row.createdBy ?? null,
     });
   }
   for (const row of measures) {
@@ -159,6 +181,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       at: row.measuredAt,
       title: measurementLabel[row.type],
       detail: `${row.value} ${row.unit}`,
+      createdBy: row.createdBy ?? null,
     });
   }
 

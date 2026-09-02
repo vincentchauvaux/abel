@@ -8,7 +8,7 @@ Fonctionne dans le **navigateur** (téléphone ou ordinateur), y compris hors li
 
 - Offline-first : 3 h du matin, pas de réseau, ça doit marcher.
 - Pas de recommandation médicale. Les rappels sont des règles personnalisables.
-- Chaque icône Outils ouvre un **module** (écran complet : action + historique + réglages). Cœur à droite du titre pour épingler l’outil en **Favoris** sur le dashboard (ordre de sélection, stocké en local).
+- Chaque icône Outils ouvre un **module** (écran complet : action + historique + réglages). Cœur à droite du titre pour épingler l’outil en **Favoris** sur le dashboard (ordre de sélection, stocké en local). Si aucun favori : section Favoris avec **+** et liste déroulante pour en ajouter depuis le dashboard.
 - Le dashboard répond d’abord à : « Où en est mon bébé aujourd’hui ? »
 
 ## Navigation
@@ -19,7 +19,7 @@ Bébé | Dashboard (accueil) ↔ Outils (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, RGPD, légal).
+Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils est **conservé** au retour depuis un module.
 
@@ -67,7 +67,7 @@ Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports 
 |---|---|
 | Couche | Un appui = pipi, caca ou les deux. |
 | Tire-lait | Quantité + date → **stock** (`remainingMl`). Consommé via Biberon lait maternel. |
-| Croissance | Poids (kg), taille (cm), périmètre crânien (cm). |
+| Croissance | Poids (kg), taille (cm), périmètre crânien (cm). Courbes poids/taille et IMC indicatif (pas un avis médical). |
 | Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. |
 | Température | Saisie °C uniquement ; code couleur indicatif (vert / orange / rouge). |
 | Notes | Texte libre. Case **À faire** = rappel sur le dashboard (accordéon Notes : liste complète, tap pour marquer fait ; dans le journal, classée à la date `doneAt` avec libellé « fait » ; réouvrable depuis le journal). |
@@ -80,7 +80,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
 
-Cartes **Favoris** (si configurés) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). **Accordéon Notes** puis **Alertes** repas / sommeil / couche. Notes filtrées par période (todos ouvertes toujours visibles ; todos faites selon `doneAt`). Puis **Apports** : biberon, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches. **Entrées de la période** : journal synthétique en bas de page.
+Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). **Accordéon Notes** puis **Alertes** repas / sommeil / couche. Notes filtrées par période (todos ouvertes toujours visibles ; todos faites selon `doneAt`). Puis **Apports** : biberon, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches, **poids et taille** (courbes, IMC indicatif vert / orange / rouge — pas un avis médical). **Entrées de la période** : journal synthétique en bas de page (avatar Google à droite si l’auteur est connu).
 
 ## Page Bébé
 
@@ -111,7 +111,8 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - Auth : Google Identity Services pour se connecter ; le VPS échange le jeton Google (1 h) contre une **session Abel** (`POST /session`, 90 jours glissants). `DELETE /session` à la déconnexion.
 - **Source de vérité** : PostgreSQL sur le VPS quand Google est connecté. IndexedDB = cache hors ligne.
 - `GET /sync` : télécharge le snapshot complet ; `POST /sync` : envoie les modifications en attente puis renvoie le snapshot.
-- **Co-parent** : `GET /sharing`, `POST /invites`, `POST /invites/:id/accept|decline`, `DELETE /invites/:id` — invitation par e-mail Google, acceptation dans Profil, accès sync identique (max 2 personnes).
+- **Co-parent** : `GET /sharing`, `POST /invites` (`role: member`), `POST /invites/:id/accept|decline`, `DELETE /invites/:id` — invitation par e-mail Google, acceptation dans Profil, accès sync identique (1 propriétaire + 1 co-parent max).
+- **Gardien** : même API avec `role: guardian` (jusqu’à 5) ; `DELETE /members/:userId` pour révoquer. Le gardien note les entrées, ne peut pas modifier identité / objectifs (`babies`, `reminderRules` ignorés au `POST /sync`).
 - Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : boutons **Synchroniser maintenant** / **Récupérer depuis le VPS** seulement si la sync a échoué, est hors ligne ou limitée.
 - Un bébé par compte Google ; un profil vide local ne remplace pas les données serveur.
 - Offline-first : saisie locale immédiate, envoi dès réseau + session Google.
@@ -132,7 +133,7 @@ Pages accessibles depuis **Profil** ou `/legal/*` :
 
 Bandeau de consentement à la première visite (stockage local). Connexion Google = acceptation explicite de la sync vers le VPS.
 
-**Profil** : export JSON, effacement local, `DELETE /account` (propriétaire = suppression bébé pour tous ; co-parent = quitter le partage). Accordéon **Co-parent** : inviter par e-mail, accepter/refuser les invitations reçues ; liste des personnes avec accès (nom, e-mail Google, photo).
+**Profil** : export JSON, effacement local, `DELETE /account` (propriétaire = suppression bébé pour tous ; co-parent ou gardien = quitter le partage). Accordéon **Co-parent** : inviter par e-mail, accepter/refuser les invitations reçues ; liste des personnes avec accès (nom, e-mail Google, photo). Accordéon **Gardien** : inviter un compte Google qui ne peut que noter des entrées (pas modifier la fiche Bébé) ; propriétaire et co-parent peuvent révoquer un gardien.
 
 ## Co-parent
 
@@ -142,11 +143,19 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 - **Droits égaux** : saisie, sync, lecture pour les deux (1 propriétaire + 1 co-parent max).
 - Tables VPS : `baby_members`, `baby_invites`, `auth_sessions`, `user_profiles` ; accès sync via membership, pas seulement `babies.user_id`.
 
+## Gardien
+
+- Invitation depuis **Profil → Gardien** par l’e-mail Google (valable 7 jours), par le **propriétaire ou le co-parent** (jusqu’à 5 gardiens).
+- L’invité accepte dans **Profil**. Même sync que le co-parent pour les **entrées** (tétées, couches, etc.).
+- **Pas de modification** de la fiche Bébé (identité, photo, date de naissance, objectifs / rappels). Lecture seule sur Identité et Objectifs ; le réglage rappel du module Allaitement est masqué.
+- Peut quitter via RGPD ; le propriétaire ou le co-parent peut le retirer.
+- Journal : chaque nouvelle entrée porte `createdBy` (compte Google) ; avatar à droite de la ligne (Bébé et dashboard). L’historique ancien reste sans auteur.
+
 ## Sécurité
 
 - API en écoute `127.0.0.1` uniquement, derrière Nginx HTTPS.
 - CORS restreint aux origines Abel.
-- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/invites` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
+- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/invites`, `/members` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
 - Rate limiting API (`/horoscope`, `/sync`, `/sharing`, `/invites`, `/account`, `/session`) + Nginx `limit_req`.
 - En-têtes : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (nginx).
 - `VITE_GOOGLE_CLIENT_ID` via secrets — pas de Client ID en dur dans le code.
@@ -251,9 +260,9 @@ babies (name, bornOn, photoUrl)
  └── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes, diaperWhen)
 ```
 
-Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`.
+Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`. Les entrées (sauf `babies` / `reminder_rules` / segments) ont `createdBy` (Google `sub`) à la création.
 
-Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier), journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré). Édition journal : tétée (sein, état, **date + heures de début et de fin** : changer l’une recalcule la durée ; saisir la durée décale la fin ; sieste qui dépasse minuit = fin le lendemain), sommeil (même logique), biberon/tire-lait (ml, début/fin/durée tire-lait), couche, diversification, complément, température, mesures, notes.
+Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier ; un **gardien** n’a pas Modifier). Journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré), **avatar** du compte à droite si l’auteur est connu. Édition journal : tétée (sein, état, **date + heures de début et de fin** : changer l’une recalcule la durée ; saisir la durée décale la fin ; sieste qui dépasse minuit = fin le lendemain), sommeil (même logique), biberon/tire-lait (ml, début/fin/durée tire-lait), couche, diversification, complément, température, mesures, notes.
 
 ## Conventions agent
 

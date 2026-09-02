@@ -4,6 +4,8 @@ import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
+import { GrowthChart } from '@/components/GrowthChart';
+import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { Card } from '@/components/ui';
 import {
@@ -50,7 +52,7 @@ import {
   type Period,
 } from '@/lib/dates';
 import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
-import { FAVORITES_CHANGED, readToolFavorites, TOOLS, type ToolId } from '@/lib/tools';
+import { FAVORITES_CHANGED, readToolFavorites, TOOL_IDS, TOOLS, toggleToolFavorite, type ToolId } from '@/lib/tools';
 import type { DiaperWhen } from '@/lib/goals';
 import {
   bottleMlAlertLine,
@@ -469,24 +471,43 @@ export function DashboardPage() {
     value: diapers.filter((row) => localDateKey(row.occurredAt) === day).length,
   }));
 
-  const weights = measures.filter((row) => row.type === 'WEIGHT');
-
   return (
     <div className="screen">
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
       <ActiveNowPanel />
       <PeriodSelector value={period} onChange={setPeriod} />
 
+      <p className="dash-section">Favoris</p>
       {favoriteRows.length > 0 ? (
-        <>
-          <p className="dash-section">Favoris</p>
-          <div className="dash-follow-list">
-            {favoriteRows.map((row) => (
-              <FollowRowItem key={row.label} {...row} />
-            ))}
-          </div>
-        </>
-      ) : null}
+        <div className="dash-follow-list">
+          {favoriteRows.map((row) => (
+            <FollowRowItem key={row.label} {...row} />
+          ))}
+        </div>
+      ) : (
+        <div className="dash-fav-add">
+          <label className="dash-fav-select-wrap">
+            <span className="sr-only">Ajouter un favori</span>
+            <select
+              className="dash-fav-select"
+              value=""
+              onChange={(event) => {
+                const id = event.target.value as ToolId;
+                if (id) toggleToolFavorite(id);
+              }}>
+              <option value="">Ajouter un favori…</option>
+              {TOOL_IDS.map((id) => (
+                <option key={id} value={id}>
+                  {TOOLS[id].label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="dash-follow-add" aria-hidden>
+            +
+          </span>
+        </div>
+      )}
 
       <AccordionSection
         id="notes"
@@ -574,18 +595,11 @@ export function DashboardPage() {
       <Bars title="Repas (nombre)" data={mealBars} tone="meal" />
       <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
       <Bars title="Couches" data={diaperBars} tone="pee" />
-      {weights.length > 1 ? (
-        <Card>
-          <h2>Évolution poids (kg)</h2>
-          <p>
-            {[...weights]
-              .reverse()
-              .map((row) => `${row.value}`.replace('.', ','))
-              .join(' → ')}
-          </p>
-          <p className="muted">Dernière pesée · {formatDateTime(weights[0].measuredAt)}</p>
-        </Card>
-      ) : null}
+      <GrowthChart
+        weights={measures.filter((row) => row.type === 'WEIGHT')}
+        heights={measures.filter((row) => row.type === 'HEIGHT')}
+        bornOn={baby?.bornOn}
+      />
 
       <Card>
         <h2>Entrées de la période</h2>
@@ -593,15 +607,7 @@ export function DashboardPage() {
           <p className="muted">Rien de noté sur cette période.</p>
         ) : (
           periodActivity.map((row) => (
-            <div className="line log-line-static" key={`${row.kind}-${row.id}`}>
-              <span>
-                <strong>{formatTime(row.at)}</strong>
-                <span className="muted"> · {row.title}</span>
-              </span>
-              <span className={row.tempCelsius != null ? temperatureLevelClass(row.tempCelsius) : 'muted'}>
-                {row.detail}
-              </span>
-            </div>
+            <JournalLine key={`${row.kind}-${row.id}`} item={row} />
           ))
         )}
       </Card>

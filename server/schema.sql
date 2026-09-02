@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS baby_members (
   id UUID PRIMARY KEY,
   baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
   user_id TEXT NOT NULL,
-  role TEXT NOT NULL CHECK (role IN ('owner', 'member')),
+  role TEXT NOT NULL CHECK (role IN ('owner', 'member', 'guardian')),
   joined_at TIMESTAMPTZ NOT NULL,
   created_at TIMESTAMPTZ NOT NULL,
   deleted_at TIMESTAMPTZ
@@ -212,3 +212,21 @@ CREATE TABLE IF NOT EXISTS user_profiles (
   picture TEXT NOT NULL DEFAULT '',
   updated_at TIMESTAMPTZ NOT NULL
 );
+
+ALTER TABLE baby_members DROP CONSTRAINT IF EXISTS baby_members_role_check;
+ALTER TABLE baby_members ADD CONSTRAINT baby_members_role_check CHECK (role IN ('owner', 'member', 'guardian'));
+
+ALTER TABLE baby_invites ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member';
+ALTER TABLE baby_invites DROP CONSTRAINT IF EXISTS baby_invites_role_check;
+ALTER TABLE baby_invites ADD CONSTRAINT baby_invites_role_check CHECK (role IN ('member', 'guardian'));
+
+ALTER TABLE feeding_sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE bottle_feeds ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE diaper_events ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE pumping_sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE measurements ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE solid_foods ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE supplements ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE temperatures ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE notes ADD COLUMN IF NOT EXISTS created_by TEXT;
