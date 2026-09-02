@@ -181,6 +181,8 @@ Généré au build par `vite-plugin-pwa` (`manifest.webmanifest`) selon `VITE_BA
 
 `display: standalone`, `orientation: portrait`, `theme_color` `#C45C4A`, `background_color` `#F6F1EA`. Icônes existantes : `favicon-192.png` (192) et `logo.png` / `apple-touch-icon.png` (512), `any` + `maskable`.
 
+Au lancement (avant JS puis pendant IndexedDB / sync) : écran crème, **logo Mimom centré** avec un **anneau de chargement** (dans `index.html`, retiré quand `ready`).
+
 ### Service Worker
 
 Fichier `sw.js` (Workbox, `generateSW`) :

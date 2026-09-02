@@ -18,8 +18,67 @@
     <link rel="icon" href="favicon-192.png" type="image/png" sizes="192x192" />
     <link rel="icon" href="logo.png" type="image/png" sizes="512x512" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #f6f1ea;
+      }
+      #boot-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f6f1ea;
+      }
+      #boot-splash.boot-splash-out {
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.28s ease;
+      }
+      .boot-mark {
+        position: relative;
+        width: 112px;
+        height: 112px;
+      }
+      .boot-ring {
+        position: absolute;
+        inset: -12px;
+        border-radius: 50%;
+        border: 3px solid #e6ddd4;
+        border-top-color: #c45c4a;
+        animation: boot-spin 0.85s linear infinite;
+      }
+      .boot-mark img {
+        width: 112px;
+        height: 112px;
+        border-radius: 50%;
+        display: block;
+        object-fit: cover;
+      }
+      @keyframes boot-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-ring {
+          animation: none;
+          border-color: #c45c4a;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="boot-splash" role="status" aria-live="polite" aria-label="Chargement">
+      <div class="boot-mark">
+        <span class="boot-ring" aria-hidden="true"></span>
+        <img src="logo.png" alt="" width="112" height="112" fetchpriority="high" />
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

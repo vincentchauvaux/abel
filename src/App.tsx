@@ -1,4 +1,4 @@
-import { type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/Layout';
@@ -23,9 +23,24 @@ import { TemperaturePage } from '@/pages/TemperaturePage';
 import { ToolsPage } from '@/pages/ToolsPage';
 import { ManualPage } from '@/pages/ManualPage';
 
+function hideBootSplash() {
+  const el = document.getElementById('boot-splash');
+  if (!el) return;
+  const remove = () => el.remove();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    remove();
+    return;
+  }
+  el.classList.add('boot-splash-out');
+  window.setTimeout(remove, 300);
+}
+
 function Ready({ children }: { children: ReactNode }) {
   const { ready } = useDb();
-  if (!ready) return <div className="screen">Chargement…</div>;
+  useEffect(() => {
+    if (ready) hideBootSplash();
+  }, [ready]);
+  if (!ready) return null;
   return children;
 }
 
