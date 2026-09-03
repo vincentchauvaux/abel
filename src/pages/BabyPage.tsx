@@ -437,21 +437,6 @@ export function BabyPage() {
           <span>{diaperAlert}</span>
         </div>
       </AccordionSection>
-      <div className="entry-above-journal">
-        {showEntry ? (
-          <Card>
-            <div className="card-head">
-              <h2>Noter une entrée</h2>
-              <button type="button" className="linkish" onClick={() => setShowEntry(false)}>
-                Fermer
-              </button>
-            </div>
-            <SmartEntryForm onSaved={() => setShowEntry(false)} />
-          </Card>
-        ) : (
-          <Button onClick={() => setShowEntry(true)}>Noter une entrée</Button>
-        )}
-      </div>
       <AccordionSection id="journal" title="Journal" open={openSection === 'journal'} onToggle={toggleSection}>
         <div className="journal-filters">
           <label className="field">
@@ -478,6 +463,21 @@ export function BabyPage() {
           ))
         )}
       </AccordionSection>
+      <div className="entry-below-journal">
+        {showEntry ? (
+          <Card>
+            <div className="card-head">
+              <h2>Noter une entrée</h2>
+              <button type="button" className="linkish" onClick={() => setShowEntry(false)}>
+                Fermer
+              </button>
+            </div>
+            <SmartEntryForm onSaved={() => setShowEntry(false)} />
+          </Card>
+        ) : (
+          <Button onClick={() => setShowEntry(true)}>Noter une entrée</Button>
+        )}
+      </div>
       {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );

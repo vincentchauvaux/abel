@@ -1524,7 +1524,7 @@ h2 {
   margin-top: 0;
 }
 
-.entry-above-journal {
+.entry-below-journal {
   margin: 8px 0;
 }
 
@@ -1535,7 +1535,7 @@ h2 {
   margin-bottom: 8px;
 }
 
-.entry-above-journal .btn {
+.entry-below-journal .btn {
   width: 100%;
 }
 

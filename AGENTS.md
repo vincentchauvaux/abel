@@ -19,7 +19,7 @@ Bébé | Dashboard (accueil) ↔ Outils (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
+Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste sous le journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils (et « Noter une entrée ») est un **curseur glissable** (doigt ou souris) **conservé** au retour depuis un module. Grille d’icônes sans fond, libellés gris comme le Dashboard.
 
@@ -59,7 +59,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 
-Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste au-dessus du journal. Case **Minuteur** cochée par défaut sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
+Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste sous le journal. Case **Minuteur** cochée par défaut sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
 
 ### Suivi
 
