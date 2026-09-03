@@ -56,7 +56,7 @@ a {
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  overflow-x: hidden;
+  overflow-x: clip;
   position: relative;
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
@@ -722,8 +722,13 @@ h2 {
   width: 100%;
 }
 
-.period-selector {
-  margin: 12px 0 4px;
+.dashboard-screen .period-selector {
+  position: sticky;
+  top: env(safe-area-inset-top, 0px);
+  z-index: 20;
+  margin: 0 -16px;
+  padding: 8px 16px 12px;
+  background: var(--bg);
 }
 
 .segmented-track {

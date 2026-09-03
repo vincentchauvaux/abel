@@ -472,7 +472,7 @@ export function DashboardPage() {
   }));
 
   return (
-    <div className="screen">
+    <div className="screen dashboard-screen">
       <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
       <ActiveNowPanel />
       <PeriodSelector value={period} onChange={setPeriod} />

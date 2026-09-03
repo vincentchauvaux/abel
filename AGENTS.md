@@ -78,7 +78,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 ## Dashboard
 
-Périodes : Aujourd’hui | 7 jours | 30 jours | Tout (curseur glissable, même contrôle qu’Apports/Suivi).
+Périodes : Aujourd’hui | 7 jours | 30 jours | Tout (curseur glissable, **collé en haut** au défilement, même contrôle qu’Apports/Suivi).
 
 Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). **Accordéon Notes** puis **Alertes** repas / sommeil / couche. Notes filtrées par période (todos ouvertes toujours visibles ; todos faites selon `doneAt`). Puis **Apports** : biberon, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches, **poids et taille** (courbes, IMC indicatif vert / orange / rouge — pas un avis médical). **Entrées de la période** : journal synthétique en bas de page (avatar Google à droite si l’auteur est connu).
 
