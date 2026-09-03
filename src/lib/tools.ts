@@ -39,6 +39,10 @@ export const TOOLS: Record<ToolId, { label: string; route: string; section: 'app
   notes: { label: 'Notes', route: '/notes', section: 'suivi' },
 };
 
+export function toolsInSection(section: 'apports' | 'suivi'): ToolId[] {
+  return TOOL_IDS.filter((id) => TOOLS[id].section === section);
+}
+
 function isToolId(value: string): value is ToolId {
   return (TOOL_IDS as string[]).includes(value);
 }

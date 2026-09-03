@@ -1,9 +1,24 @@
-import { Apple, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer } from 'lucide-react';
+import { Apple, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
-import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
+import { SegmentedControl } from '@/components/SegmentedControl';
+import { TOOLS, toolsInSection, type ToolId } from '@/lib/tools';
+import { readToolsSection, writeToolsSection, TOOL_SECTION_OPTIONS, type ToolsSection } from '@/lib/tools-section';
+
+const ICONS: Record<ToolId, LucideIcon> = {
+  feeding: Heart,
+  bottle: Milk,
+  solids: Apple,
+  supplements: Pill,
+  diapers: Droplets,
+  pumping: Milk,
+  growth: Scale,
+  sleep: Moon,
+  temperature: Thermometer,
+  notes: NotebookPen,
+};
 
 export function ToolsPage() {
   const [section, setSection] = useState<ToolsSection>(() => readToolsSection());
@@ -14,45 +29,30 @@ export function ToolsPage() {
     writeToolsSection(next);
   };
 
-  const items =
-    section === 'apports'
-      ? [
-          { key: 'feeding', label: 'Allaitement', icon: Heart, to: '/feeding' },
-          { key: 'bottle', label: 'Biberon', icon: Milk, to: '/bottle' },
-          { key: 'solids', label: 'Diversification', icon: Apple, to: '/solids' },
-          { key: 'supplements', label: 'Compléments', icon: Pill, to: '/supplements' },
-        ]
-      : [
-          { key: 'diapers', label: 'Couche', icon: Droplets, to: '/diapers' },
-          { key: 'pumping', label: 'Tire-lait', icon: Milk, to: '/pumping' },
-          { key: 'growth', label: 'Croissance', icon: Scale, to: '/growth' },
-          { key: 'sleep', label: 'Sommeil', icon: Moon, to: '/sleep' },
-          { key: 'temp', label: 'Température', icon: Thermometer, to: '/temperature' },
-          { key: 'notes', label: 'Notes', icon: NotebookPen, to: '/notes' },
-        ];
+  const items = toolsInSection(section);
 
   return (
     <div className="screen">
       <h1>Outils</h1>
       <ActiveNowPanel />
-      <div className="switch">
-        <button type="button" className={section === 'apports' ? 'on' : ''} onClick={() => choose('apports')}>
-          Apports
-        </button>
-        <button type="button" className={section === 'suivi' ? 'on' : ''} onClick={() => choose('suivi')}>
-          Suivi
-        </button>
-      </div>
+      <SegmentedControl
+        size="lg"
+        value={section}
+        onChange={choose}
+        options={TOOL_SECTION_OPTIONS}
+        ariaLabel="Section d’outils"
+      />
       <p className="muted">{section === 'apports' ? 'Ce que l’on donne' : 'Ce que l’on observe'}</p>
       <div className="tiles">
-        {items.map((item) => {
-          const Icon = item.icon;
+        {items.map((id) => {
+          const Icon = ICONS[id];
+          const tool = TOOLS[id];
           return (
-            <button key={item.key} type="button" className="tile" onClick={() => navigate(item.to)}>
+            <button key={id} type="button" className="tile" onClick={() => navigate(tool.route)}>
               <span className="icon-wrap">
                 <Icon size={28} />
               </span>
-              {item.label}
+              {tool.label}
             </button>
           );
         })}

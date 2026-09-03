@@ -22,7 +22,8 @@ import type { DiaperKind, MeasurementType, MilkType, PumpingSession, Side } from
 import { formatTime, fromDatetimeLocalValue, parseDecimal, toDatetimeLocalValue } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
-import { readToolsSection, writeToolsSection, type ToolsSection } from '@/lib/tools-section';
+import { SegmentedControl } from '@/components/SegmentedControl';
+import { readToolsSection, writeToolsSection, TOOL_SECTION_OPTIONS, type ToolsSection } from '@/lib/tools-section';
 
 export type SmartEntryType =
   | 'feeding'
@@ -240,14 +241,13 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
 
   return (
     <div className="smart-entry">
-      <div className="switch">
-        <button type="button" className={section === 'apports' ? 'on' : ''} onClick={() => chooseSection('apports')}>
-          Apports
-        </button>
-        <button type="button" className={section === 'suivi' ? 'on' : ''} onClick={() => chooseSection('suivi')}>
-          Suivi
-        </button>
-      </div>
+      <SegmentedControl
+        size="lg"
+        value={section}
+        onChange={chooseSection}
+        options={TOOL_SECTION_OPTIONS}
+        ariaLabel="Section d’outils"
+      />
       <p className="muted">{section === 'apports' ? 'Ce que l’on donne' : 'Ce que l’on observe'}</p>
       <div className="row">
         {tools.map((item) => (
@@ -284,11 +284,11 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           </div>
           <p className="muted">
             {useTimer
-              ? 'Un appui démarre le minuteur et ouvre Allaitement.'
+              ? 'Un appui démarre le minuteur sur ce sein et ouvre Allaitement. Tu pourras passer à l’autre pendant la séance.'
               : 'Un appui = tétée notée (sans ml).'}
           </p>
           <div className="row">
-            {(['LEFT', 'RIGHT', 'BOTH'] as const).map((s) => (
+            {(['LEFT', 'RIGHT'] as const).map((s) => (
               <button
                 key={s}
                 type="button"

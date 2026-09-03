@@ -6,6 +6,17 @@ export const sideLabel: Record<Side, string> = {
   BOTH: 'Les deux',
 };
 
+/** Libellé d’une tétée : « Les deux » si gauche et droit ont servi, sinon le sein unique. */
+export function feedingSidesLabel(sides: readonly Side[]): string {
+  const set = new Set(sides);
+  const left = set.has('LEFT') || set.has('BOTH');
+  const right = set.has('RIGHT') || set.has('BOTH');
+  if (left && right) return sideLabel.BOTH;
+  if (left) return sideLabel.LEFT;
+  if (right) return sideLabel.RIGHT;
+  return '';
+}
+
 export const diaperLabel: Record<DiaperKind, string> = {
   PEE: 'Pipi',
   POO: 'Caca',

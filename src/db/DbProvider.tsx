@@ -4,7 +4,7 @@ import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
 import { ensureAbelSession, readGoogleToken, readGoogleUser } from '@/lib/google';
 import { fetchSharing, pushLocalProfile, type SharingMember, type SharingRole } from '@/lib/sharing';
-import { pullFromServer, schedulePull, scheduleSync } from '@/lib/sync';
+import { pullFromServer, scheduleRefresh, scheduleSync } from '@/lib/sync';
 
 const SHARING_META_KEY = 'abel-sharing-meta';
 
@@ -179,17 +179,15 @@ export function DbProvider({ children }: { children: ReactNode }) {
     };
     const onOnline = () => {
       scheduleSync(800);
-      schedulePull(0);
       void refreshSharing();
     };
     const onVisible = () => {
       if (document.hidden || !readGoogleToken() || !navigator.onLine) return;
-      schedulePull(0);
-      scheduleSync(800);
+      scheduleRefresh(0);
     };
     const pullInterval = window.setInterval(() => {
       if (document.hidden || !readGoogleToken() || !navigator.onLine) return;
-      schedulePull(0);
+      scheduleRefresh(0);
     }, 20_000);
 
     window.addEventListener('abel-db', onChange);

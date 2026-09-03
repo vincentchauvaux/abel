@@ -181,6 +181,26 @@ h2 {
   cursor: pointer;
 }
 
+.big.on {
+  background: var(--primary);
+  color: #fff;
+}
+
+.feed-side-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.feed-side-btn small {
+  font-weight: 600;
+  font-size: 0.85rem;
+  opacity: 0.9;
+}
+
 .big.pee {
   border-color: var(--pee);
   color: var(--pee);
@@ -458,29 +478,6 @@ h2 {
   padding: 10px 14px;
 }
 
-.switch {
-  display: flex;
-  background: var(--muted-bg);
-  border-radius: 999px;
-  padding: 4px;
-}
-
-.switch button {
-  flex: 1;
-  border: 0;
-  background: transparent;
-  padding: 12px;
-  font-weight: 800;
-  color: var(--text-muted);
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.switch button.on {
-  background: var(--surface);
-  color: var(--text);
-}
-
 .tiles {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -497,23 +494,15 @@ h2 {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  font-weight: 700;
+  font-weight: 400;
+  color: var(--text-muted);
   cursor: pointer;
 }
 
-.tile.soon {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .icon-wrap {
-  width: 56px;
-  height: 56px;
-  border-radius: 28px;
-  background: var(--muted-bg);
   display: grid;
   place-items: center;
-  color: var(--primary);
+  color: var(--text-muted);
 }
 
 .stat {
@@ -634,7 +623,7 @@ h2 {
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--text-muted);
   margin: 18px 0 8px;
 }
 
@@ -729,22 +718,27 @@ h2 {
   font-size: 1.05rem;
 }
 
-.period-selector {
+.segmented {
   width: 100%;
+}
+
+.period-selector {
   margin: 12px 0 4px;
 }
 
-.period-selector-track {
+.segmented-track {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--count), minmax(0, 1fr));
   position: relative;
   background: var(--muted-bg);
   border-radius: 14px;
   padding: 4px;
   gap: 0;
+  touch-action: none;
+  user-select: none;
 }
 
-.period-selector-thumb {
+.segmented-thumb {
   position: absolute;
   top: 4px;
   bottom: 4px;
@@ -758,7 +752,11 @@ h2 {
   pointer-events: none;
 }
 
-.period-selector-btn {
+.segmented-track.dragging .segmented-thumb {
+  transition: none;
+}
+
+.segmented-btn {
   position: relative;
   z-index: 1;
   border: 0;
@@ -767,17 +765,23 @@ h2 {
   font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
-  color: var(--muted);
+  color: var(--text-muted);
   white-space: nowrap;
   text-align: center;
   min-width: 0;
 }
 
-.period-selector-btn.on {
+.segmented-lg .segmented-btn {
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.segmented-btn.on {
   color: var(--primary);
 }
 
-.period-selector-btn:focus-visible {
+.segmented-btn:focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
   border-radius: 11px;
@@ -1560,7 +1564,7 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--muted);
+  color: var(--text-muted);
 }
 
 .baby-photo.editable {

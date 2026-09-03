@@ -41,7 +41,7 @@ import {
   splitDatetimeLocal,
   toDatetimeLocalValue,
 } from '@/lib/dates';
-import { diaperLabel, milkLabel, sideLabel } from '@/lib/labels';
+import { diaperLabel, feedingSidesLabel, milkLabel, sideLabel } from '@/lib/labels';
 
 type Props = {
   item: ActivityItem;
@@ -58,6 +58,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [text, setText] = useState('');
   const [kind, setKind] = useState('');
   const [side, setSide] = useState<Side>('LEFT');
+  const [feedKeepBoth, setFeedKeepBoth] = useState(false);
   const [feedStatus, setFeedStatus] = useState<FeedStatus>('noted');
   const [feedMinutes, setFeedMinutes] = useState('');
   const [sleepStatus, setSleepStatus] = useState<SleepStatus>('done');
@@ -177,7 +178,9 @@ export function ActivityEditor({ item, onClose }: Props) {
         const sides = await listSessionSides(item.id);
         if (!cancelled && row) {
           setWhen(toDatetimeLocalValue(row.startedAt));
-          if (sides.length) setSide(sides[sides.length - 1]);
+          const bothBreasts = feedingSidesLabel(sides) === sideLabel.BOTH;
+          setFeedKeepBoth(bothBreasts);
+          if (sides.length && !bothBreasts) setSide(sides[sides.length - 1]);
           if (!row.endedAt) {
             setFeedStatus('open');
             const mins = Math.max(1, Math.round(elapsedMs(row.startedAt, null) / 60_000));
@@ -316,7 +319,7 @@ export function ActivityEditor({ item, onClose }: Props) {
           endedAt = end;
         }
         await updateFeedingSession(item.id, { startedAt: at, endedAt });
-        await setFeedingSide(item.id, side);
+        if (!feedKeepBoth) await setFeedingSide(item.id, side);
       } else if (item.kind === 'solid') {
         await updateSolidFood(item.id, { food: text, eatenAt: at });
       } else if (item.kind === 'supplement') {
@@ -485,10 +488,21 @@ export function ActivityEditor({ item, onClose }: Props) {
           <>
             <p className="goal-label">Sein</p>
             <div className="row">
-              {(['LEFT', 'RIGHT', 'BOTH'] as const).map((s) => (
-                <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />
+              {(['LEFT', 'RIGHT'] as const).map((s) => (
+                <Chip
+                  key={s}
+                  label={sideLabel[s]}
+                  selected={!feedKeepBoth && side === s}
+                  onClick={() => {
+                    setFeedKeepBoth(false);
+                    setSide(s);
+                  }}
+                />
               ))}
             </div>
+            {feedKeepBoth ? (
+              <p className="muted">Les deux seins pendant cette séance (durée totale). Choisir un seul côté remplace le détail.</p>
+            ) : null}
             <p className="goal-label">État</p>
             <div className="row">
               <Chip
@@ -523,7 +537,7 @@ export function ActivityEditor({ item, onClose }: Props) {
             </div>
             {feedStatus === 'open' ? (
               <p className="muted">Le minuteur continue sur Allaitement. Tu pourras terminer là-bas ou saisir une durée ici en passant en Terminée.</p>
-            ) : (
+            ) : feedKeepBoth ? null : (
               <p className="muted">Changer le sein remplace les côtés de cette tétée.</p>
             )}
           </>

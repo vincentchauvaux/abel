@@ -25,7 +25,7 @@ import type {
 } from '@/db/types';
 import { activityAt, activityAtFromDuration, formatFeedLabel, formatMinutes, elapsedMs } from '@/lib/dates';
 import { formatTemperature } from '@/lib/temperature';
-import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
+import { diaperLabel, feedingSidesLabel, measurementLabel, milkLabel } from '@/lib/labels';
 
 export type ActivityKind =
   | 'feeding'
@@ -68,11 +68,9 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
   const items: ActivityItem[] = [];
 
   for (const row of sessions) {
-    const sides = [
-      ...new Set(
-        segments.filter((s) => s.feedingSessionId === row.id).map((s) => sideLabel[s.side]),
-      ),
-    ].join(' · ');
+    const sides = feedingSidesLabel(
+      segments.filter((s) => s.feedingSessionId === row.id).map((s) => s.side),
+    );
     items.push({
       id: row.id,
       kind: 'feeding',

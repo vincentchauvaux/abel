@@ -18,10 +18,10 @@ import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatFeedLabel, formatMinutes, formatTime, nowIso, startOfLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
-import { sideLabel } from '@/lib/labels';
+import { feedingSidesLabel, sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 
-const SIDES: Side[] = ['LEFT', 'RIGHT', 'BOTH'];
+const BREASTS: Side[] = ['LEFT', 'RIGHT'];
 
 export function FeedingPage() {
   const { baby, tick, sharingRole } = useDb();
@@ -83,20 +83,30 @@ export function FeedingPage() {
         <Card>
           <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
           <p className="muted" style={{ textAlign: 'center' }}>
-            Début {formatTime(active.startedAt)}
+            Séance · début {formatTime(active.startedAt)}
           </p>
-          <p style={{ textAlign: 'center', fontWeight: 700 }}>
-            Gauche {formatDuration(sideMs('LEFT'))} · Droit {formatDuration(sideMs('RIGHT'))}
+          <p className="muted" style={{ textAlign: 'center' }}>
+            Appuie sur l’autre sein pour le lancer : celui-ci se met en pause, le chrono de séance continue.
           </p>
-          <div className="row" style={{ justifyContent: 'center' }}>
-            {SIDES.map((side) => (
-              <Chip
-                key={side}
-                label={sideLabel[side]}
-                selected={open?.side === side}
-                onClick={() => switchFeedingSide(active.id, side)}
-              />
-            ))}
+          <div className="row">
+            {BREASTS.map((side) => {
+              const running = open?.side === side;
+              const ms = sideMs(side);
+              const hint = running ? 'en cours' : ms > 0 ? 'pause' : '';
+              return (
+                <button
+                  key={side}
+                  type="button"
+                  className={`big feed-side-btn${running ? ' on' : ''}`}
+                  onClick={() => void switchFeedingSide(active.id, side)}>
+                  {sideLabel[side]}
+                  <small>
+                    {formatDuration(ms)}
+                    {hint ? ` · ${hint}` : ''}
+                  </small>
+                </button>
+              );
+            })}
           </div>
           <Button
             onClick={async () => {
@@ -117,11 +127,11 @@ export function FeedingPage() {
           </div>
           <p className="muted">
             {useTimer
-              ? 'Un appui démarre le minuteur (sans ml). Change de côté puis termine.'
+              ? 'Un appui démarre le minuteur sur ce sein. Tu pourras passer à l’autre pendant la séance.'
               : 'Au sein, on ne connaît pas les ml. Un appui enregistre l’heure, sans quantité.'}
           </p>
           <div className="row">
-            {SIDES.map((side) => (
+            {BREASTS.map((side) => (
               <button
                 key={side}
                 type="button"
@@ -152,11 +162,9 @@ export function FeedingPage() {
           </strong>
         </p>
         {today.map((session) => {
-          const sides = [
-            ...new Set(
-              segments.filter((row) => row.feedingSessionId === session.id).map((row) => sideLabel[row.side]),
-            ),
-          ].join(' · ');
+          const sides = feedingSidesLabel(
+            segments.filter((row) => row.feedingSessionId === session.id).map((row) => row.side),
+          );
           return (
             <div className="line" key={session.id}>
               <span>{formatTime(session.startedAt)}</span>

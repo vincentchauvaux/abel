@@ -48,15 +48,26 @@ export function scheduleSync(delayMs = 2500) {
   }, wait);
 }
 
-/** Télécharge le snapshot VPS sans envoyer de modifications locales. */
-export function schedulePull(delayMs = 0) {
+/** Push d’abord s’il y a du pending, sinon pull. Pour le retour d’onglet / le tick co-parent. */
+export function scheduleRefresh(delayMs = 0) {
   if (skipSchedule) return;
   if (!readGoogleToken() || !navigator.onLine) return;
   if (pullTimer) window.clearTimeout(pullTimer);
   pullTimer = window.setTimeout(() => {
     pullTimer = null;
-    void pullFromServer();
+    void refreshFromServer();
   }, delayMs);
+}
+
+async function refreshFromServer() {
+  if (inFlight || pullInFlight) return;
+  const changes = await collectPending();
+  const hasPending = Object.values(changes).some((rows) => (rows?.length ?? 0) > 0);
+  if (hasPending) {
+    await runSync();
+    return;
+  }
+  await pullFromServer();
 }
 
 type SyncResponse = {

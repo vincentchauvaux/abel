@@ -99,23 +99,30 @@ export async function updateBaby(
 }
 
 export async function startFeeding(babyId: string, side: Side) {
+  const open = alive(await db.feedingSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
+  if (open) {
+    await switchFeedingSide(open.id, side);
+    return open.id;
+  }
   const now = nowIso();
   const sessionId = createId();
-  await db.feedingSessions.add({
-    id: sessionId,
-    babyId,
-    startedAt: now,
-    endedAt: null,
-    ...actorStamp(),
-    ...stamp(),
-  });
-  await db.feedingSegments.add({
-    id: createId(),
-    feedingSessionId: sessionId,
-    side,
-    startedAt: now,
-    endedAt: null,
-    ...stamp(),
+  await db.transaction('rw', db.feedingSessions, db.feedingSegments, async () => {
+    await db.feedingSessions.add({
+      id: sessionId,
+      babyId,
+      startedAt: now,
+      endedAt: null,
+      ...actorStamp(),
+      ...stamp(),
+    });
+    await db.feedingSegments.add({
+      id: createId(),
+      feedingSessionId: sessionId,
+      side,
+      startedAt: now,
+      endedAt: null,
+      ...stamp(),
+    });
   });
   notifyDbUrgent();
   return sessionId;
@@ -123,21 +130,23 @@ export async function startFeeding(babyId: string, side: Side) {
 
 export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
   const sessionId = createId();
-  await db.feedingSessions.add({
-    id: sessionId,
-    babyId,
-    startedAt: at,
-    endedAt: at,
-    ...actorStamp(),
-    ...stamp(),
-  });
-  await db.feedingSegments.add({
-    id: createId(),
-    feedingSessionId: sessionId,
-    side,
-    startedAt: at,
-    endedAt: at,
-    ...stamp(),
+  await db.transaction('rw', db.feedingSessions, db.feedingSegments, async () => {
+    await db.feedingSessions.add({
+      id: sessionId,
+      babyId,
+      startedAt: at,
+      endedAt: at,
+      ...actorStamp(),
+      ...stamp(),
+    });
+    await db.feedingSegments.add({
+      id: createId(),
+      feedingSessionId: sessionId,
+      side,
+      startedAt: at,
+      endedAt: at,
+      ...stamp(),
+    });
   });
   notifyDb();
   return sessionId;
@@ -145,20 +154,23 @@ export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
 
 export async function switchFeedingSide(sessionId: string, side: Side) {
   const now = nowIso();
-  const open = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray()).find(
-    (row) => !row.endedAt,
-  );
-  if (open?.side === side) return;
-  if (open) await db.feedingSegments.update(open.id, { endedAt: now, ...touch() });
-  await db.feedingSegments.add({
-    id: createId(),
-    feedingSessionId: sessionId,
-    side,
-    startedAt: now,
-    endedAt: null,
-    ...stamp(),
+  const changed = await db.transaction('rw', db.feedingSegments, async () => {
+    const open = alive(await db.feedingSegments.where('feedingSessionId').equals(sessionId).toArray()).find(
+      (row) => !row.endedAt,
+    );
+    if (open?.side === side) return false;
+    if (open) await db.feedingSegments.update(open.id, { endedAt: now, ...touch() });
+    await db.feedingSegments.add({
+      id: createId(),
+      feedingSessionId: sessionId,
+      side,
+      startedAt: now,
+      endedAt: null,
+      ...stamp(),
+    });
+    return true;
   });
-  notifyDbUrgent();
+  if (changed) notifyDbUrgent();
 }
 
 export async function stopFeeding(sessionId: string) {
@@ -199,6 +211,13 @@ export async function deleteDiaper(id: string) {
 }
 
 export async function startPumping(babyId: string) {
+  const open = alive(await db.pumpingSessions.where('babyId').equals(babyId).toArray()).find(
+    (row) => row.amountMl == null,
+  );
+  if (open) {
+    notifyDbUrgent();
+    return open.id;
+  }
   const id = createId();
   await db.pumpingSessions.add({
     id,
@@ -795,7 +814,13 @@ export async function hasLocalActivity(babyId: string): Promise<boolean> {
   return checks.some((n) => n > 0);
 }
 
-/** Remplace le cache local par le snapshot VPS (source de vérité). */
+function isPendingRow(row: unknown): boolean {
+  return Boolean(
+    row && typeof row === 'object' && 'syncStatus' in row && (row as { syncStatus?: string }).syncStatus === 'pending',
+  );
+}
+
+/** Remplace le cache local par le snapshot VPS, sans toucher aux lignes pending. */
 export async function mirrorRemoteSnapshot(records: SyncPayload, canonicalBabyId: string | null) {
   const remoteIds = Object.fromEntries(
     SYNC_TABLES.map((name) => [
@@ -809,6 +834,8 @@ export async function mirrorRemoteSnapshot(records: SyncPayload, canonicalBabyId
       for (const row of records[name] ?? []) {
         const id = String(row.id ?? '');
         if (!id) continue;
+        const local = await db.table(name).get(id);
+        if (name !== 'babies' && isPendingRow(local)) continue;
         await db.table(name).put({ ...row, syncStatus: 'synced' });
       }
     }
@@ -822,6 +849,7 @@ export async function mirrorRemoteSnapshot(records: SyncPayload, canonicalBabyId
     for (const name of SYNC_TABLES) {
       if (name === 'babies' || name === 'feedingSegments') continue;
       for (const row of await db.table(name).toArray()) {
+        if (isPendingRow(row)) continue;
         const id = String(row.id);
         const babyId = 'babyId' in row ? String(row.babyId) : '';
         if (babyId === canonicalBabyId && !remoteIds[name].has(id)) {
@@ -831,6 +859,7 @@ export async function mirrorRemoteSnapshot(records: SyncPayload, canonicalBabyId
     }
 
     for (const row of await db.feedingSegments.toArray()) {
+      if (isPendingRow(row)) continue;
       const id = String(row.id);
       if (remoteIds.feedingSegments.has(id)) continue;
       const session = await db.feedingSessions.get(row.feedingSessionId);

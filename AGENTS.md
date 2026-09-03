@@ -21,7 +21,7 @@ Bébé | Dashboard (accueil) ↔ Outils (bouton central) | Profil (Google)
 
 Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste au-dessus du journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
 
-Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils est **conservé** au retour depuis un module.
+Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils (et « Noter une entrée ») est un **curseur glissable** (doigt ou souris) **conservé** au retour depuis un module. Grille d’icônes sans fond, libellés gris comme le Dashboard.
 
 Activités en cours (tétée minuteur, sommeil, tire-lait à compléter) : bandeau sur **Outils** (au-dessus d’Apports/Suivi) et sur **Dashboard** (sous le titre), avec bouton Terminer / Réveil / Ouvrir.
 
@@ -54,7 +54,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 
 | Module | Rôle |
 |---|---|
-| Allaitement | Une carte « Noter une tétée » + case **Minuteur** : sans case = notée immédiatement ; avec case = démarre le timer. |
+| Allaitement | Une carte « Noter une tétée » + case **Minuteur** : sans case = notée immédiatement (Gauche ou Droit) ; avec case = démarre le timer sur ce sein. Pendant le chrono : **Gauche** et **Droit** restent tous deux cliquables (un seul sein à la fois) ; le chrono de séance continue, l’autre sein se met en pause et reprend au tap. Pas de bouton « Les deux » à la saisie ; si les deux seins ont servi, le journal affiche **Les deux** + durée totale. |
 | Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
@@ -78,7 +78,7 @@ Règle après le dernier repas (tétée terminée ou biberon) : aucun / 1 h / 2 
 
 ## Dashboard
 
-Périodes : Aujourd’hui | 7 jours | 30 jours | Tout.
+Périodes : Aujourd’hui | 7 jours | 30 jours | Tout (curseur glissable, même contrôle qu’Apports/Suivi).
 
 Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : raccourcis vers les outils épinglés depuis chaque module (cœur à droite du titre). **Accordéon Notes** puis **Alertes** repas / sommeil / couche. Notes filtrées par période (todos ouvertes toujours visibles ; todos faites selon `doneAt`). Puis **Apports** : biberon, diversification, compléments (une ligne par indicateur avec bouton **+**). Puis **Suivi** : couches, sommeil, tire-lait (stock et tiré sur la période), poids/taille/PC, temp. (même format liste avec **+**). **Graphiques** : repas (total par jour), sommeil, couches, **poids et taille** (courbes, IMC indicatif vert / orange / rouge — pas un avis médical). **Entrées de la période** : journal synthétique en bas de page (avatar Google à droite si l’auteur est connu).
 
@@ -116,8 +116,8 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - **Gardien** : même API avec `role: guardian` (jusqu’à 5) ; `DELETE /members/:userId` pour révoquer. Le gardien note les entrées, ne peut pas modifier identité / objectifs (`babies`, `reminderRules` ignorés au `POST /sync`).
 - Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : boutons **Synchroniser maintenant** / **Récupérer depuis le VPS** seulement si la sync a échoué, est hors ligne ou limitée.
 - Un bébé par compte Google ; un profil vide local ne remplace pas les données serveur.
-- Offline-first : saisie locale immédiate, envoi dès réseau + session Google.
-- **Co-parent temps réel (onglet ouvert)** : push auto ~2 s après chaque changement (~0,6 s pour start/stop chrono) ; pull VPS toutes les 20 s + au retour sur l’onglet, pour que l’autre parent voie tétée/sommeil/tire-lait en cours.
+- Offline-first : saisie locale immédiate, envoi dès réseau + session Google. Un **pull** VPS n’écrase ni ne supprime une ligne `pending` (chrono / couche notés hors ligne).
+- **Co-parent temps réel (onglet ouvert)** : push auto ~2 s après chaque changement (~0,6 s pour start/stop chrono) ; au retour d’onglet et toutes les 20 s : **push d’abord** s’il y a du pending, sinon pull, pour que l’autre parent voie tétée/sommeil/tire-lait en cours.
 
 Déploiement : `GOOGLE_CLIENT_ID=... deploy/bootstrap-vps.sh` sur le VPS (clone `/opt/abel`, Postgres, PM2, Nginx). Snippet : `deploy/nginx-abel.conf.example` (déclarer `limit_req_zone` dans `http {}`).
 
@@ -263,7 +263,7 @@ babies (name, bornOn, photoUrl)
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`. Les entrées (sauf `babies` / `reminder_rules` / segments) ont `createdBy` (Google `sub`) à la création.
 
-Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier ; un **gardien** n’a pas Modifier). Journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré), **avatar** du compte à droite si l’auteur est connu. Édition journal : tétée (sein, état, **date + heures de début et de fin** : changer l’une recalcule la durée ; saisir la durée décale la fin ; sieste qui dépasse minuit = fin le lendemain), sommeil (même logique), biberon/tire-lait (ml, début/fin/durée tire-lait), couche, diversification, complément, température, mesures, notes.
+Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier ; un **gardien** n’a pas Modifier). Journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré), **avatar** du compte à droite si l’auteur est connu. Édition journal : tétée (sein Gauche/Droit, **Les deux** si les deux seins ont servi pendant la séance, état, **date + heures de début et de fin** : changer l’une recalcule la durée ; saisir la durée décale la fin ; sieste qui dépasse minuit = fin le lendemain), sommeil (même logique), biberon/tire-lait (ml, début/fin/durée tire-lait), couche, diversification, complément, température, mesures, notes.
 
 ## Conventions agent
 
