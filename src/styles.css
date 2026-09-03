@@ -91,6 +91,11 @@ h2 {
   margin: 0;
 }
 
+.horoscope-disclaimer {
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);

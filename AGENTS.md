@@ -84,7 +84,7 @@ Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : racc
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. **Pas un avis médical.**
+Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. Une phrase en petit à la fin : Mimom n’est pas un avis médical.
 
 Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
 

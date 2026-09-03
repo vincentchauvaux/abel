@@ -354,7 +354,7 @@ export function BabyPage() {
               />
             </div>
             <p className="muted">
-              Rappel X minutes avant ou après le dernier repas (tétée ou biberon, si Abel reste ouvert).
+              Rappel X minutes avant ou après le dernier repas (tétée ou biberon, si Mimom reste ouvert).
             </p>
             <div className="row">
               {DIAPER_MEAL_PRESETS.map((item) => (
@@ -409,7 +409,7 @@ export function BabyPage() {
             <p>{horoscope.western}</p>
             <p className="goal-label">Médecine chinoise</p>
             <p>{horoscope.chinese}</p>
-            <p className="muted">{HOROSCOPE_DISCLAIMER}</p>
+            <p className="muted horoscope-disclaimer">{HOROSCOPE_DISCLAIMER}</p>
           </>
         ) : (
           <p className="muted">Ajoute la date de naissance pour afficher le signe, les lectures et l’horoscope du jour.</p>

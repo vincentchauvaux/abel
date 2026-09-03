@@ -23,7 +23,7 @@ export function MedicalPage() {
 
       <h2>Compléments et diversification</h2>
       <p>
-        Le module « Compléments » sert à noter ce que vous avez donné (vitamine D, fer, etc.). Abel ne recommande ni
+        Le module « Compléments » sert à noter ce que vous avez donné (vitamine D, fer, etc.). Mimom ne recommande ni
         dose ni produit. Suivez l’avis de votre professionnel de santé.
       </p>
 
@@ -34,8 +34,7 @@ export function MedicalPage() {
       </p>
 
       <h2>Horoscope et lectures traditionnelles</h2>
-      <p>{HOROSCOPE_DISCLAIMER}</p>
-      <p>Ces textes sont fournis pour le divertissement et la réflexion personnelle uniquement.</p>
+      <p className="muted">{HOROSCOPE_DISCLAIMER}</p>
 
       <h2>En cas d’urgence</h2>
       <p>

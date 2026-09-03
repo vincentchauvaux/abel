@@ -179,7 +179,7 @@ export function FeedingPage() {
       {sharingRole !== 'guardian' ? (
       <Card>
         <h2>Rappel après la dernière tétée</h2>
-        <p className="muted">Même réglage que sur Bébé. S’affiche si Abel reste ouvert dans le navigateur.</p>
+        <p className="muted">Même réglage que sur Bébé. S’affiche si Mimom reste ouvert dans le navigateur.</p>
         <div className="row">
           {INTERVAL_PRESETS.map((item) => (
             <Chip

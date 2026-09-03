@@ -26,7 +26,7 @@ export function TemperaturePage() {
       <ModuleHeader title="Température" toolId="temperature" />
       <Card>
         <h2>Nouvelle mesure</h2>
-        <p className="muted">Saisie uniquement. Abel ne donne aucun conseil médical.</p>
+        <p className="muted">Saisie uniquement. Mimom ne donne aucun conseil médical.</p>
         <Field label="Température (°C)" value={value} onChange={setValue} placeholder="37,2" />
         {previewTemp != null ? (
           <p className={temperatureLevelClass(previewTemp)}>
