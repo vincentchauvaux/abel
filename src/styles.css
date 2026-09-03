@@ -26,6 +26,7 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
@@ -377,6 +378,17 @@ h2 {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.tab:focus {
+  outline: none;
+}
+
+.tab:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 4px;
 }
 
 .tab.on {
@@ -406,6 +418,18 @@ h2 {
 
 .tab-center {
   margin-top: -28px;
+  justify-self: center;
+  width: max-content;
+  min-width: 72px;
+}
+
+.tab-center:focus-visible {
+  outline: none;
+}
+
+.tab-center:focus-visible .orb {
+  outline: 2px solid var(--primary);
+  outline-offset: 3px;
 }
 
 .tab-center .orb {
@@ -417,6 +441,12 @@ h2 {
   display: grid;
   place-items: center;
   box-shadow: 0 6px 16px rgba(164, 72, 56, 0.35);
+  transform: translateZ(0);
+}
+
+.tab-center:active .orb {
+  background: var(--primary-dark);
+  box-shadow: 0 3px 10px rgba(164, 72, 56, 0.28);
 }
 
 .sharing-block {
