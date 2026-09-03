@@ -15,6 +15,7 @@ import type { FeedingSession, PumpingSession, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatTime } from '@/lib/dates';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
+import { TOOLS } from '@/lib/tools';
 
 type ActiveItem =
   | { kind: 'feeding'; row: FeedingSession }
@@ -56,19 +57,23 @@ export function ActiveNowPanel() {
     await notifyDiaperFromGoals(goals, endedAt);
   };
 
+  const openModule = (kind: ActiveItem['kind']) => {
+    navigate(TOOLS[kind].route);
+  };
+
   return (
     <div className="active-now" aria-live="polite">
       {items.map((item) => {
         if (item.kind === 'feeding') {
           return (
             <div className="active-now-row" key={`feeding-${item.row.id}`}>
-              <div className="active-now-text">
+              <button type="button" className="active-now-open" onClick={() => openModule('feeding')}>
                 <strong>Tétée en cours</strong>
                 <p className="muted active-now-meta">
                   Depuis {formatTime(item.row.startedAt)} ·{' '}
                   {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
                 </p>
-              </div>
+              </button>
               <Button onClick={() => void stopFeed(item.row.id)}>Terminer</Button>
             </div>
           );
@@ -76,26 +81,26 @@ export function ActiveNowPanel() {
         if (item.kind === 'sleep') {
           return (
             <div className="active-now-row" key={`sleep-${item.row.id}`}>
-              <div className="active-now-text">
+              <button type="button" className="active-now-open" onClick={() => openModule('sleep')}>
                 <strong>Sommeil en cours</strong>
                 <p className="muted active-now-meta">
                   Depuis {formatTime(item.row.startedAt)} ·{' '}
                   {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
                 </p>
-              </div>
+              </button>
               <Button onClick={() => void stopSleep(item.row.id)}>Réveil</Button>
             </div>
           );
         }
         return (
           <div className="active-now-row" key={`pumping-${item.row.id}`}>
-            <div className="active-now-text">
+            <button type="button" className="active-now-open" onClick={() => openModule('pumping')}>
               <strong>Tire-lait à compléter</strong>
               <p className="muted active-now-meta">
                 Début {formatTime(item.row.startedAt)} · manque la quantité
               </p>
-            </div>
-            <Button tone="muted" onClick={() => navigate('/pumping')}>
+            </button>
+            <Button tone="muted" onClick={() => openModule('pumping')}>
               Ouvrir
             </Button>
           </div>
