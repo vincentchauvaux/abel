@@ -112,6 +112,7 @@ API Node (`server/`) sur `127.0.0.1:3030`, Nginx `/abel/api/`, PostgreSQL local.
 - **Source de vérité** : PostgreSQL sur le VPS quand Google est connecté. IndexedDB = cache hors ligne.
 - `GET /sync` : télécharge le snapshot complet ; `POST /sync` : envoie les modifications en attente puis renvoie le snapshot.
 - **Co-parent** : `GET /sharing`, `POST /invites` (`role: member`), `POST /invites/:id/accept|decline`, `DELETE /invites/:id` — invitation par e-mail Google, acceptation dans Profil, accès sync identique (1 propriétaire + 1 co-parent max).
+- Photo Google : `POST /profile` (nom + photo du compte connecté) pour que Co-parent et le journal voient le même avatar.
 - **Gardien** : même API avec `role: guardian` (jusqu’à 5) ; `DELETE /members/:userId` pour révoquer. Le gardien note les entrées, ne peut pas modifier identité / objectifs (`babies`, `reminderRules` ignorés au `POST /sync`).
 - Au démarrage (session Google + réseau) : pull VPS avant de créer un bébé vide local. Profil : boutons **Synchroniser maintenant** / **Récupérer depuis le VPS** seulement si la sync a échoué, est hors ligne ou limitée.
 - Un bébé par compte Google ; un profil vide local ne remplace pas les données serveur.
@@ -155,7 +156,7 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 
 - API en écoute `127.0.0.1` uniquement, derrière Nginx HTTPS.
 - CORS restreint aux origines Abel.
-- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/invites`, `/members` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
+- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/profile`, `/invites`, `/members` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
 - Rate limiting API (`/horoscope`, `/sync`, `/sharing`, `/invites`, `/account`, `/session`) + Nginx `limit_req`.
 - En-têtes : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (nginx).
 - `VITE_GOOGLE_CLIENT_ID` via secrets — pas de Client ID en dur dans le code.

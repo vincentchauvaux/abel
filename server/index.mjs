@@ -368,7 +368,7 @@ async function verifyGoogleIdToken(token) {
 async function verifyAbelSession(token) {
   const hash = hashToken(token);
   const { rows } = await pool.query(
-    `SELECT user_id, email, expires_at, last_used_at, revoked_at
+    `SELECT user_id, email, name, picture, expires_at, last_used_at, revoked_at
      FROM auth_sessions WHERE token_hash = $1`,
     [hash],
   );
@@ -388,7 +388,12 @@ async function verifyAbelSession(token) {
       [hash, nextExp],
     );
   }
-  return { sub: row.user_id, email: row.email || '' };
+  return {
+    sub: row.user_id,
+    email: row.email || '',
+    name: row.name || '',
+    picture: row.picture || '',
+  };
 }
 
 async function createAbelSession(user) {
@@ -396,9 +401,18 @@ async function createAbelSession(user) {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_TTL_MS);
   await pool.query(
-    `INSERT INTO auth_sessions (id, token_hash, user_id, email, created_at, expires_at, last_used_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $5)`,
-    [randomUUID(), hashToken(token), user.sub, user.email || '', now, expiresAt],
+    `INSERT INTO auth_sessions (id, token_hash, user_id, email, name, picture, created_at, expires_at, last_used_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $7)`,
+    [
+      randomUUID(),
+      hashToken(token),
+      user.sub,
+      user.email || '',
+      user.name || '',
+      user.picture || '',
+      now,
+      expiresAt,
+    ],
   );
   await pool.query(
     `WITH keep AS (
@@ -431,7 +445,12 @@ async function verifyUser(req) {
   try {
     const payload = await verifyGoogleIdToken(token);
     if (!payload) return null;
-    return { sub: payload.sub, email: payload.email };
+    return {
+      sub: payload.sub,
+      email: payload.email,
+      name: payload.name || '',
+      picture: payload.picture || '',
+    };
   } catch {
     return null;
   }
@@ -582,6 +601,30 @@ async function getBabyName(client, babyId) {
   return rows[0]?.name ?? 'Bébé';
 }
 
+async function handleProfilePush(user, body) {
+  const name = typeof body?.name === 'string' ? body.name.trim() : '';
+  const picture = typeof body?.picture === 'string' ? body.picture.trim() : '';
+  if (!name && !picture) {
+    return { status: 400, body: { error: 'invalid' } };
+  }
+  await upsertUserProfile(pool, {
+    sub: user.sub,
+    email: user.email || '',
+    name: name || user.name || '',
+    picture: picture || user.picture || '',
+  });
+  if (name || picture) {
+    await pool.query(
+      `UPDATE auth_sessions
+       SET name = CASE WHEN $2 <> '' THEN $2 ELSE name END,
+           picture = CASE WHEN $3 <> '' THEN $3 ELSE picture END
+       WHERE user_id = $1 AND revoked_at IS NULL`,
+      [user.sub, name, picture],
+    );
+  }
+  return { status: 200, body: { ok: true } };
+}
+
 async function handleSharingGet(user) {
   const client = await pool.connect();
   try {
@@ -624,13 +667,13 @@ async function handleSharingGet(user) {
       await client.query(
         `SELECT m.role, m.user_id,
             COALESCE(NULLIF(p.email, ''), NULLIF(s.email, ''), CASE WHEN m.role IN ('member', 'guardian') THEN NULLIF(inv.invited_email, '') END, '') AS email,
-            COALESCE(NULLIF(p.name, ''), '') AS name,
-            COALESCE(NULLIF(p.picture, ''), '') AS picture
+            COALESCE(NULLIF(p.name, ''), NULLIF(s.name, ''), '') AS name,
+            COALESCE(NULLIF(p.picture, ''), NULLIF(s.picture, ''), '') AS picture
          FROM baby_members m
          LEFT JOIN user_profiles p ON p.user_id = m.user_id
          LEFT JOIN LATERAL (
-           SELECT email FROM auth_sessions
-           WHERE user_id = m.user_id AND email <> ''
+           SELECT email, name, picture FROM auth_sessions
+           WHERE user_id = m.user_id AND revoked_at IS NULL
            ORDER BY last_used_at DESC
            LIMIT 1
          ) s ON true
@@ -1227,6 +1270,21 @@ const server = createServer(async (req, res) => {
       }
       const result = await handleSharingGet(user);
       send(res, 200, result);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/profile') {
+      if (overRateLimit(req, 'sharing')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const body = await readBody(req);
+      const result = await handleProfilePush(user, body);
+      send(res, result.status, result.body);
       return;
     }
     if (req.method === 'POST' && url.pathname === '/invites') {

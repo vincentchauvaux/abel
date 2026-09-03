@@ -2,8 +2,8 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 
 import { ensureBaby, getBaby } from '@/db/api';
 import type { Baby } from '@/db/types';
-import { ensureAbelSession, readGoogleToken } from '@/lib/google';
-import { fetchSharing, type SharingMember, type SharingRole } from '@/lib/sharing';
+import { ensureAbelSession, readGoogleToken, readGoogleUser } from '@/lib/google';
+import { fetchSharing, pushLocalProfile, type SharingMember, type SharingRole } from '@/lib/sharing';
 import { pullFromServer, schedulePull, scheduleSync } from '@/lib/sync';
 
 const SHARING_META_KEY = 'abel-sharing-meta';
@@ -19,14 +19,30 @@ type SharingMeta = {
   members: SharingActor[];
 };
 
+function overlaySelf(members: SharingActor[]): SharingActor[] {
+  const self = readGoogleUser();
+  if (!self) return members;
+  return members.map((row) =>
+    row.userId === self.sub
+      ? { ...row, name: row.name || self.name, picture: row.picture || self.picture }
+      : row,
+  );
+}
+
 function actorsFromMembers(members: SharingMember[]): SharingActor[] {
-  return members
-    .filter((row) => row.userId)
-    .map((row) => ({
-      userId: row.userId,
-      name: row.name || row.email || row.label || '',
-      picture: row.picture || '',
-    }));
+  const self = readGoogleUser();
+  return overlaySelf(
+    members
+      .filter((row) => row.userId)
+      .map((row) => {
+        const mine = Boolean(self && row.userId === self.sub);
+        return {
+          userId: row.userId,
+          name: row.name || row.email || row.label || (mine ? self!.name : '') || '',
+          picture: row.picture || (mine ? self!.picture : '') || '',
+        };
+      }),
+  );
 }
 
 function readSharingMeta(): SharingMeta {
@@ -87,12 +103,13 @@ export function DbProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [pendingInvitesCount, setPendingInvitesCount] = useState(0);
   const [sharingRole, setSharingRole] = useState<SharingRole | null>(cached.role);
-  const [sharingMembers, setSharingMembers] = useState<SharingActor[]>(cached.members);
+  const [sharingMembers, setSharingMembers] = useState<SharingActor[]>(() => overlaySelf(cached.members));
 
   const applyMeta = (meta: SharingMeta) => {
+    const members = overlaySelf(meta.members);
     setSharingRole(meta.role);
-    setSharingMembers(meta.members);
-    writeSharingMeta(meta);
+    setSharingMembers(members);
+    writeSharingMeta({ role: meta.role, members });
   };
 
   const refreshSharing = async () => {
@@ -101,6 +118,7 @@ export function DbProvider({ children }: { children: ReactNode }) {
       applyMeta({ role: null, members: [] });
       return;
     }
+    await pushLocalProfile();
     const state = await fetchSharing();
     if (state === 'auth') {
       setPendingInvitesCount(0);

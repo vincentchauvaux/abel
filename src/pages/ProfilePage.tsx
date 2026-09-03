@@ -64,11 +64,15 @@ function SharingPerson({
   onRemove?: () => void;
   busy?: boolean;
 }) {
-  const title = member.isYou ? member.name || 'Vous' : member.name || member.email || member.label;
+  const self = readGoogleUser();
+  const picture = member.isYou ? member.picture || self?.picture : member.picture;
+  const title = member.isYou
+    ? member.name || self?.name || 'Vous'
+    : member.name || member.email || member.label;
   return (
     <div className="google-user sharing-member">
-      {member.picture ? (
-        <img src={member.picture} alt="" />
+      {picture ? (
+        <img src={picture} alt="" referrerPolicy="no-referrer" />
       ) : (
         <span className="sharing-member-avatar" aria-hidden>
           {(title || '?').slice(0, 1).toUpperCase()}
@@ -359,7 +363,7 @@ export function ProfilePage() {
         {user ? (
           <>
             <div className="google-user">
-              {user.picture ? <img src={user.picture} alt="" /> : null}
+              {user.picture ? <img src={user.picture} alt="" referrerPolicy="no-referrer" /> : null}
               <div>
                 <strong>{user.name}</strong>
                 <p className="muted google-user-email" style={{ fontSize: emailFontSize(user.email) }}>

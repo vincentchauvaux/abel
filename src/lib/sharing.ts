@@ -1,4 +1,4 @@
-import { clearAuthToken, readGoogleToken, SYNC_URL } from '@/lib/google';
+import { clearAuthToken, readGoogleToken, readGoogleUser, SYNC_URL } from '@/lib/google';
 
 export type SharingRole = 'owner' | 'member' | 'guardian';
 export type InviteRole = 'member' | 'guardian';
@@ -73,6 +73,15 @@ async function sharingFetch<T>(
 
 export async function fetchSharing(): Promise<ApiResult<SharingState>> {
   return sharingFetch<SharingState>('/sharing');
+}
+
+export async function pushLocalProfile(): Promise<void> {
+  const user = readGoogleUser();
+  if (!user?.picture && !user?.name) return;
+  await sharingFetch('/profile', {
+    method: 'POST',
+    body: JSON.stringify({ name: user.name || '', picture: user.picture || '' }),
+  });
 }
 
 export async function createInvite(

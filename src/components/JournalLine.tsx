@@ -11,16 +11,14 @@ export function JournalActor({ createdBy }: { createdBy?: string | null }) {
   const me = readGoogleUser();
   if (!createdBy) return null;
   const member = sharingMembers.find((row) => row.userId === createdBy);
-  const actor = member
-    ? { name: member.name || 'Compte', picture: member.picture }
-    : me?.sub === createdBy
-      ? { name: me.name || 'Vous', picture: me.picture }
-      : { name: 'Compte', picture: '' };
-  const initial = (actor.name || '?').trim().slice(0, 1).toUpperCase() || '?';
+  const mine = me?.sub === createdBy;
+  const picture = member?.picture || (mine ? me.picture : '') || '';
+  const name = member?.name || (mine ? me.name : '') || 'Compte';
+  const initial = (name || '?').trim().slice(0, 1).toUpperCase() || '?';
   return (
-    <span className="journal-actor" aria-label={actor.name} title={actor.name}>
-      {actor.picture ? (
-        <img src={actor.picture} alt="" />
+    <span className="journal-actor" aria-label={name} title={name}>
+      {picture ? (
+        <img src={picture} alt="" referrerPolicy="no-referrer" />
       ) : initial !== '?' ? (
         <span aria-hidden>{initial}</span>
       ) : (
