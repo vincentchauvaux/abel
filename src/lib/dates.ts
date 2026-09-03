@@ -118,7 +118,7 @@ export function formatFeedLabel(startedAt: string, endedAt?: string | null, now 
   if (endedAt && endedAt === startedAt) return 'notée';
   const ms = elapsedMs(startedAt, endedAt, now);
   if (endedAt && ms < 15_000) return 'notée';
-  return formatDuration(ms);
+  return formatMinutes(ms);
 }
 
 export function parseDecimal(input: string): number | null {

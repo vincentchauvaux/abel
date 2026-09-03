@@ -23,7 +23,7 @@ import type {
   Supplement,
   Temperature,
 } from '@/db/types';
-import { activityAt, activityAtFromDuration, formatFeedLabel, formatMinutes, elapsedMs } from '@/lib/dates';
+import { activityAt, activityAtFromDuration, formatFeedLabel, formatMinuteCount, formatMinutes, elapsedMs } from '@/lib/dates';
 import { formatTemperature } from '@/lib/temperature';
 import { diaperLabel, feedingSidesLabel, measurementLabel, milkLabel } from '@/lib/labels';
 
@@ -112,7 +112,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       detail:
         row.amountMl == null
           ? 'à compléter'
-          : `${row.amountMl} ml · reste ${row.remainingMl ?? 0} ml`,
+          : `${row.durationMinutes != null && row.durationMinutes > 0 ? `${formatMinuteCount(row.durationMinutes)} · ` : ''}${row.amountMl} ml · reste ${row.remainingMl ?? 0} ml`,
       createdBy: row.createdBy ?? null,
     });
   }
