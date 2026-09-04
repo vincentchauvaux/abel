@@ -83,29 +83,27 @@ export function MultiSelectField<T extends string>({
   onChange: (values: T[]) => void;
   options: { value: T; label: string }[];
 }) {
-  const allSelected = values.length === 0 || values.length === options.length;
+  const allSelected = options.length > 0 && options.every((o) => values.includes(o.value));
   const summary = allSelected
     ? 'Tout'
-    : options
-        .filter((o) => values.includes(o.value))
-        .map((o) => o.label)
-        .join(', ');
+    : values.length === 0
+      ? 'Aucun'
+      : options
+          .filter((o) => values.includes(o.value))
+          .map((o) => o.label)
+          .join(', ');
 
   const toggle = (value: T) => {
-    if (values.length === 0) {
-      onChange(options.map((o) => o.value).filter((v) => v !== value));
-      return;
-    }
     if (values.includes(value)) {
-      const next = values.filter((v) => v !== value);
-      onChange(next);
+      onChange(values.filter((v) => v !== value));
     } else {
-      const next = [...values, value];
-      onChange(next.length === options.length ? [] : next);
+      onChange([...values, value]);
     }
   };
 
-  const checked = (value: T) => values.length === 0 || values.includes(value);
+  const toggleAll = () => {
+    onChange(allSelected ? [] : options.map((o) => o.value));
+  };
 
   return (
     <div className="field multi-select-field">
@@ -114,12 +112,12 @@ export function MultiSelectField<T extends string>({
         <summary>{summary}</summary>
         <div className="multi-select-panel" role="group" aria-label={label}>
           <label className="check-inline">
-            <input type="checkbox" checked={allSelected} onChange={() => onChange([])} />
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} />
             Tout
           </label>
           {options.map((opt) => (
             <label key={opt.value} className="check-inline">
-              <input type="checkbox" checked={checked(opt.value)} onChange={() => toggle(opt.value)} />
+              <input type="checkbox" checked={values.includes(opt.value)} onChange={() => toggle(opt.value)} />
               {opt.label}
             </label>
           ))}

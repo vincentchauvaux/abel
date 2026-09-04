@@ -52,6 +52,7 @@ const JOURNAL_KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'note', label: 'Note' },
   { value: 'measurement', label: 'Croissance' },
 ];
+const JOURNAL_KIND_VALUES = JOURNAL_KIND_OPTIONS.map((o) => o.value);
 
 export function BabyPage() {
   const { baby, tick, sharingRole } = useDb();
@@ -74,7 +75,7 @@ export function BabyPage() {
   const [showEntry, setShowEntry] = useState(false);
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [journalDay, setJournalDay] = useState(() => localDateKey(new Date().toISOString()));
-  const [journalKinds, setJournalKinds] = useState<ActivityKind[]>([]);
+  const [journalKinds, setJournalKinds] = useState<ActivityKind[]>(JOURNAL_KIND_VALUES);
   const guidedRef = useRef(false);
   const now = useNow(true, 30_000);
   const canEditBaby = sharingRole !== 'guardian';
@@ -161,7 +162,7 @@ export function BabyPage() {
     () =>
       activity.filter((row) => {
         if (localDateKey(row.at) !== journalDay) return false;
-        if (journalKinds.length > 0 && !journalKinds.includes(row.kind)) return false;
+        if (!journalKinds.includes(row.kind)) return false;
         return true;
       }),
     [activity, journalDay, journalKinds],
