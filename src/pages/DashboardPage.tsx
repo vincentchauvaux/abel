@@ -658,7 +658,7 @@ export function DashboardPage() {
         data={mealBars}
         tone="meal"
         session={isToday}
-        alignEnd={!isToday}
+        alignEnd
         empty="Aucune tétée aujourd’hui."
         hint={
           isToday && (feedingMinutesToday > 0 || bottleCount > 0)
@@ -677,7 +677,7 @@ export function DashboardPage() {
         data={sleepBars}
         tone="sleep"
         session={isToday}
-        alignEnd={!isToday}
+        alignEnd
         empty="Aucune sieste aujourd’hui."
         hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
       />
