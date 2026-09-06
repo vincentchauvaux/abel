@@ -7,6 +7,7 @@ import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { GrowthChart } from '@/components/GrowthChart';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
+import { RatioPie } from '@/components/RatioPie';
 import { Card } from '@/components/ui';
 import {
   getReminder,
@@ -43,6 +44,7 @@ import {
   eachLocalDay,
   elapsedMs,
   formatDateTime,
+  formatMinuteCount,
   formatMinutes,
   formatTime,
   localDateKey,
@@ -64,6 +66,44 @@ import {
 
 function latestMeasure(measures: Measurement[], type: MeasurementType) {
   return measures.find((row) => row.type === type);
+}
+
+type BarDatum = { key: string; label: string; value: number; display?: string };
+
+function isNotedSession(startedAt: string, endedAt?: string | null) {
+  if (!endedAt) return false;
+  return endedAt === startedAt || elapsedMs(startedAt, endedAt) < 15_000;
+}
+
+function sessionMinutes(startedAt: string, endedAt?: string | null, now = Date.now()) {
+  if (isNotedSession(startedAt, endedAt)) return 0;
+  return Math.max(0, Math.round(elapsedMs(startedAt, endedAt, now) / 60_000));
+}
+
+function compactBarMinutes(minutes: number, noted = false) {
+  if (noted || minutes <= 0) return '';
+  if (minutes < 60) return String(minutes);
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  return mins === 0 ? `${hours}h` : `${hours}h${mins}`;
+}
+
+function sessionBars(
+  rows: { id: string; startedAt: string; endedAt?: string | null }[],
+  now: number,
+): BarDatum[] {
+  return [...rows]
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+    .map((row) => {
+      const noted = isNotedSession(row.startedAt, row.endedAt);
+      const minutes = sessionMinutes(row.startedAt, row.endedAt, now);
+      return {
+        key: row.id,
+        label: formatTime(row.startedAt),
+        value: minutes,
+        display: compactBarMinutes(minutes, noted),
+      };
+    });
 }
 
 type FollowRow = {
@@ -446,30 +486,49 @@ export function DashboardPage() {
     period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
   );
   const compact = days.length > 10;
+  const isToday = period === 'today';
 
-  const mealBars = days.map((day) => {
-    const breast = sessions.filter((row) => localDateKey(row.startedAt) === day).length;
-    const bottle = bottles.filter((row) => localDateKey(row.fedAt) === day).length;
-    return {
-      key: day,
-      label: compact ? day.slice(8) : weekdayShort(day),
-      value: breast + bottle,
-    };
-  });
-  const sleepBars = days.map((day) => ({
-    key: day,
-    label: compact ? day.slice(8) : weekdayShort(day),
-    value: Math.round(
-      sleeps
-        .filter((row) => localDateKey(row.startedAt) === day)
-        .reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0) / 3_600_000,
-    ),
-  }));
-  const diaperBars = days.map((day) => ({
+  const mealBars: BarDatum[] = isToday
+    ? sessionBars(sessionsRange, now)
+    : days.map((day) => {
+        const breast = sessions.filter((row) => localDateKey(row.startedAt) === day).length;
+        const bottle = bottles.filter((row) => localDateKey(row.fedAt) === day).length;
+        return {
+          key: day,
+          label: compact ? day.slice(8) : weekdayShort(day),
+          value: breast + bottle,
+        };
+      });
+  const sleepBars: BarDatum[] = isToday
+    ? sessionBars(
+        sleeps.filter((row) => inRange(row.startedAt)),
+        now,
+      )
+    : days.map((day) => ({
+        key: day,
+        label: compact ? day.slice(8) : weekdayShort(day),
+        value: Math.round(
+          sleeps
+            .filter((row) => localDateKey(row.startedAt) === day)
+            .reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0) / 3_600_000,
+        ),
+      }));
+  const diaperBars: BarDatum[] = days.map((day) => ({
     key: day,
     label: compact ? day.slice(8) : weekdayShort(day),
     value: diapers.filter((row) => localDateKey(row.occurredAt) === day).length,
   }));
+  const diapersToday = diapers.filter((row) => inRange(row.occurredAt));
+  const diaperPee = diapersToday.filter((row) => row.kind === 'PEE').length;
+  const diaperPoo = diapersToday.filter((row) => row.kind === 'POO').length;
+  const diaperBoth = diapersToday.filter((row) => row.kind === 'BOTH').length;
+  const feedingMinutesToday = sessionsRange.reduce(
+    (sum, row) => sum + sessionMinutes(row.startedAt, row.endedAt, now),
+    0,
+  );
+  const sleepMinutesToday = sleeps
+    .filter((row) => inRange(row.startedAt))
+    .reduce((sum, row) => sum + sessionMinutes(row.startedAt, row.endedAt, now), 0);
 
   return (
     <div className="screen dashboard-screen">
@@ -592,9 +651,58 @@ export function DashboardPage() {
       </div>
 
       <p className="dash-section">Graphiques</p>
-      <Bars title="Repas (nombre)" data={mealBars} tone="meal" />
-      <Bars title="Sommeil (h)" data={sleepBars} tone="sleep" />
-      <Bars title="Couches" data={diaperBars} tone="pee" />
+      <Bars
+        title={isToday ? 'Tétées (min)' : 'Repas (nombre)'}
+        data={mealBars}
+        tone="meal"
+        session={isToday}
+        empty="Aucune tétée aujourd’hui."
+        hint={
+          isToday && (feedingMinutesToday > 0 || bottleCount > 0)
+            ? [
+                feedingMinutesToday > 0 ? formatMinuteCount(feedingMinutesToday) : null,
+                bottleCount > 0 ? `${bottleCount} biberon${bottleCount > 1 ? 's' : ''}` : null,
+                bottleMl > 0 ? `${bottleMl} ml` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
+            : undefined
+        }
+      />
+      <Bars
+        title={isToday ? 'Siestes (min)' : 'Sommeil (h)'}
+        data={sleepBars}
+        tone="sleep"
+        session={isToday}
+        empty="Aucune sieste aujourd’hui."
+        hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
+      />
+      {isToday ? (
+        <Card>
+          <h2>Couches</h2>
+          {diapersToday.length === 0 ? (
+            <p className="muted">Aucune couche aujourd’hui.</p>
+          ) : (
+            <RatioPie
+              slices={[
+                { key: 'pee', label: 'Pipi', value: diaperPee, color: 'var(--pee)', legendClass: 'leg-pee' },
+                { key: 'poo', label: 'Caca', value: diaperPoo, color: 'var(--poo)', legendClass: 'leg-poo' },
+                { key: 'both', label: 'Les deux', value: diaperBoth, color: 'var(--primary)', legendClass: 'leg-both' },
+              ]}
+              centerValue={diapersToday.length}
+              centerLabel="couches"
+              detail={[
+                diaperPee + diaperBoth > 0 ? `${diaperPee + diaperBoth} pipi` : null,
+                diaperPoo + diaperBoth > 0 ? `${diaperPoo + diaperBoth} caca` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            />
+          )}
+        </Card>
+      ) : (
+        <Bars title="Couches" data={diaperBars} tone="pee" />
+      )}
       <GrowthChart
         weights={measures.filter((row) => row.type === 'WEIGHT')}
         heights={measures.filter((row) => row.type === 'HEIGHT')}
@@ -619,32 +727,46 @@ function Bars({
   title,
   data,
   tone,
+  session = false,
+  empty,
+  hint,
 }: {
   title: string;
-  data: { key: string; label: string; value: number }[];
+  data: BarDatum[];
   tone?: 'sleep' | 'pee' | 'meal';
+  session?: boolean;
+  empty?: string;
+  hint?: string;
 }) {
   const max = Math.max(1, ...data.map((d) => d.value));
   const compact = data.length > 10;
   return (
     <Card>
       <h2>{title}</h2>
-      <div className="bars-wrap">
-        <div className={`bars ${compact ? 'compact' : ''}`}>
-          {data.map((d) => (
-            <div className="bar-col" key={d.key}>
-              <div className="bar-stack">
-                <div
-                  className={`bar ${tone ?? ''}${d.value <= 0 ? ' empty' : ''}`}
-                  style={{ height: `${d.value > 0 ? Math.max(14, (d.value / max) * 100) : 4}%` }}>
-                  {d.value > 0 ? <span className="bar-value">{d.value}</span> : null}
+      {data.length === 0 ? (
+        <p className="muted">{empty ?? 'Rien à afficher.'}</p>
+      ) : (
+        <div className="bars-wrap">
+          <div className={`bars ${compact ? 'compact' : ''} ${session ? 'sessions' : ''}`.trim()}>
+            {data.map((d) => {
+              const shown = d.display || (d.value > 0 ? String(d.value) : '');
+              return (
+                <div className="bar-col" key={d.key}>
+                  <div className="bar-stack">
+                    <div
+                      className={`bar ${tone ?? ''}${d.value <= 0 ? ' empty' : ''}`}
+                      style={{ height: `${d.value > 0 ? Math.max(14, (d.value / max) * 100) : 4}%` }}>
+                      {shown ? <span className="bar-value">{shown}</span> : null}
+                    </div>
+                  </div>
+                  <span className="bar-label">{d.label}</span>
                 </div>
-              </div>
-              <span className="bar-label">{d.label}</span>
-            </div>
-          ))}
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
+      {hint ? <p className="muted bars-hint">{hint}</p> : null}
     </Card>
   );
 }

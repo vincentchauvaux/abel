@@ -894,7 +894,7 @@ h2 {
   width: 100%;
 }
 
-.meal-pie-wrap {
+.pie-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -902,19 +902,19 @@ h2 {
   margin-top: 4px;
 }
 
-.meal-pie-chart {
+.pie-chart {
   position: relative;
   width: 120px;
   height: 120px;
 }
 
-.meal-pie {
+.pie {
   width: 100%;
   height: 100%;
   border-radius: 50%;
 }
 
-.meal-pie-center {
+.pie-center {
   position: absolute;
   inset: 18%;
   border-radius: 50%;
@@ -926,21 +926,23 @@ h2 {
   line-height: 1.1;
 }
 
-.meal-pie-center b {
+.pie-center b {
   font-size: 1.4rem;
 }
 
-.meal-pie-center .muted {
+.pie-center .muted {
   font-size: 0.7rem;
 }
 
-.meal-pie-legend {
+.pie-legend {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
   font-size: 0.8rem;
 }
 
-.meal-pie-legend span::before {
+.pie-legend span::before {
   content: '';
   display: inline-block;
   width: 10px;
@@ -950,19 +952,31 @@ h2 {
   vertical-align: middle;
 }
 
-.meal-pie-legend .leg-breast::before {
+.pie-legend .leg-breast::before {
   background: var(--primary);
 }
 
-.meal-pie-legend .leg-bottle::before {
+.pie-legend .leg-bottle::before {
   background: var(--accent, #c45);
 }
 
-.meal-pie-legend .leg-other::before {
+.pie-legend .leg-other::before {
   background: #c9a227;
 }
 
-.meal-pie-detail {
+.pie-legend .leg-pee::before {
+  background: var(--pee);
+}
+
+.pie-legend .leg-poo::before {
+  background: var(--poo);
+}
+
+.pie-legend .leg-both::before {
+  background: var(--primary);
+}
+
+.pie-detail {
   text-align: center;
   font-size: 0.85rem;
   margin: 0;
@@ -1140,6 +1154,20 @@ h2 {
 
 .bars.compact .bar-label {
   font-size: 8px;
+}
+
+.bars.sessions .bar-col {
+  min-width: 36px;
+}
+
+.bars.sessions .bar-value {
+  font-size: 8px;
+}
+
+.bars-hint {
+  text-align: center;
+  font-size: 0.85rem;
+  margin: 8px 0 0;
 }
 
 .growth-chart {
