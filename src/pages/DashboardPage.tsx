@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Check } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
+import { ActivityEditor } from '@/components/ActivityEditor';
 import { GrowthChart } from '@/components/GrowthChart';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
@@ -145,6 +146,7 @@ export function DashboardPage() {
   const [notes, setNotes] = useState<Note[]>([]);
   const [measures, setMeasures] = useState<Measurement[]>([]);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
   const [goals, setGoals] = useState<ReminderRule | undefined>();
   const [notesOpen, setNotesOpen] = useState(false);
   const [favorites, setFavorites] = useState(() => readToolFavorites());
@@ -656,6 +658,7 @@ export function DashboardPage() {
         data={mealBars}
         tone="meal"
         session={isToday}
+        alignEnd={!isToday}
         empty="Aucune tétée aujourd’hui."
         hint={
           isToday && (feedingMinutesToday > 0 || bottleCount > 0)
@@ -674,6 +677,7 @@ export function DashboardPage() {
         data={sleepBars}
         tone="sleep"
         session={isToday}
+        alignEnd={!isToday}
         empty="Aucune sieste aujourd’hui."
         hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
       />
@@ -701,7 +705,7 @@ export function DashboardPage() {
           )}
         </Card>
       ) : (
-        <Bars title="Couches" data={diaperBars} tone="pee" />
+        <Bars title="Couches" data={diaperBars} tone="pee" alignEnd />
       )}
       <GrowthChart
         weights={measures.filter((row) => row.type === 'WEIGHT')}
@@ -715,10 +719,11 @@ export function DashboardPage() {
           <p className="muted">Rien de noté sur cette période.</p>
         ) : (
           periodActivity.map((row) => (
-            <JournalLine key={`${row.kind}-${row.id}`} item={row} />
+            <JournalLine key={`${row.kind}-${row.id}`} item={row} onClick={() => setEditing(row)} />
           ))
         )}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }
@@ -728,6 +733,7 @@ function Bars({
   data,
   tone,
   session = false,
+  alignEnd = false,
   empty,
   hint,
 }: {
@@ -735,18 +741,34 @@ function Bars({
   data: BarDatum[];
   tone?: 'sleep' | 'pee' | 'meal';
   session?: boolean;
+  alignEnd?: boolean;
   empty?: string;
   hint?: string;
 }) {
+  const wrapRef = useRef<HTMLDivElement>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
   const compact = data.length > 10;
+  const dataKey = data.map((d) => d.key).join('|');
+
+  useLayoutEffect(() => {
+    if (!alignEnd) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const align = () => {
+      el.scrollLeft = Math.max(0, el.scrollWidth - el.clientWidth);
+    };
+    align();
+    const id = requestAnimationFrame(align);
+    return () => cancelAnimationFrame(id);
+  }, [alignEnd, dataKey, compact, session]);
+
   return (
     <Card>
       <h2>{title}</h2>
       {data.length === 0 ? (
         <p className="muted">{empty ?? 'Rien à afficher.'}</p>
       ) : (
-        <div className="bars-wrap">
+        <div className="bars-wrap" ref={wrapRef}>
           <div className={`bars ${compact ? 'compact' : ''} ${session ? 'sessions' : ''}`.trim()}>
             {data.map((d) => {
               const shown = d.display || (d.value > 0 ? String(d.value) : '');
