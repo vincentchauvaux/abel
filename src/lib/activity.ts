@@ -47,6 +47,7 @@ export type ActivityItem = {
   detail: string;
   tempCelsius?: number;
   createdBy?: string | null;
+  startAt?: string;
 };
 
 export async function listActivity(babyId: string, limit?: number): Promise<ActivityItem[]> {
@@ -78,6 +79,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       title: 'Tétée',
       detail: `${row.endedAt ? formatFeedLabel(row.startedAt, row.endedAt) : 'en cours'}${sides ? ` · ${sides}` : ''}`,
       createdBy: row.createdBy ?? null,
+      startAt: row.startedAt,
     });
   }
 
@@ -114,6 +116,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
           ? 'à compléter'
           : `${row.durationMinutes != null && row.durationMinutes > 0 ? `${formatMinuteCount(row.durationMinutes)} · ` : ''}${row.amountMl} ml · reste ${row.remainingMl ?? 0} ml`,
       createdBy: row.createdBy ?? null,
+      startAt: row.startedAt,
     });
   }
 
@@ -147,6 +150,7 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
         ? formatMinutes(elapsedMs(row.startedAt, row.endedAt))
         : 'en cours',
       createdBy: row.createdBy ?? null,
+      startAt: row.startedAt,
     });
   }
   for (const row of temps) {

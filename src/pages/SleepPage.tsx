@@ -6,7 +6,7 @@ import { listSleep, startSleep, stopSleep } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatMinutes, formatTime, startOfLocalDay } from '@/lib/dates';
+import { elapsedMs, formatDuration, formatMinutes, formatTime, isNotFuture, startOfLocalDay } from '@/lib/dates';
 
 export function SleepPage() {
   const { baby, tick } = useDb();
@@ -21,7 +21,10 @@ export function SleepPage() {
   const active = sessions.find((row) => !row.endedAt);
   const now = useNow(Boolean(active));
   const todayStart = startOfLocalDay().toISOString();
-  const today = sessions.filter((row) => row.startedAt >= todayStart || (row.endedAt && row.endedAt >= todayStart));
+  const today = sessions.filter((row) => {
+    if (!isNotFuture(row.startedAt, now)) return false;
+    return row.startedAt >= todayStart || Boolean(row.endedAt && row.endedAt >= todayStart);
+  });
   const todayMs = today.reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt, now), 0);
 
   return (

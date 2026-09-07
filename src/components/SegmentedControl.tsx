@@ -14,7 +14,7 @@ type Props<T extends string> = {
   options: SegmentedOption<T>[];
   ariaLabel: string;
   className?: string;
-  size?: 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg';
 };
 
 export function SegmentedControl<T extends string>({
@@ -85,7 +85,7 @@ export function SegmentedControl<T extends string>({
 
   return (
     <div
-      className={`segmented${size === 'lg' ? ' segmented-lg' : ''}${className ? ` ${className}` : ''}`}
+      className={`segmented${size === 'lg' ? ' segmented-lg' : ''}${size === 'sm' ? ' segmented-sm' : ''}${className ? ` ${className}` : ''}`}
       role="group"
       aria-label={ariaLabel}>
       <div

@@ -48,6 +48,12 @@ export function formatTime(iso: string): string {
   return new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
 }
 
+/** False si l’instant n’est pas encore arrivé (marge 90 s pour l’horloge). */
+export function isNotFuture(iso: string, now = Date.now(), slackMs = 90_000): boolean {
+  const t = new Date(iso).getTime();
+  return Number.isFinite(t) && t <= now + slackMs;
+}
+
 export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }

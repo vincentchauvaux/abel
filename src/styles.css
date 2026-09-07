@@ -838,6 +838,35 @@ h2 {
   font-weight: 800;
 }
 
+.segmented-sm {
+  width: auto;
+  flex: 0 0 auto;
+  min-width: 124px;
+}
+
+.segmented-sm .segmented-track {
+  padding: 3px;
+  border-radius: 10px;
+}
+
+.segmented-sm .segmented-thumb {
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc((100% - 6px) / var(--count));
+  border-radius: 8px;
+}
+
+.segmented-sm .segmented-btn {
+  padding: 6px 8px;
+  font-size: 0.72rem;
+}
+
+.chart-metric-switch {
+  width: auto;
+  flex: 0 0 auto;
+}
+
 .segmented-btn.on {
   color: var(--primary);
 }
@@ -992,8 +1021,10 @@ h2 {
 
 .bar-legend {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 12px;
-  margin-bottom: 8px;
+  margin: 0;
   font-size: 0.8rem;
 }
 
@@ -1015,6 +1046,18 @@ h2 {
   background: var(--accent, #c45);
 }
 
+.bar-legend .leg-pee::before {
+  background: var(--pee);
+}
+
+.bar-legend .leg-poo::before {
+  background: var(--poo);
+}
+
+.bar-legend .leg-both::before {
+  background: var(--primary);
+}
+
 .bar.sleep {
   background: #6b7fa8;
 }
@@ -1023,23 +1066,78 @@ h2 {
   background: var(--primary);
 }
 
+.bar.stacked {
+  position: relative;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-start;
+  padding-top: 0;
+  overflow: hidden;
+  background: transparent;
+}
+
+.bar.stacked.empty {
+  background: var(--muted-bg);
+}
+
+.bar.stacked .bar-value {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  right: 0;
+  z-index: 1;
+}
+
+.bar-seg {
+  width: 100%;
+  min-height: 2px;
+}
+
+.bar-seg.pee {
+  background: var(--pee);
+}
+
+.bar-seg.poo {
+  background: var(--poo);
+}
+
+.bar-seg.both {
+  background: var(--primary);
+}
+
 .meal-bar-pair {
   flex: 1;
   width: 100%;
   min-height: 0;
+  height: 100%;
   display: flex;
-  align-items: flex-end;
+  align-items: stretch;
   justify-content: center;
   gap: 3px;
 }
 
 .meal-bar-pair .bar-stack {
   flex: 1;
-  max-width: 14px;
+  max-width: 16px;
+  height: 100%;
 }
 
 .meal-bar-col {
-  min-width: 32px;
+  min-width: 36px;
+}
+
+.bars.paired .bar {
+  max-width: none;
+  overflow: visible;
+}
+
+.bars.paired .bar-value {
+  font-size: 8px;
+}
+
+.bars.compact.paired .bar-col,
+.bars.compact .meal-bar-col {
+  min-width: 34px;
 }
 
 .meal-bar-total {
@@ -1129,6 +1227,17 @@ h2 {
 
 .bar.pee {
   background: var(--pee);
+}
+
+.bar.stacked,
+.bar.stacked.pee,
+.bar.stacked.meal,
+.bar.stacked.sleep {
+  background: transparent;
+}
+
+.bar.stacked.empty {
+  background: var(--muted-bg);
 }
 
 .bar-value {
@@ -1617,6 +1726,10 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+
+.card-head h2 {
+  min-width: 0;
 }
 
 .accordion-head {

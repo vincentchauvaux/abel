@@ -556,7 +556,6 @@ export async function deleteSupplement(id: string) {
 export async function startSleep(babyId: string, startedAt = nowIso()) {
   const open = alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
   if (open) {
-    await db.sleepSessions.update(open.id, { startedAt, ...touch() });
     notifyDbUrgent();
     return open.id;
   }

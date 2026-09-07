@@ -52,7 +52,7 @@ type FeedStatus = 'noted' | 'open' | 'done';
 type SleepStatus = 'open' | 'done';
 
 export function ActivityEditor({ item, onClose }: Props) {
-  const [when, setWhen] = useState(toDatetimeLocalValue(item.at));
+  const [when, setWhen] = useState(toDatetimeLocalValue(item.startAt ?? item.at));
   const [endedWhen, setEndedWhen] = useState('');
   const [amount, setAmount] = useState('');
   const [text, setText] = useState('');
