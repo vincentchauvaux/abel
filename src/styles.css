@@ -1255,6 +1255,15 @@ h2 {
   gap: 4px;
 }
 
+.bar-above {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  min-height: 10px;
+  flex: 0 0 auto;
+}
+
 .bar-stack {
   flex: 1;
   width: 100%;
@@ -1332,6 +1341,10 @@ h2 {
 }
 
 .bars.compact .bar-label {
+  font-size: 8px;
+}
+
+.bars.compact .bar-above {
   font-size: 8px;
 }
 
