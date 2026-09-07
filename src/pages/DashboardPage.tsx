@@ -73,9 +73,7 @@ function latestMeasure(measures: Measurement[], type: MeasurementType) {
 
 type BarTone = 'sleep' | 'pee' | 'poo' | 'both' | 'meal' | 'breast' | 'bottle';
 
-type BarSegment = { key: string; value: number; tone: BarTone };
-
-type BarSide = { value: number; display?: string; tone: BarTone };
+type BarSegment = { key: string; value: number; tone: BarTone; display?: string };
 
 type BarDatum = {
   key: string;
@@ -83,18 +81,19 @@ type BarDatum = {
   value: number;
   display?: string;
   segments?: BarSegment[];
-  pair?: { left: BarSide; right: BarSide };
 };
 
-type MealMetric = 'count' | 'amount';
+type MealMetric = 'min' | 'ml';
 
 const MEAL_METRIC_KEY = 'abel-dash-meal-metric';
 
 function readMealMetric(): MealMetric {
   try {
-    return localStorage.getItem(MEAL_METRIC_KEY) === 'amount' ? 'amount' : 'count';
+    const v = localStorage.getItem(MEAL_METRIC_KEY);
+    if (v === 'ml' || v === 'amount') return 'ml';
+    return 'min';
   } catch {
-    return 'count';
+    return 'min';
   }
 }
 
@@ -540,38 +539,30 @@ export function DashboardPage() {
       bottleMl: bottleRows.reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0),
     };
   });
-  const mealCountMax = Math.max(
-    1,
-    ...mealByDay.flatMap((row) => [row.breastCount, row.bottleCount]),
-  );
-  const mealMinMax = Math.max(1, ...mealByDay.map((row) => row.breastMin));
-  const mealMlMax = Math.max(1, ...mealByDay.map((row) => row.bottleMl));
   const mealBars: BarDatum[] = isToday
     ? sessionBars(sessionsRange, now)
     : mealByDay.map((row) => {
-        const countMode = mealMetric === 'count';
-        const leftVal = countMode ? row.breastCount : row.breastMin;
-        const rightVal = countMode ? row.bottleCount : row.bottleMl;
+        const total = row.breastCount + row.bottleCount;
+        const minLabel = compactBarMinutes(row.breastMin);
+        const mlLabel = row.bottleMl > 0 ? String(row.bottleMl) : '';
         return {
           key: row.day,
           label: compact ? row.day.slice(8) : weekdayShort(row.day),
-          value: leftVal + rightVal,
-          pair: {
-            left: {
-              value: leftVal,
+          value: total,
+          segments: [
+            {
+              key: 'breast',
+              value: row.breastCount,
               tone: 'breast',
-              display: countMode
-                ? leftVal > 0
-                  ? String(leftVal)
-                  : ''
-                : compactBarMinutes(leftVal),
+              display: mealMetric === 'min' ? minLabel : '',
             },
-            right: {
-              value: rightVal,
+            {
+              key: 'bottle',
+              value: row.bottleCount,
               tone: 'bottle',
-              display: rightVal > 0 ? String(rightVal) : '',
+              display: mealMetric === 'ml' ? mlLabel : '',
             },
-          },
+          ],
         };
       });
   const sleepBars: BarDatum[] = isToday
@@ -667,13 +658,7 @@ export function DashboardPage() {
         tone="meal"
         session={isToday}
         alignEnd
-        pairMax={
-          isToday
-            ? undefined
-            : mealMetric === 'count'
-              ? { left: mealCountMax, right: mealCountMax }
-              : { left: mealMinMax, right: mealMlMax }
-        }
+        yAxis={!isToday}
         header={
           isToday ? undefined : (
             <SegmentedControl
@@ -685,10 +670,10 @@ export function DashboardPage() {
                 writeMealMetric(next);
               }}
               options={[
-                { key: 'count', label: 'Nb', ariaLabel: 'Nombre de repas' },
-                { key: 'amount', label: 'min/ml', ariaLabel: 'Durée des tétées et quantité des biberons' },
+                { key: 'min', label: 'min', ariaLabel: 'Durée des tétées' },
+                { key: 'ml', label: 'ml', ariaLabel: 'Quantité des biberons' },
               ]}
-              ariaLabel="Mesure des repas"
+              ariaLabel="Mesure dans les bâtonnets"
             />
           )
         }
@@ -712,24 +697,17 @@ export function DashboardPage() {
                   .filter(Boolean)
                   .join(' · ')
               : undefined
-            : mealMetric === 'count'
-              ? mealPeriodBreast + mealPeriodBottle > 0
-                ? [
-                    `${mealPeriodBreast + mealPeriodBottle} repas`,
-                    mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
-                    mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')
-                : undefined
-              : mealPeriodMin > 0 || mealPeriodMl > 0
-                ? [
-                    mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
-                    mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')
-                : undefined
+            : mealPeriodBreast + mealPeriodBottle > 0
+              ? [
+                  `${mealPeriodBreast + mealPeriodBottle} repas`,
+                  mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
+                  mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
+                  mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
+                  mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : undefined
         }
       />
       <Bars
@@ -882,8 +860,31 @@ export function DashboardPage() {
   );
 }
 
-function barHeight(value: number, max: number) {
-  return value > 0 ? Math.max(14, (value / max) * 100) : 4;
+function barHeight(value: number, max: number, strict = false) {
+  if (value <= 0) return 4;
+  const pct = (value / max) * 100;
+  return strict ? pct : Math.max(14, pct);
+}
+
+function niceCountMax(raw: number): number {
+  const n = Math.max(1, Math.ceil(raw));
+  if (n <= 4) return n;
+  if (n <= 5) return 5;
+  if (n <= 8) return 8;
+  if (n <= 10) return 10;
+  if (n <= 12) return 12;
+  if (n <= 15) return 15;
+  if (n <= 20) return 20;
+  return Math.ceil(n / 10) * 10;
+}
+
+function axisTicks(top: number): number[] {
+  if (top <= 4) return Array.from({ length: top + 1 }, (_, i) => i);
+  if (top <= 10) return [0, Math.round(top / 2), top];
+  const step = top <= 20 ? 5 : top <= 50 ? 10 : 20;
+  const ticks: number[] = [];
+  for (let n = 0; n <= top; n += step) ticks.push(n);
+  return ticks;
 }
 
 function Bars({
@@ -892,30 +893,30 @@ function Bars({
   tone,
   session = false,
   alignEnd = false,
+  yAxis = false,
   empty,
   hint,
   header,
   legend,
-  pairMax,
 }: {
   title: string;
   data: BarDatum[];
   tone?: BarTone;
   session?: boolean;
   alignEnd?: boolean;
+  yAxis?: boolean;
   empty?: string;
   hint?: string;
   header?: ReactNode;
   legend?: ReactNode;
-  pairMax?: { left: number; right: number };
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const max = Math.max(1, ...data.map((d) => d.value));
+  const rawMax = Math.max(1, ...data.map((d) => d.value));
+  const showY = yAxis && !session;
+  const axisMax = showY ? niceCountMax(rawMax) : rawMax;
+  const ticks = showY ? axisTicks(axisMax) : [];
   const compact = data.length > 10;
-  const paired = data.some((d) => d.pair);
   const dataKey = data.map((d) => d.key).join('|');
-  const leftMax = Math.max(1, pairMax?.left ?? 1);
-  const rightMax = Math.max(1, pairMax?.right ?? 1);
 
   useLayoutEffect(() => {
     if (!alignEnd) return;
@@ -927,7 +928,7 @@ function Bars({
     align();
     const id = requestAnimationFrame(align);
     return () => cancelAnimationFrame(id);
-  }, [alignEnd, dataKey, compact, session, paired]);
+  }, [alignEnd, dataKey, compact, session, showY]);
 
   return (
     <Card>
@@ -938,56 +939,47 @@ function Bars({
       {data.length === 0 ? (
         <p className="muted">{empty ?? 'Rien à afficher.'}</p>
       ) : (
-        <div className="bars-wrap" ref={wrapRef}>
-          <div
-            className={`bars ${compact ? 'compact' : ''} ${session ? 'sessions' : ''} ${paired ? 'paired' : ''}`.trim()}>
-            {data.map((d) => {
-              if (d.pair) {
-                const { left, right } = d.pair;
+        <div className={`bars-chart${showY ? ' has-y' : ''}`}>
+          {showY ? (
+            <div className="bars-y" aria-hidden>
+              <div className="bars-y-plot">
+                {ticks.map((tick) => (
+                  <span key={tick} className="bars-y-tick" style={{ bottom: `${(tick / axisMax) * 100}%` }}>
+                    {tick}
+                  </span>
+                ))}
+              </div>
+              <span className="bars-y-foot" />
+            </div>
+          ) : null}
+          <div className="bars-wrap" ref={wrapRef}>
+            <div className={`bars ${compact ? 'compact' : ''} ${session ? 'sessions' : ''}`.trim()}>
+              {data.map((d) => {
+                const segs = d.segments?.filter((seg) => seg.value > 0) ?? [];
+                const shown = d.display || (segs.length > 0 ? '' : d.value > 0 ? String(d.value) : '');
                 return (
-                  <div className="bar-col meal-bar-col" key={d.key}>
-                    <div className="meal-bar-pair">
-                      <div className="bar-stack">
-                        <div
-                          className={`bar ${left.tone}${left.value <= 0 ? ' empty' : ''}`}
-                          style={{ height: `${barHeight(left.value, leftMax)}%` }}>
-                          {left.display ? <span className="bar-value">{left.display}</span> : null}
-                        </div>
-                      </div>
-                      <div className="bar-stack">
-                        <div
-                          className={`bar ${right.tone}${right.value <= 0 ? ' empty' : ''}`}
-                          style={{ height: `${barHeight(right.value, rightMax)}%` }}>
-                          {right.display ? <span className="bar-value">{right.display}</span> : null}
-                        </div>
+                  <div className="bar-col" key={d.key}>
+                    <div className="bar-stack">
+                      <div
+                        className={`bar ${tone ?? ''}${segs.length > 0 ? ' stacked' : ''}${d.value <= 0 ? ' empty' : ''}`}
+                        style={{ height: `${barHeight(d.value, axisMax, showY)}%` }}>
+                        {shown ? <span className="bar-value">{shown}</span> : null}
+                        {segs.map((seg) => {
+                          const pct = (seg.value / d.value) * 100;
+                          const segLabel = seg.display && pct >= 16 ? seg.display : '';
+                          return (
+                            <div key={seg.key} className={`bar-seg ${seg.tone}`} style={{ height: `${pct}%` }}>
+                              {segLabel ? <span className="bar-seg-value">{segLabel}</span> : null}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                     <span className="bar-label">{d.label}</span>
                   </div>
                 );
-              }
-              const shown = d.display || (d.value > 0 ? String(d.value) : '');
-              const segs = d.segments?.filter((seg) => seg.value > 0) ?? [];
-              return (
-                <div className="bar-col" key={d.key}>
-                  <div className="bar-stack">
-                    <div
-                      className={`bar ${tone ?? ''}${segs.length > 0 ? ' stacked' : ''}${d.value <= 0 ? ' empty' : ''}`}
-                      style={{ height: `${barHeight(d.value, max)}%` }}>
-                      {shown ? <span className="bar-value">{shown}</span> : null}
-                      {segs.map((seg) => (
-                        <div
-                          key={seg.key}
-                          className={`bar-seg ${seg.tone}`}
-                          style={{ height: `${(seg.value / d.value) * 100}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                  <span className="bar-label">{d.label}</span>
-                </div>
-              );
-            })}
+              })}
+            </div>
           </div>
         </div>
       )}

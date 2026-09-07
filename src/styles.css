@@ -1091,6 +1091,75 @@ h2 {
 .bar-seg {
   width: 100%;
   min-height: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.bar-seg.breast {
+  background: var(--primary);
+}
+
+.bar-seg.bottle {
+  background: var(--accent, #c45);
+}
+
+.bar-seg-value {
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+.bars-chart {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bars-chart .bars-wrap {
+  flex: 1;
+  min-width: 0;
+}
+
+.bars-y {
+  flex: 0 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 160px;
+}
+
+.bars-y-plot {
+  flex: 1;
+  position: relative;
+  min-height: 0;
+}
+
+.bars-y-tick {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-muted);
+  line-height: 1;
+}
+
+.bars-y-foot {
+  height: 10px;
+  flex: 0 0 auto;
+}
+
+.bars-chart.has-y .bar:not(.empty) {
+  min-height: 0;
 }
 
 .bar-seg.pee {
