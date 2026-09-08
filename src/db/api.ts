@@ -572,6 +572,21 @@ export async function startSleep(babyId: string, startedAt = nowIso()) {
   return id;
 }
 
+/** Sieste déjà terminée (journal) — n’interfère pas avec un chrono en cours. */
+export async function addSleep(babyId: string, startedAt: string, endedAt: string) {
+  const id = createId();
+  await db.sleepSessions.add({
+    id,
+    babyId,
+    startedAt,
+    endedAt,
+    ...actorStamp(),
+    ...stamp(),
+  });
+  notifyDb();
+  return id;
+}
+
 export async function stopSleep(id: string) {
   await db.sleepSessions.update(id, { endedAt: nowIso(), ...touch() });
   notifyDbUrgent();

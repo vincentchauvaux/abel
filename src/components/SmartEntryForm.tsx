@@ -8,6 +8,7 @@ import {
   addMeasurementAt,
   addNote,
   addPumping,
+  addSleep,
   addSolidFood,
   addSupplement,
   addTemperature,
@@ -19,7 +20,18 @@ import {
 } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { DiaperKind, MeasurementType, MilkType, PumpingSession, Side } from '@/db/types';
-import { formatTime, fromDatetimeLocalValue, parseDecimal, toDatetimeLocalValue } from '@/lib/dates';
+import {
+  addMinutesIso,
+  addMinutesToLocal,
+  endLocalFromStartAndTime,
+  formatTime,
+  fromDatetimeLocalValue,
+  joinDatetimeLocal,
+  minutesBetweenLocal,
+  parseDecimal,
+  splitDatetimeLocal,
+  toDatetimeLocalValue,
+} from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 import { SegmentedControl } from '@/components/SegmentedControl';
@@ -79,15 +91,31 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [useTimer, setUseTimer] = useState(true);
+  const [sleepStatus, setSleepStatus] = useState<'open' | 'done'>('done');
+  const [sleepMinutes, setSleepMinutes] = useState('60');
+  const [endedWhen, setEndedWhen] = useState('');
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
 
   const tools = section === 'apports' ? APPORTS : SUIVI;
+  const { date: startDate, time: startTime } = splitDatetimeLocal(when);
+  const { date: endDate, time: endTime } = splitDatetimeLocal(endedWhen);
+  const endNextDay = Boolean(startDate && endDate && endDate > startDate);
+  const showSleepEnd = type === 'sleep' && sleepStatus === 'done';
 
   useEffect(() => {
     const list = section === 'apports' ? APPORTS : SUIVI;
     if (!list.some((t) => t.key === type)) setType(list[0].key);
   }, [section, type]);
+
+  useEffect(() => {
+    if (type !== 'sleep') return;
+    setSleepStatus('done');
+    setSleepMinutes('60');
+    setEndedWhen(addMinutesToLocal(when || toDatetimeLocalValue(), 60));
+    // Ne réinitialise que lors du passage au type sommeil.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [type]);
 
   useEffect(() => {
     if (!baby) return;
@@ -112,8 +140,64 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     setCelsius('');
     setMeasureValue('');
     setStockId(null);
-    setWhen(toDatetimeLocalValue());
+    const nextWhen = toDatetimeLocalValue();
+    setWhen(nextWhen);
+    setSleepStatus('done');
+    setSleepMinutes('60');
+    setEndedWhen(addMinutesToLocal(nextWhen, 60));
     setError('');
+  };
+
+  const syncSleepDurationFromRange = (startLocal: string, endLocal: string) => {
+    if (!endLocal.trim()) return;
+    const mins = minutesBetweenLocal(startLocal, endLocal);
+    if (mins == null) return;
+    setSleepMinutes(mins < 0 ? '' : String(mins));
+  };
+
+  const handleSleepDateChange = (nextDate: string) => {
+    const nextWhen = joinDatetimeLocal(nextDate, startTime);
+    const mins = endedWhen ? minutesBetweenLocal(when, endedWhen) : null;
+    setWhen(nextWhen);
+    if (mins != null && mins >= 0) setEndedWhen(addMinutesToLocal(nextWhen, mins));
+  };
+
+  const handleSleepStartTimeChange = (nextTime: string) => {
+    const nextWhen = joinDatetimeLocal(startDate, nextTime);
+    setWhen(nextWhen);
+    if (sleepStatus === 'done') syncSleepDurationFromRange(nextWhen, endedWhen);
+  };
+
+  const handleSleepEndTimeChange = (nextTime: string) => {
+    if (!nextTime.trim()) {
+      setEndedWhen('');
+      return;
+    }
+    const nextEnd = endLocalFromStartAndTime(when, nextTime);
+    setEndedWhen(nextEnd);
+    syncSleepDurationFromRange(when, nextEnd);
+  };
+
+  const handleSleepDurationChange = (next: string) => {
+    setSleepMinutes(next);
+    const mins = parseDecimal(next);
+    if (mins == null || mins < 0 || !when) return;
+    setEndedWhen(addMinutesToLocal(when, Math.round(mins)));
+  };
+
+  const endedAtFromSleepForm = (startIso: string): string | { error: string } => {
+    if (endedWhen.trim()) {
+      const end = fromDatetimeLocalValue(endedWhen);
+      if (new Date(end).getTime() <= new Date(startIso).getTime()) {
+        return { error: 'La fin doit être après le début.' };
+      }
+      return end;
+    }
+    const mins = parseDecimal(sleepMinutes);
+    if (mins === null || mins <= 0) {
+      return { error: 'Indique l’heure de fin ou la durée en minutes.' };
+    }
+    return addMinutesIso(startIso, Math.round(mins));
   };
 
   const atIso = () => fromDatetimeLocalValue(when || toDatetimeLocalValue());
@@ -202,9 +286,19 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         return;
       }
       if (type === 'sleep') {
-        await startSleep(baby.id, at);
-        onSaved?.();
-        navigate('/');
+        if (sleepStatus === 'open') {
+          await startSleep(baby.id, at);
+          onSaved?.();
+          navigate('/');
+          return;
+        }
+        const ended = endedAtFromSleepForm(at);
+        if (typeof ended === 'object') {
+          setError(ended.error);
+          return;
+        }
+        await addSleep(baby.id, at, ended);
+        await finish('Sieste notée');
         return;
       }
       if (type === 'temperature') {
@@ -265,11 +359,75 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         ))}
       </div>
 
-      {type !== 'feeding' || !useTimer ? (
+      {type !== 'sleep' && (type !== 'feeding' || !useTimer) ? (
         <label className="field">
           <span>Date et heure</span>
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
+      ) : null}
+
+      {type === 'sleep' ? (
+        <>
+          <label className="field">
+            <span>Date</span>
+            <input type="date" value={startDate} onChange={(e) => handleSleepDateChange(e.target.value)} />
+          </label>
+          {showSleepEnd ? (
+            <div className="grid-2">
+              <label className="field">
+                <span>Début</span>
+                <input type="time" value={startTime} onChange={(e) => handleSleepStartTimeChange(e.target.value)} />
+              </label>
+              <label className="field">
+                <span>Fin</span>
+                <input type="time" value={endTime} onChange={(e) => handleSleepEndTimeChange(e.target.value)} />
+              </label>
+            </div>
+          ) : (
+            <label className="field">
+              <span>Début</span>
+              <input type="time" value={startTime} onChange={(e) => handleSleepStartTimeChange(e.target.value)} />
+            </label>
+          )}
+          {endNextDay ? <p className="muted">Fin le lendemain.</p> : null}
+          {showSleepEnd ? (
+            <Field
+              label="Durée (min)"
+              value={sleepMinutes}
+              onChange={handleSleepDurationChange}
+              placeholder="90"
+              inputMode="decimal"
+            />
+          ) : null}
+          <p className="goal-label">État</p>
+          <div className="row">
+            <Chip
+              label="En cours"
+              selected={sleepStatus === 'open'}
+              onClick={() => {
+                setSleepStatus('open');
+                if (!sleepMinutes.trim()) setSleepMinutes('1');
+                setEndedWhen('');
+              }}
+            />
+            <Chip
+              label="Terminée"
+              selected={sleepStatus === 'done'}
+              onClick={() => {
+                setSleepStatus('done');
+                const mins = parseDecimal(sleepMinutes);
+                const nextMins = mins != null && mins > 0 ? Math.round(mins) : 60;
+                setSleepMinutes(String(nextMins));
+                setEndedWhen((prev) => prev || addMinutesToLocal(when, nextMins));
+              }}
+            />
+          </div>
+          {sleepStatus === 'done' ? (
+            <p className="muted">Indique l’heure de fin ou la durée — changer l’une recalcule l’autre.</p>
+          ) : (
+            <p className="muted">Démarre une sieste à l’heure choisie (à terminer depuis Outils ou le Dashboard).</p>
+          )}
+        </>
       ) : null}
 
       {type === 'feeding' ? (
@@ -407,8 +565,6 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           <Field label="Valeur" value={measureValue} onChange={setMeasureValue} placeholder="4,2" />
         </>
       ) : null}
-
-      {type === 'sleep' ? <p className="muted">Démarre une sieste à l’heure choisie (à terminer dans Sommeil).</p> : null}
 
       {type !== 'feeding' && type !== 'diaper' ? (
         <Button onClick={() => void save()}>Enregistrer</Button>

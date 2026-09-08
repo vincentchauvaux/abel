@@ -23,7 +23,7 @@ Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, 
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils (et « Noter une entrée ») est un **curseur glissable** (doigt ou souris) **conservé** au retour depuis un module. Grille d’icônes sans fond, libellés gris comme le Dashboard.
 
-Activités en cours (tétée minuteur, sommeil, tire-lait à compléter) : bandeau sur **Outils** (au-dessus d’Apports/Suivi) et sur **Dashboard** (sous le titre). Tap sur le bandeau ouvre le module ; boutons Terminer / Réveil / Ouvrir. Démarrer une tétée **minuteur** ou un sommeil (module ou **Noter une entrée**) ramène au **Dashboard**.
+Activités en cours (tétée minuteur, sommeil, tire-lait à compléter) : bandeau sur **Outils** (au-dessus d’Apports/Suivi) et sur **Dashboard** (sous le titre). Tap sur le bandeau ouvre le module ; boutons Terminer / Réveil / Ouvrir. Démarrer une tétée **minuteur** ou un sommeil **en cours** (module ou **Noter une entrée**) ramène au **Dashboard**. Une sieste **terminée** notée depuis Bébé reste sur la page.
 
 ## Arborescence
 
@@ -59,7 +59,7 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
 
-Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste sous le journal. Case **Minuteur** cochée par défaut sur tétée pour démarrer le timer. Les modules Outils gardent le flux 1 tap dédié.
+Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste sous le journal. Case **Minuteur** cochée par défaut sur tétée pour démarrer le timer. Sommeil : même saisie que l’éditeur du journal (date, début, fin, durée ; sieste qui dépasse minuit = fin le lendemain), **Terminée** par défaut ; **En cours** démarre le timer. Les modules Outils gardent le flux 1 tap dédié.
 
 ### Suivi
 
@@ -68,7 +68,7 @@ Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports 
 | Couche | Un appui = pipi, caca ou les deux. |
 | Tire-lait | Quantité + date → **stock** (`remainingMl`). Consommé via Biberon lait maternel. |
 | Croissance | Poids (kg), taille (cm), périmètre crânien (cm). Courbes poids/taille et IMC indicatif (pas un avis médical). |
-| Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. |
+| Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. Depuis **Noter une entrée** : sieste terminée (début/fin/durée) ou chrono **En cours**. |
 | Température | Saisie °C uniquement ; code couleur indicatif (vert / orange / rouge). |
 | Notes | Texte libre. Case **À faire** = rappel sur le dashboard (accordéon Notes : liste complète, tap pour marquer fait ; dans le journal, classée à la date `doneAt` avec libellé « fait » ; réouvrable depuis le journal). |
 
@@ -263,7 +263,7 @@ babies (name, bornOn, photoUrl)
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`. Les entrées (sauf `babies` / `reminder_rules` / segments) ont `createdBy` (Google `sub`) à la création.
 
-Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier ; un **gardien** n’a pas Modifier). Journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (**Tout** coche ou décoche tous les types ; tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré), durées en **22 min** / **1 h 30 min** (comme le sommeil, pas `22:10`), **avatar** du compte à droite si l’auteur est connu. Édition journal : tétée (sein Gauche/Droit, **Les deux** si les deux seins ont servi pendant la séance, état, **date + heures de début et de fin** : changer l’une recalcule la durée ; saisir la durée décale la fin ; sieste qui dépasse minuit = fin le lendemain), sommeil (même logique), biberon/tire-lait (ml, début/fin/durée tire-lait), couche, diversification, complément, température, mesures, notes.
+Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois), identité et objectifs en lecture une fois renseignés (bouton Modifier ; un **gardien** n’a pas Modifier). Journal chronologique éditable filtré par **jour** (aujourd’hui par défaut) et par type d’entrée (**Tout** coche ou décoche tous les types ; tri sur l’heure de fin pour tétées, sommeil et tire-lait chronométré), durées en **22 min** / **1 h 30 min** (comme le sommeil, pas `22:10`), **avatar** du compte à droite si l’auteur est connu. Édition journal : tétée (sein Gauche/Droit, **Les deux** si les deux seins ont servi pendant la séance, état, **date + heures de début et de fin** : changer l’une recalcule la durée ; saisir la durée décale la fin ; sieste qui dépasse minuit = fin le lendemain), sommeil (même logique à la création depuis **Noter une entrée** et à la modification), biberon/tire-lait (ml, début/fin/durée tire-lait), couche, diversification, complément, température, mesures, notes.
 
 ## Conventions agent
 
