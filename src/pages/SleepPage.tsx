@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card } from '@/components/ui';
@@ -10,6 +11,7 @@ import { elapsedMs, formatDuration, formatMinutes, formatTime, isNotFuture, star
 
 export function SleepPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<SleepSession[]>([]);
   const babyId = baby?.id ?? '';
 
@@ -44,7 +46,14 @@ export function SleepPage() {
             <p className="muted" style={{ textAlign: 'center' }}>
               Un appui démarre le timer. La durée vient de l’heure de début, pas d’un compteur interne.
             </p>
-            <Button onClick={() => babyId && startSleep(babyId)}>Endormi</Button>
+            <Button
+              onClick={async () => {
+                if (!babyId) return;
+                await startSleep(babyId);
+                navigate('/');
+              }}>
+              Endormi
+            </Button>
           </>
         )}
       </Card>

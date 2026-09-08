@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip } from '@/components/ui';
@@ -25,6 +26,7 @@ const BREASTS: Side[] = ['LEFT', 'RIGHT'];
 
 export function FeedingPage() {
   const { baby, tick, sharingRole } = useDb();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<FeedingSession[]>([]);
   const [segments, setSegments] = useState<FeedingSegment[]>([]);
   const [delay, setDelay] = useState(0);
@@ -141,6 +143,7 @@ export function FeedingPage() {
                   if (!babyId) return;
                   if (useTimer) {
                     await startFeeding(babyId, side);
+                    navigate('/');
                   } else {
                     const endedAt = nowIso();
                     await logFeedingNow(babyId, side, endedAt);

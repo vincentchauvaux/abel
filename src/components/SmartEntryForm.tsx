@@ -130,7 +130,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     if (useTimer) {
       await startFeeding(baby.id, chosen);
       onSaved?.();
-      navigate('/feeding');
+      navigate('/');
       return;
     }
     const at = atIso();
@@ -203,7 +203,8 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
       }
       if (type === 'sleep') {
         await startSleep(baby.id, at);
-        await finish('Sieste démarrée');
+        onSaved?.();
+        navigate('/');
         return;
       }
       if (type === 'temperature') {
