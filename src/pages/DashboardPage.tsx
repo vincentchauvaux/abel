@@ -5,10 +5,12 @@ import { Link } from 'react-router-dom';
 import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { ActivityEditor } from '@/components/ActivityEditor';
+import { DayTimeline } from '@/components/DayTimeline';
 import { GrowthChart } from '@/components/GrowthChart';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { RatioPie } from '@/components/RatioPie';
+import { SleepClock } from '@/components/SleepClock';
 import { Card } from '@/components/ui';
 import {
   getReminder,
@@ -42,6 +44,7 @@ import type {
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem } from '@/lib/activity';
 import {
+  clipToLocalDay,
   eachLocalDay,
   elapsedMs,
   formatDateTime,
@@ -99,24 +102,6 @@ function compactBarMinutes(minutes: number, noted = false) {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins === 0 ? `${hours}h` : `${hours}h${mins}`;
-}
-
-function sessionBars(
-  rows: { id: string; startedAt: string; endedAt?: string | null }[],
-  now: number,
-): BarDatum[] {
-  return [...rows]
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-    .map((row) => {
-      const noted = isNotedSession(row.startedAt, row.endedAt);
-      const minutes = sessionMinutes(row.startedAt, row.endedAt, now);
-      return {
-        key: row.id,
-        label: formatTime(row.startedAt),
-        value: minutes,
-        display: compactBarMinutes(minutes, noted),
-      };
-    });
 }
 
 type FollowRow = {
@@ -516,47 +501,40 @@ export function DashboardPage() {
       bottleMl: bottleRows.reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0),
     };
   });
-  const mealBars: BarDatum[] = isToday
-    ? sessionBars(sessionsRange, now)
-    : mealByDay.map((row) => {
-        const total = row.breastCount + row.bottleCount;
-        const minLabel = compactBarMinutes(row.breastMin);
-        const mlLabel = row.bottleMl > 0 ? String(row.bottleMl) : '';
-        return {
-          key: row.day,
-          label: compact ? row.day.slice(8) : weekdayShort(row.day),
-          value: total,
-          above: total > 0 ? String(total) : '',
-          segments: [
-            {
-              key: 'breast',
-              value: row.breastCount,
-              tone: 'breast',
-              display: minLabel,
-            },
-            {
-              key: 'bottle',
-              value: row.bottleCount,
-              tone: 'bottle',
-              display: mlLabel,
-            },
-          ],
-        };
-      });
-  const sleepBars: BarDatum[] = isToday
-    ? sessionBars(
-        sleeps.filter((row) => startedInRange(row.startedAt)),
-        now,
-      )
-    : days.map((day) => ({
-        key: day,
-        label: compact ? day.slice(8) : weekdayShort(day),
-        value: Math.round(
-          sleeps
-            .filter((row) => localDateKey(row.startedAt) === day && isNotFuture(row.startedAt, now))
-            .reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0) / 3_600_000,
-        ),
-      }));
+  const mealBars: BarDatum[] = mealByDay.map((row) => {
+    const total = row.breastCount + row.bottleCount;
+    const minLabel = compactBarMinutes(row.breastMin);
+    const mlLabel = row.bottleMl > 0 ? String(row.bottleMl) : '';
+    return {
+      key: row.day,
+      label: compact ? row.day.slice(8) : weekdayShort(row.day),
+      value: total,
+      above: total > 0 ? String(total) : '',
+      segments: [
+        {
+          key: 'breast',
+          value: row.breastCount,
+          tone: 'breast',
+          display: minLabel,
+        },
+        {
+          key: 'bottle',
+          value: row.bottleCount,
+          tone: 'bottle',
+          display: mlLabel,
+        },
+      ],
+    };
+  });
+  const sleepBars: BarDatum[] = days.map((day) => ({
+    key: day,
+    label: compact ? day.slice(8) : weekdayShort(day),
+    value: Math.round(
+      sleeps
+        .filter((row) => localDateKey(row.startedAt) === day && isNotFuture(row.startedAt, now))
+        .reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0) / 3_600_000,
+    ),
+  }));
   const diaperBars: BarDatum[] = days.map((day) => {
     const rows = diapers.filter((row) => localDateKey(row.occurredAt) === day);
     const pee = rows.filter((row) => row.kind === 'PEE').length;
@@ -587,9 +565,23 @@ export function DashboardPage() {
     (sum, row) => sum + sessionMinutes(row.startedAt, row.endedAt, now),
     0,
   );
-  const sleepMinutesToday = sleeps
-    .filter((row) => startedInRange(row.startedAt))
-    .reduce((sum, row) => sum + sessionMinutes(row.startedAt, row.endedAt, now), 0);
+  const sleepMinutesToday = sleeps.reduce((sum, row) => {
+    const clip = clipToLocalDay(row.startedAt, row.endedAt, todayKey, now);
+    return sum + (clip ? clip.endMin - clip.startMin : 0);
+  }, 0);
+  const sleepsInPeriod = sleeps.filter((row) => {
+    if (!isNotFuture(row.startedAt, now)) return false;
+    const start = new Date(row.startedAt).getTime();
+    const end = row.endedAt ? new Date(row.endedAt).getTime() : now;
+    const fromMs = from ? new Date(from).getTime() : 0;
+    return end > fromMs && start <= now;
+  });
+  const dayTimelineHint = [
+    feedingMinutesToday > 0 ? `${formatMinuteCount(feedingMinutesToday)} tétées` : null,
+    sleepMinutesToday > 0 ? `${formatMinuteCount(Math.round(sleepMinutesToday))} siestes` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div className="screen dashboard-screen">
@@ -630,54 +622,46 @@ export function DashboardPage() {
       )}
 
       <p className="dash-section">Graphiques</p>
-      <Bars
-        title={isToday ? 'Tétées (min)' : 'Repas'}
-        data={mealBars}
-        tone="meal"
-        session={isToday}
-        alignEnd
-        legend={
-          isToday ? undefined : (
-            <div className="bar-legend">
-              <span className="leg-breast">Tétées</span>
-              <span className="leg-bottle">Biberons</span>
-            </div>
-          )
-        }
-        empty="Aucune tétée aujourd’hui."
-        hint={
-          isToday
-            ? feedingMinutesToday > 0 || bottleCount > 0
-              ? [
-                  feedingMinutesToday > 0 ? formatMinuteCount(feedingMinutesToday) : null,
-                  bottleCount > 0 ? `${bottleCount} biberon${bottleCount > 1 ? 's' : ''}` : null,
-                  bottleMl > 0 ? `${bottleMl} ml` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : undefined
-            : mealPeriodBreast + mealPeriodBottle > 0
-              ? [
-                  `${mealPeriodBreast + mealPeriodBottle} repas`,
-                  mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
-                  mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
-                  mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
-                  mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : undefined
-        }
-      />
-      <Bars
-        title={isToday ? 'Siestes (min)' : 'Sommeil (h)'}
-        data={sleepBars}
-        tone="sleep"
-        session={isToday}
-        alignEnd
-        empty="Aucune sieste aujourd’hui."
-        hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
-      />
+      {isToday ? (
+        <DayTimeline feeds={sessions} sleeps={sleeps} now={now} hint={dayTimelineHint || undefined} />
+      ) : (
+        <>
+          <Bars
+            title="Repas"
+            data={mealBars}
+            tone="meal"
+            alignEnd
+            legend={
+              <div className="bar-legend">
+                <span className="leg-breast">Tétées</span>
+                <span className="leg-bottle">Biberons</span>
+              </div>
+            }
+            empty="Aucun repas sur cette période."
+            hint={
+              mealPeriodBreast + mealPeriodBottle > 0
+                ? [
+                    `${mealPeriodBreast + mealPeriodBottle} repas`,
+                    mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
+                    mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
+                    mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
+                    mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined
+            }
+          />
+          <Bars
+            title="Sommeil (h)"
+            data={sleepBars}
+            tone="sleep"
+            alignEnd
+            empty="Aucune sieste sur cette période."
+          />
+          <SleepClock sleeps={sleepsInPeriod} now={now} />
+        </>
+      )}
       {isToday ? (
         <Card>
           <h2>Couches</h2>

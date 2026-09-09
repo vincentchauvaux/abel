@@ -100,6 +100,75 @@ export function elapsedMs(startedAt: string, endedAt?: string | null, now = Date
   return Math.max(0, end - new Date(startedAt).getTime());
 }
 
+const DAY_MINUTES = 24 * 60;
+
+/** Minutes depuis minuit local (0–1440). */
+export function localMinutesOfDay(iso: string): number {
+  const d = new Date(iso);
+  return d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60 + d.getMilliseconds() / 60_000;
+}
+
+function localDayBounds(dayKey: string): { start: number; end: number } {
+  const startDate = startOfLocalDay(new Date(`${dayKey}T12:00:00`));
+  const endDate = new Date(startDate);
+  endDate.setDate(endDate.getDate() + 1);
+  return { start: startDate.getTime(), end: endDate.getTime() };
+}
+
+/** Intersection d’un intervalle avec un jour local, en minutes depuis minuit. */
+export function clipToLocalDay(
+  startedAt: string,
+  endedAt: string | null,
+  dayKey: string,
+  now = Date.now(),
+): { startMin: number; endMin: number } | null {
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start) || !isNotFuture(startedAt, now)) return null;
+  const { start: dayStart, end: dayEnd } = localDayBounds(dayKey);
+  const finish = endedAt ? new Date(endedAt).getTime() : now;
+  const from = Math.max(start, dayStart);
+  const to = Math.min(finish, dayEnd, now + 90_000);
+  if (to <= from) {
+    if (start >= dayStart && start < dayEnd) {
+      const startMin = (start - dayStart) / 60_000;
+      return { startMin, endMin: startMin + 1 };
+    }
+    return null;
+  }
+  const startMin = (from - dayStart) / 60_000;
+  let endMin = (to - dayStart) / 60_000;
+  if (to >= dayEnd) endMin = Math.max(endMin, DAY_MINUTES);
+  return { startMin, endMin };
+}
+
+/** Incrémente les créneaux (ex. 30 min) couverts par une sieste, en heure locale. */
+export function addLocalCoverage(
+  counts: number[],
+  startedAt: string,
+  endedAt: string | null,
+  now = Date.now(),
+): void {
+  const slots = counts.length;
+  if (slots <= 0) return;
+  const slotMinutes = DAY_MINUTES / slots;
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start) || !isNotFuture(startedAt, now)) return;
+  const end = Math.min(endedAt ? new Date(endedAt).getTime() : now, now + 90_000);
+  if (end <= start) return;
+  let t = start;
+  let steps = 0;
+  const maxSteps = slots * 400;
+  while (t < end && steps < maxSteps) {
+    steps += 1;
+    const d = new Date(t);
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const slot = Math.floor(mins / slotMinutes) % slots;
+    counts[slot] += 1;
+    const remain = slotMinutes - (mins % slotMinutes);
+    t += Math.max(1, remain) * 60_000;
+  }
+}
+
 /** Ajoute des minutes à un timestamp ISO (UTC). */
 export function addMinutesIso(iso: string, minutes: number): string {
   return new Date(new Date(iso).getTime() + minutes * 60_000).toISOString();

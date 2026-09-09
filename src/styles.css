@@ -11,6 +11,7 @@
   --danger: #b42318;
   --pee: #5b8def;
   --poo: #c47a3a;
+  --sleep: #6b7fa8;
   --radius: 16px;
   font-family: system-ui, -apple-system, Segoe UI, sans-serif;
   color: var(--text);
@@ -1058,8 +1059,12 @@ h2 {
   background: var(--primary);
 }
 
+.bar-legend .leg-sleep::before {
+  background: var(--sleep);
+}
+
 .bar.sleep {
-  background: #6b7fa8;
+  background: var(--sleep);
 }
 
 .bar.meal {
@@ -1361,6 +1366,90 @@ h2 {
   text-align: center;
   font-size: 0.85rem;
   margin: 8px 0 0;
+}
+
+.sleep-clock {
+  display: flex;
+  justify-content: center;
+}
+
+.sleep-clock-svg {
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  display: block;
+}
+
+.sleep-clock-hour {
+  fill: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.sleep-clock-center-value {
+  fill: var(--text);
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.sleep-clock-center-label {
+  fill: var(--text-muted);
+  font-size: 11px;
+}
+
+.sleep-clock-scale {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+.sleep-clock-scale-bar {
+  display: block;
+  width: 88px;
+  height: 8px;
+  border-radius: 99px;
+  background: linear-gradient(to right, #c5d0e3, #3d4f73);
+}
+
+.day-timeline {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 4px;
+}
+
+.day-timeline-feed {
+  fill: var(--primary);
+}
+
+.day-timeline-sleep {
+  fill: var(--sleep);
+}
+
+.day-timeline-track {
+  fill: var(--muted-bg);
+}
+
+.day-timeline-value {
+  fill: #fff;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.day-timeline-tick {
+  fill: var(--text-muted);
+  font-size: 10px;
+}
+
+.day-timeline-now {
+  stroke: var(--text);
+  stroke-width: 1.25;
+  stroke-dasharray: 2 2;
+  opacity: 0.4;
 }
 
 .growth-chart,
