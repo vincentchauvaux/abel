@@ -2,12 +2,12 @@ import { Card } from '@/components/ui';
 import type { SleepSession } from '@/db/types';
 import { addLocalCoverage, formatMinuteCount } from '@/lib/dates';
 
-const SLOTS = 48;
+const SLOTS = 96;
 const CX = 100;
 const CY = 108;
 const R_OUT = 78;
 const R_IN = 44;
-const GAP = 0.35;
+const SLOT_MIN = (24 * 60) / SLOTS;
 
 type Props = {
   sleeps: SleepSession[];
@@ -19,39 +19,40 @@ function polar(r: number, deg: number) {
   return { x: CX + r * Math.cos(a), y: CY + r * Math.sin(a) };
 }
 
-function donutSlice(a0: number, a1: number): string {
-  const large = (a1 - a0) % 360 > 180 ? 1 : 0;
-  const p0 = polar(R_OUT, a0);
-  const p1 = polar(R_OUT, a1);
-  const p2 = polar(R_IN, a1);
-  const p3 = polar(R_IN, a0);
-  return `M${p0.x.toFixed(2)} ${p0.y.toFixed(2)} A${R_OUT} ${R_OUT} 0 ${large} 1 ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} L${p2.x.toFixed(2)} ${p2.y.toFixed(2)} A${R_IN} ${R_IN} 0 ${large} 0 ${p3.x.toFixed(2)} ${p3.y.toFixed(2)} Z`;
+function slotDeg(i: number) {
+  return -90 + (i + 0.5) * (360 / SLOTS);
 }
 
-function mix(a: number, b: number, t: number) {
-  return Math.round(a + (b - a) * t);
+function polarAreaPath(values: number[], max: number): string {
+  const outer: string[] = [];
+  const inner: string[] = [];
+  for (let i = 0; i < SLOTS; i++) {
+    const t = max > 0 ? values[i] / max : 0;
+    const r = t <= 0 ? R_IN : R_IN + (R_OUT - R_IN) * Math.pow(t, 0.72);
+    const o = polar(r, slotDeg(i));
+    const inn = polar(R_IN, slotDeg(i));
+    outer.push(`${o.x.toFixed(2)} ${o.y.toFixed(2)}`);
+    inner.push(`${inn.x.toFixed(2)} ${inn.y.toFixed(2)}`);
+  }
+  inner.reverse();
+  return `M${outer.join(' L')} Z M${inner.join(' L')} Z`;
 }
 
-function sleepFill(count: number, max: number): string {
-  if (count <= 0) return 'var(--muted-bg)';
-  const t = Math.max(0.18, count / max);
-  return `rgb(${mix(197, 61, t)},${mix(208, 79, t)},${mix(227, 115, t)})`;
-}
-
-function peakHint(counts: number[]): string | null {
-  const max = Math.max(...counts);
+function peakHint(values: number[]): string | null {
+  const max = Math.max(...values);
   if (max <= 0) return null;
-  const n = counts.length;
+  const n = values.length;
+  const threshold = max * 0.72;
   let bestStart = 0;
   let bestLen = 0;
   let i = 0;
   while (i < n * 2) {
-    if (counts[i % n] !== max) {
+    if (values[i % n] < threshold) {
       i += 1;
       continue;
     }
     let j = i;
-    while (j < n * 2 && counts[j % n] === max && j - i < n) j += 1;
+    while (j < n * 2 && values[j % n] >= threshold && j - i < n) j += 1;
     const len = j - i;
     if (len > bestLen) {
       bestLen = len;
@@ -59,24 +60,24 @@ function peakHint(counts: number[]): string | null {
     }
     i = j;
   }
-  const startH = Math.floor((bestStart * 30) / 60);
-  const endH = Math.ceil(((bestStart + bestLen) * 30) / 60) % 24;
-  if (bestLen <= 2) return `Plus souvent vers ${startH} h`;
-  return `Plus souvent entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
+  const startH = Math.floor((bestStart * SLOT_MIN) / 60);
+  const endH = Math.ceil(((bestStart + bestLen) * SLOT_MIN) / 60) % 24;
+  if (bestLen <= 4) return `Plus longues vers ${startH} h`;
+  return `Plus longues entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
 }
 
 export function SleepClock({ sleeps, now }: Props) {
-  const counts = Array.from({ length: SLOTS }, () => 0);
+  const values = Array.from({ length: SLOTS }, () => 0);
   for (const row of sleeps) {
-    addLocalCoverage(counts, row.startedAt, row.endedAt, now);
+    addLocalCoverage(values, row.startedAt, row.endedAt, now);
   }
-  const max = Math.max(0, ...counts);
+  const max = Math.max(0, ...values);
   const napCount = sleeps.length;
   const sleepMin = sleeps.reduce((sum, row) => {
     const end = row.endedAt ? new Date(row.endedAt).getTime() : now;
     return sum + Math.max(0, end - new Date(row.startedAt).getTime());
   }, 0);
-  const hint = peakHint(counts);
+  const hint = peakHint(values);
   const hours = [0, 6, 12, 18];
 
   return (
@@ -91,12 +92,29 @@ export function SleepClock({ sleeps, now }: Props) {
               className="sleep-clock-svg"
               viewBox="0 0 200 230"
               role="img"
-              aria-label="Cadran 24 heures des siestes">
-              {counts.map((count, i) => {
-                const a0 = -90 + i * (360 / SLOTS) + GAP;
-                const a1 = -90 + (i + 1) * (360 / SLOTS) - GAP;
-                return <path key={i} d={donutSlice(a0, a1)} fill={sleepFill(count, max)} />;
-              })}
+              aria-label="Cadran 24 heures des siestes les plus longues">
+              <defs>
+                <radialGradient id="sleep-clock-grad" cx="50%" cy="50%" r="50%">
+                  <stop offset="42%" stopColor="#a8b6d4" />
+                  <stop offset="100%" stopColor="#3d4f73" />
+                </radialGradient>
+              </defs>
+              <circle
+                cx={CX}
+                cy={CY}
+                r={R_OUT}
+                fill="none"
+                stroke="var(--border)"
+                strokeWidth="1"
+              />
+              {max > 0 ? (
+                <path
+                  d={polarAreaPath(values, max)}
+                  fill="url(#sleep-clock-grad)"
+                  fillRule="evenodd"
+                />
+              ) : null}
+              <circle cx={CX} cy={CY} r={R_IN} fill="var(--surface)" />
               {hours.map((hour) => {
                 const deg = -90 + hour * 15;
                 const tick0 = polar(R_OUT + 2, deg);
@@ -132,9 +150,9 @@ export function SleepClock({ sleeps, now }: Props) {
             </svg>
           </div>
           <div className="sleep-clock-scale" aria-hidden>
-            <span>Rare</span>
+            <span>Court</span>
             <span className="sleep-clock-scale-bar" />
-            <span>Fréquent</span>
+            <span>Longues</span>
           </div>
           <p className="muted pie-detail">
             {[sleepMin > 0 ? formatMinuteCount(Math.round(sleepMin / 60_000)) : null, hint]

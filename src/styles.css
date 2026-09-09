@@ -1362,6 +1362,34 @@ h2 {
   font-size: 8px;
 }
 
+.bars.wide {
+  gap: 6px;
+}
+
+.bars.wide .bar-col {
+  min-width: 56px;
+}
+
+.bars.wide .bar {
+  max-width: 44px;
+}
+
+.bars.wide .bar-seg-value {
+  font-size: 9px;
+}
+
+.bars.wide .bar-label {
+  font-size: 10px;
+}
+
+.bars.wide .bar-above {
+  font-size: 10px;
+}
+
+.bars.wide .bar-value {
+  font-size: 9px;
+}
+
 .bars-hint {
   text-align: center;
   font-size: 0.85rem;

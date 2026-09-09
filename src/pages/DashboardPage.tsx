@@ -482,11 +482,30 @@ export function DashboardPage() {
     [favorites, toolRows],
   );
 
+  const isAll = period === 'all';
+  const firstStamp = [
+    ...sessions.map((row) => row.startedAt),
+    ...bottles.map((row) => row.fedAt),
+    ...sleeps.map((row) => row.startedAt),
+    ...diapers.map((row) => row.occurredAt),
+  ]
+    .filter((iso) => isNotFuture(iso, now))
+    .sort()[0];
   const days = eachLocalDay(
-    period === '30d' || period === 'all' ? periodRange('30d').from! : periodRange('7d').from!,
+    isAll
+      ? firstStamp
+        ? startOfLocalDay(new Date(firstStamp)).toISOString()
+        : periodRange('30d').from!
+      : period === '30d'
+        ? periodRange('30d').from!
+        : periodRange('7d').from!,
   );
-  const compact = days.length > 10;
+  const compact = days.length > 10 && !isAll;
   const isToday = period === 'today';
+  const dayLabel = (day: string) => {
+    if (isAll) return `${Number(day.slice(8))}/${Number(day.slice(5, 7))}`;
+    return compact ? day.slice(8) : weekdayShort(day);
+  };
 
   const mealByDay = days.map((day) => {
     const breastRows = sessions.filter(
@@ -507,7 +526,7 @@ export function DashboardPage() {
     const mlLabel = row.bottleMl > 0 ? String(row.bottleMl) : '';
     return {
       key: row.day,
-      label: compact ? row.day.slice(8) : weekdayShort(row.day),
+      label: dayLabel(row.day),
       value: total,
       above: total > 0 ? String(total) : '',
       segments: [
@@ -528,7 +547,7 @@ export function DashboardPage() {
   });
   const sleepBars: BarDatum[] = days.map((day) => ({
     key: day,
-    label: compact ? day.slice(8) : weekdayShort(day),
+    label: dayLabel(day),
     value: Math.round(
       sleeps
         .filter((row) => localDateKey(row.startedAt) === day && isNotFuture(row.startedAt, now))
@@ -543,7 +562,7 @@ export function DashboardPage() {
     const total = pee + poo + both;
     return {
       key: day,
-      label: compact ? day.slice(8) : weekdayShort(day),
+      label: dayLabel(day),
       value: total,
       display: total > 0 ? String(total) : '',
       segments: [
@@ -631,6 +650,7 @@ export function DashboardPage() {
             data={mealBars}
             tone="meal"
             alignEnd
+            wide={isAll}
             legend={
               <div className="bar-legend">
                 <span className="leg-breast">Tétées</span>
@@ -657,6 +677,7 @@ export function DashboardPage() {
             data={sleepBars}
             tone="sleep"
             alignEnd
+            wide={isAll}
             empty="Aucune sieste sur cette période."
           />
           <SleepClock sleeps={sleepsInPeriod} now={now} />
@@ -691,6 +712,7 @@ export function DashboardPage() {
           data={diaperBars}
           tone="pee"
           alignEnd
+          wide={isAll}
           legend={
             <div className="bar-legend">
               <span className="leg-pee">Pipi</span>
@@ -814,6 +836,7 @@ function Bars({
   tone,
   session = false,
   alignEnd = false,
+  wide = false,
   empty,
   hint,
   header,
@@ -824,6 +847,7 @@ function Bars({
   tone?: BarTone;
   session?: boolean;
   alignEnd?: boolean;
+  wide?: boolean;
   empty?: string;
   hint?: string;
   header?: ReactNode;
@@ -831,7 +855,7 @@ function Bars({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const max = Math.max(1, ...data.map((d) => d.value));
-  const compact = data.length > 10;
+  const compact = !wide && data.length > 10;
   const dataKey = data.map((d) => d.key).join('|');
   const hasAbove = data.some((d) => d.above != null);
 
@@ -845,7 +869,7 @@ function Bars({
     align();
     const id = requestAnimationFrame(align);
     return () => cancelAnimationFrame(id);
-  }, [alignEnd, dataKey, compact, session, hasAbove]);
+  }, [alignEnd, dataKey, compact, wide, session, hasAbove]);
 
   return (
     <Card>
@@ -857,7 +881,7 @@ function Bars({
         <p className="muted">{empty ?? 'Rien à afficher.'}</p>
       ) : (
         <div className="bars-wrap" ref={wrapRef}>
-          <div className={`bars ${compact ? 'compact' : ''} ${session ? 'sessions' : ''}`.trim()}>
+          <div className={`bars ${compact ? 'compact' : ''} ${wide ? 'wide' : ''} ${session ? 'sessions' : ''}`.trim()}>
             {data.map((d) => {
               const segs = d.segments?.filter((seg) => seg.value > 0) ?? [];
               const shown = d.display || (segs.length > 0 ? '' : d.value > 0 ? String(d.value) : '');

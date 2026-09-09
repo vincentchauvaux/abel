@@ -141,7 +141,7 @@ export function clipToLocalDay(
   return { startMin, endMin };
 }
 
-/** Incrémente les créneaux (ex. 30 min) couverts par une sieste, en heure locale. */
+/** Ajoute la durée couverte (pondérée par la longueur de la sieste) sur les créneaux locaux. */
 export function addLocalCoverage(
   counts: number[],
   startedAt: string,
@@ -155,6 +155,7 @@ export function addLocalCoverage(
   if (!Number.isFinite(start) || !isNotFuture(startedAt, now)) return;
   const end = Math.min(endedAt ? new Date(endedAt).getTime() : now, now + 90_000);
   if (end <= start) return;
+  const napMinutes = Math.max(1, (end - start) / 60_000);
   let t = start;
   let steps = 0;
   const maxSteps = slots * 400;
@@ -163,8 +164,9 @@ export function addLocalCoverage(
     const d = new Date(t);
     const mins = d.getHours() * 60 + d.getMinutes();
     const slot = Math.floor(mins / slotMinutes) % slots;
-    counts[slot] += 1;
     const remain = slotMinutes - (mins % slotMinutes);
+    const overlap = Math.min(remain, (end - t) / 60_000);
+    counts[slot] += overlap * napMinutes;
     t += Math.max(1, remain) * 60_000;
   }
 }
