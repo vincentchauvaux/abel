@@ -1364,6 +1364,7 @@ h2 {
 
 .bars.wide {
   gap: 6px;
+  min-width: 200%;
 }
 
 .bars.wide .bar-col {
