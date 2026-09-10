@@ -725,6 +725,9 @@ export function DashboardPage() {
         )
       ) : (
         <>
+          {period === '7d' ? (
+            <SleepClock sleeps={sleepsInPeriod} now={now} days={days} agenda />
+          ) : null}
           <Bars
             title="Repas"
             data={mealBars}
@@ -760,7 +763,9 @@ export function DashboardPage() {
             wide={isAll}
             empty="Aucune sieste sur cette période."
           />
-          <SleepClock sleeps={sleepsInPeriod} now={now} days={days} agenda={period === '7d'} />
+          {period !== '7d' ? (
+            <SleepClock sleeps={sleepsInPeriod} now={now} days={days} />
+          ) : null}
         </>
       )}
       {isToday ? (

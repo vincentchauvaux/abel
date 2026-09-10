@@ -13,7 +13,9 @@ type Props = {
 };
 
 const DAY_MIN = 24 * 60;
-const VIEW_MIN = 6 * 60;
+const ZOOM_MIN = 6;
+const ZOOM_MAX = 24;
+const ZOOM_KEY = 'abel.dash-day-zoom';
 const FEED_Y = 8;
 const SLEEP_Y = 36;
 const ROW_H = 24;
@@ -21,10 +23,43 @@ const AXIS_Y = 72;
 const VB_H = 98;
 const MIN_BAR_PX = 4;
 
-function tickAnchor(hour: number, endMin: number): 'start' | 'middle' | 'end' {
+function readZoomHours(): number {
+  try {
+    const n = Number(localStorage.getItem(ZOOM_KEY));
+    if (Number.isFinite(n) && n >= ZOOM_MIN && n <= ZOOM_MAX) return Math.round(n);
+  } catch {
+    /* hors ligne / mode privé */
+  }
+  return ZOOM_MIN;
+}
+
+function writeZoomHours(hours: number) {
+  try {
+    localStorage.setItem(ZOOM_KEY, String(hours));
+  } catch {
+    /* hors ligne / mode privé */
+  }
+}
+
+function tickStep(viewMin: number): number {
+  if (viewMin <= 8 * 60) return 1;
+  if (viewMin <= 12 * 60) return 2;
+  if (viewMin <= 18 * 60) return 3;
+  return 6;
+}
+
+function tickAnchor(hour: number): 'start' | 'middle' | 'end' {
   if (hour === 0) return 'start';
-  if (hour * 60 >= endMin - 0.5) return 'end';
+  if (hour === 24) return 'end';
   return 'middle';
+}
+
+function hourTicks(viewMin: number): number[] {
+  const step = tickStep(viewMin);
+  const out: number[] = [];
+  for (let hour = 0; hour <= 24; hour += step) out.push(hour);
+  if (out[out.length - 1] !== 24) out.push(24);
+  return out;
 }
 
 export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
@@ -32,27 +67,28 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
   const stickEnd = useRef(true);
   const aligning = useRef(false);
   const [pxPerMin, setPxPerMin] = useState(0);
+  const [viewHours, setViewHours] = useState(readZoomHours);
   const dayKey = localDateKey(new Date(now).toISOString());
   const nowMin = Math.max(0, Math.min(DAY_MIN, new Date(now).getHours() * 60 + new Date(now).getMinutes()));
-  const endMin = Math.max(VIEW_MIN, nowMin);
+  const viewMin = viewHours * 60;
   const feedRows = spansOnLocalDay(feeds, dayKey, now);
   const sleepRows = spansOnLocalDay(sleeps, dayKey, now);
-  const totalW = endMin * pxPerMin;
-  const xAt = (min: number) => Math.max(0, Math.min(endMin, min)) * pxPerMin;
-  const ticks = Array.from({ length: Math.floor(endMin / 60) + 1 }, (_, hour) => hour);
+  const totalW = DAY_MIN * pxPerMin;
+  const xAt = (min: number) => Math.max(0, Math.min(DAY_MIN, min)) * pxPerMin;
+  const ticks = hourTicks(viewMin);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
     const measure = () => {
-      const next = el.clientWidth / VIEW_MIN;
+      const next = el.clientWidth / viewMin;
       setPxPerMin((prev) => (Math.abs(prev - next) < 0.01 ? prev : next));
     };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, []);
+  }, [viewMin]);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
@@ -67,7 +103,7 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
     align();
     const id = requestAnimationFrame(align);
     return () => cancelAnimationFrame(id);
-  }, [pxPerMin, nowMin, endMin, feedRows.length, sleepRows.length]);
+  }, [pxPerMin, nowMin, viewMin, feedRows.length, sleepRows.length]);
 
   const onScroll = () => {
     if (aligning.current) return;
@@ -75,6 +111,12 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
     if (!el || pxPerMin <= 0) return;
     const target = Math.max(0, nowMin * pxPerMin - el.clientWidth);
     stickEnd.current = Math.abs(el.scrollLeft - target) < 20;
+  };
+
+  const changeZoom = (hours: number) => {
+    stickEnd.current = true;
+    setViewHours(hours);
+    writeZoomHours(hours);
   };
 
   const toSpan = (kind: 'tétée' | 'sieste', row: (typeof feedRows)[number]) => {
@@ -92,7 +134,6 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
   const feedSpans = feedRows.map((row) => toSpan('tétée', row));
   const sleepSpans = sleepRows.map((row) => toSpan('sieste', row));
   const empty = feedRows.length === 0 && sleepRows.length === 0;
-  const canScroll = endMin > VIEW_MIN + 1;
 
   return (
     <Card>
@@ -112,7 +153,7 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
                 height={VB_H}
                 viewBox={`0 0 ${totalW} ${VB_H}`}
                 role="img"
-                aria-label="Tétées et siestes, 6 heures visibles">
+                aria-label={`Tétées et siestes, ${viewHours} heures visibles`}>
                 <line x1={0} y1={AXIS_Y} x2={totalW} y2={AXIS_Y} stroke="var(--border)" strokeWidth="1" />
                 <rect x={0} y={FEED_Y} width={totalW} height={ROW_H} rx="5" className="day-timeline-track" />
                 <rect x={0} y={SLEEP_Y} width={totalW} height={ROW_H} rx="5" className="day-timeline-track" />
@@ -124,7 +165,7 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
                       <text
                         x={x}
                         y={AXIS_Y + 18}
-                        textAnchor={tickAnchor(hour, endMin)}
+                        textAnchor={tickAnchor(hour)}
                         fontSize="11"
                         className="day-timeline-tick">
                         {hour} h
@@ -174,11 +215,24 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
               <div className="day-timeline-placeholder" />
             )}
           </div>
+          <label className="day-timeline-zoom">
+            <span>6 h</span>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={1}
+              value={viewHours}
+              onChange={(event) => changeZoom(Number(event.target.value))}
+              aria-label="Heures visibles"
+              aria-valuetext={`${viewHours} heures visibles`}
+            />
+            <span>24 h</span>
+          </label>
           <div className="bar-legend">
             <span className="leg-breast">Tétées</span>
             <span className="leg-sleep">Siestes</span>
           </div>
-          {canScroll ? <p className="muted bars-hint">6 h visibles · glisse vers la gauche</p> : null}
           {hint ? <p className="muted bars-hint">{hint}</p> : null}
         </>
       )}
