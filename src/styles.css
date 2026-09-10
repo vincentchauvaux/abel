@@ -1422,7 +1422,7 @@ h2 {
 
 .sleep-clock-svg {
   width: 100%;
-  max-width: 260px;
+  max-width: 280px;
   height: auto;
   display: block;
 }
@@ -1474,10 +1474,6 @@ h2 {
   margin-top: 4px;
 }
 
-.day-timeline-placeholder {
-  height: 98px;
-}
-
 .day-timeline-zoom {
   display: flex;
   align-items: center;
@@ -1503,7 +1499,19 @@ h2 {
 .day-timeline {
   display: block;
   height: 98px;
+  width: auto;
   max-width: none;
+}
+
+.day-timeline-value {
+  fill: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.day-timeline-tick {
+  fill: var(--text-muted);
+  font-size: 10px;
 }
 
 .day-timeline-feed {
@@ -1518,20 +1526,16 @@ h2 {
   fill: var(--muted-bg);
 }
 
-.day-timeline-value {
-  fill: #fff;
-  font-weight: 700;
-}
-
-.day-timeline-tick {
-  fill: var(--text-muted);
-}
-
 .sleep-agenda {
   width: 100%;
   height: auto;
   display: block;
   margin-top: 4px;
+}
+
+.sleep-agenda-axis {
+  margin-top: 0;
+  margin-bottom: -2px;
 }
 
 .sleep-agenda-day {
@@ -1554,6 +1558,17 @@ h2 {
 
 .sleep-agenda-nap {
   fill: var(--sleep);
+}
+
+.sleep-agenda-wrap {
+  max-height: 420px;
+  overflow: auto;
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sleep-agenda-meal {
+  fill: var(--primary);
 }
 
 .sleep-agenda-value {

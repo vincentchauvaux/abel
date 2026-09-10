@@ -21,7 +21,6 @@ const SLEEP_Y = 36;
 const ROW_H = 24;
 const AXIS_Y = 72;
 const VB_H = 98;
-const MIN_BAR_PX = 4;
 
 function readZoomHours(): number {
   try {
@@ -66,36 +65,38 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const stickEnd = useRef(true);
   const aligning = useRef(false);
-  const [pxPerMin, setPxPerMin] = useState(0);
   const [viewHours, setViewHours] = useState(readZoomHours);
+  const [wrapW, setWrapW] = useState(0);
   const dayKey = localDateKey(new Date(now).toISOString());
   const nowMin = Math.max(0, Math.min(DAY_MIN, new Date(now).getHours() * 60 + new Date(now).getMinutes()));
   const viewMin = viewHours * 60;
   const feedRows = spansOnLocalDay(feeds, dayKey, now);
   const sleepRows = spansOnLocalDay(sleeps, dayKey, now);
-  const totalW = DAY_MIN * pxPerMin;
+  const pxPerMin = (wrapW > 0 ? wrapW : 360) / viewMin;
+  const svgW = DAY_MIN * pxPerMin;
   const xAt = (min: number) => Math.max(0, Math.min(DAY_MIN, min)) * pxPerMin;
   const ticks = hourTicks(viewMin);
+  const minBar = Math.max(8, pxPerMin * 8);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const measure = () => {
-      const next = el.clientWidth / viewMin;
-      setPxPerMin((prev) => (Math.abs(prev - next) < 0.01 ? prev : next));
+    const apply = () => {
+      const w = el.clientWidth;
+      if (w > 0) setWrapW((prev) => (prev === w ? prev : w));
     };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [viewMin]);
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useLayoutEffect(() => {
     const el = wrapRef.current;
-    if (!el || pxPerMin <= 0 || !stickEnd.current) return;
+    if (!el || !stickEnd.current) return;
     const align = () => {
       aligning.current = true;
-      el.scrollLeft = Math.max(0, nowMin * pxPerMin - el.clientWidth);
+      el.scrollLeft = Math.max(0, (nowMin / DAY_MIN) * el.scrollWidth - el.clientWidth);
       requestAnimationFrame(() => {
         aligning.current = false;
       });
@@ -103,13 +104,13 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
     align();
     const id = requestAnimationFrame(align);
     return () => cancelAnimationFrame(id);
-  }, [pxPerMin, nowMin, viewMin, feedRows.length, sleepRows.length]);
+  }, [nowMin, viewMin, wrapW, feedRows.length, sleepRows.length]);
 
   const onScroll = () => {
     if (aligning.current) return;
     const el = wrapRef.current;
-    if (!el || pxPerMin <= 0) return;
-    const target = Math.max(0, nowMin * pxPerMin - el.clientWidth);
+    if (!el) return;
+    const target = Math.max(0, (nowMin / DAY_MIN) * el.scrollWidth - el.clientWidth);
     stickEnd.current = Math.abs(el.scrollLeft - target) < 20;
   };
 
@@ -121,8 +122,8 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
 
   const toSpan = (kind: 'tétée' | 'sieste', row: (typeof feedRows)[number]) => {
     const x = xAt(row.startMin);
-    const w = Math.max(MIN_BAR_PX, xAt(row.endMin) - x);
-    const label = row.minutes > 0 && w >= 28 ? formatCompactMinutes(row.minutes) : '';
+    const w = Math.max(minBar, xAt(row.endMin) - x);
+    const label = row.minutes > 0 && row.minutes >= viewMin / 18 ? formatCompactMinutes(row.minutes) : '';
     return {
       key: `${kind}-${row.id}`,
       x,
@@ -146,74 +147,63 @@ export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
       ) : (
         <>
           <div className="day-timeline-wrap" ref={wrapRef} onScroll={onScroll}>
-            {pxPerMin > 0 ? (
-              <svg
-                className="day-timeline"
-                width={totalW}
-                height={VB_H}
-                viewBox={`0 0 ${totalW} ${VB_H}`}
-                role="img"
-                aria-label={`Tétées et siestes, ${viewHours} heures visibles`}>
-                <line x1={0} y1={AXIS_Y} x2={totalW} y2={AXIS_Y} stroke="var(--border)" strokeWidth="1" />
-                <rect x={0} y={FEED_Y} width={totalW} height={ROW_H} rx="5" className="day-timeline-track" />
-                <rect x={0} y={SLEEP_Y} width={totalW} height={ROW_H} rx="5" className="day-timeline-track" />
-                {ticks.map((hour) => {
-                  const x = xAt(hour * 60);
-                  return (
-                    <g key={hour}>
-                      <line x1={x} y1={AXIS_Y} x2={x} y2={AXIS_Y + 4} stroke="var(--text-muted)" strokeWidth="1" />
-                      <text
-                        x={x}
-                        y={AXIS_Y + 18}
-                        textAnchor={tickAnchor(hour)}
-                        fontSize="11"
-                        className="day-timeline-tick">
-                        {hour} h
-                      </text>
-                    </g>
-                  );
-                })}
-                {sleepSpans.map((span) => (
-                  <g key={span.key}>
-                    <rect x={span.x} y={SLEEP_Y} width={span.w} height={ROW_H} rx="5" className="day-timeline-sleep">
-                      <title>{span.title}</title>
-                    </rect>
-                    {span.label ? (
-                      <text
-                        x={span.x + span.w / 2}
-                        y={SLEEP_Y + ROW_H / 2 + 1}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize="11"
-                        className="day-timeline-value">
-                        {span.label}
-                      </text>
-                    ) : null}
+            <svg
+              className="day-timeline"
+              width={svgW}
+              height={VB_H}
+              viewBox={`0 0 ${svgW} ${VB_H}`}
+              role="img"
+              aria-label={`Tétées et siestes, ${viewHours} heures visibles`}>
+              <line x1={0} y1={AXIS_Y} x2={DAY_MIN} y2={AXIS_Y} stroke="var(--border)" strokeWidth="1" />
+              <rect x={0} y={FEED_Y} width={DAY_MIN} height={ROW_H} rx="5" className="day-timeline-track" />
+              <rect x={0} y={SLEEP_Y} width={DAY_MIN} height={ROW_H} rx="5" className="day-timeline-track" />
+              {ticks.map((hour) => {
+                const x = xAt(hour * 60);
+                return (
+                  <g key={hour}>
+                    <line x1={x} y1={AXIS_Y} x2={x} y2={AXIS_Y + 4} stroke="var(--text-muted)" strokeWidth="1" />
+                    <text x={x} y={AXIS_Y + 18} textAnchor={tickAnchor(hour)} className="day-timeline-tick">
+                      {hour} h
+                    </text>
                   </g>
-                ))}
-                {feedSpans.map((span) => (
-                  <g key={span.key}>
-                    <rect x={span.x} y={FEED_Y} width={span.w} height={ROW_H} rx="5" className="day-timeline-feed">
-                      <title>{span.title}</title>
-                    </rect>
-                    {span.label ? (
-                      <text
-                        x={span.x + span.w / 2}
-                        y={FEED_Y + ROW_H / 2 + 1}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                        fontSize="11"
-                        className="day-timeline-value">
-                        {span.label}
-                      </text>
-                    ) : null}
-                  </g>
-                ))}
-                <line x1={xAt(nowMin)} y1={4} x2={xAt(nowMin)} y2={AXIS_Y} className="day-timeline-now" />
-              </svg>
-            ) : (
-              <div className="day-timeline-placeholder" />
-            )}
+                );
+              })}
+              {sleepSpans.map((span) => (
+                <g key={span.key}>
+                  <rect x={span.x} y={SLEEP_Y} width={span.w} height={ROW_H} rx="5" className="day-timeline-sleep">
+                    <title>{span.title}</title>
+                  </rect>
+                  {span.label ? (
+                    <text
+                      x={span.x + span.w / 2}
+                      y={SLEEP_Y + ROW_H / 2 + 1}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="day-timeline-value">
+                      {span.label}
+                    </text>
+                  ) : null}
+                </g>
+              ))}
+              {feedSpans.map((span) => (
+                <g key={span.key}>
+                  <rect x={span.x} y={FEED_Y} width={span.w} height={ROW_H} rx="5" className="day-timeline-feed">
+                    <title>{span.title}</title>
+                  </rect>
+                  {span.label ? (
+                    <text
+                      x={span.x + span.w / 2}
+                      y={FEED_Y + ROW_H / 2 + 1}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="day-timeline-value">
+                      {span.label}
+                    </text>
+                  ) : null}
+                </g>
+              ))}
+              <line x1={xAt(nowMin)} y1={4} x2={xAt(nowMin)} y2={AXIS_Y} className="day-timeline-now" />
+            </svg>
           </div>
           <label className="day-timeline-zoom">
             <span>6 h</span>

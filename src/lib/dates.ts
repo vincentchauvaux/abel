@@ -261,6 +261,19 @@ export function addLocalCoverage(
   }
 }
 
+/** Point dans le temps (biberon, tétée notée) sur un cadran 24 h. */
+export function addLocalInstant(counts: number[], iso: string, now = Date.now(), weight = 120): void {
+  const slots = counts.length;
+  if (slots <= 0) return;
+  const start = new Date(iso).getTime();
+  if (!Number.isFinite(start) || !isNotFuture(iso, now)) return;
+  const slotMinutes = DAY_MINUTES / slots;
+  const d = new Date(iso);
+  const mins = d.getHours() * 60 + d.getMinutes();
+  const slot = Math.floor(mins / slotMinutes) % slots;
+  counts[slot] += weight;
+}
+
 /** Ajoute des minutes à un timestamp ISO (UTC). */
 export function addMinutesIso(iso: string, minutes: number): string {
   return new Date(new Date(iso).getTime() + minutes * 60_000).toISOString();

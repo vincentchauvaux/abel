@@ -2,11 +2,13 @@ import { useState } from 'react';
 
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { Card } from '@/components/ui';
-import type { SleepSession } from '@/db/types';
+import type { BottleFeed, FeedingSession, SleepSession } from '@/db/types';
 import {
   addLocalCoverage,
+  addLocalInstant,
   formatCompactMinutes,
   formatMinuteCount,
+  isNotedSession,
   localDateKey,
   spansOnLocalDay,
   totalMinutesOnLocalDay,
@@ -14,21 +16,43 @@ import {
 } from '@/lib/dates';
 
 const SLOTS = 96;
-const CX = 100;
-const CY = 108;
-const R_OUT = 78;
-const R_IN = 44;
+const CX = 130;
+const CY = 132;
+const R_HOLE = 36;
+const R_SLEEP_IN = 38;
+const R_SLEEP_OUT = 62;
+const R_MEAL_IN = 64;
+const R_MEAL_OUT = 88;
 const SLOT_MIN = (24 * 60) / SLOTS;
 const DAY_MIN = 24 * 60;
+const CLOCK_VIEW_KEY = 'abel.dash-clock-view';
 
 type ViewMode = 'clock' | 'agenda';
 
 type Props = {
   sleeps: SleepSession[];
+  feeds?: FeedingSession[];
+  bottles?: BottleFeed[];
   now: number;
   days?: string[];
   agenda?: boolean;
 };
+
+function readClockView(): ViewMode {
+  try {
+    return localStorage.getItem(CLOCK_VIEW_KEY) === 'agenda' ? 'agenda' : 'clock';
+  } catch {
+    return 'clock';
+  }
+}
+
+function writeClockView(mode: ViewMode) {
+  try {
+    localStorage.setItem(CLOCK_VIEW_KEY, mode);
+  } catch {
+    /* hors ligne / mode privé */
+  }
+}
 
 function polar(r: number, deg: number) {
   const a = (deg * Math.PI) / 180;
@@ -39,14 +63,14 @@ function slotDeg(i: number) {
   return -90 + (i + 0.5) * (360 / SLOTS);
 }
 
-function polarAreaPath(values: number[], max: number): string {
+function polarRingPath(values: number[], max: number, rIn: number, rOut: number): string {
   const outer: string[] = [];
   const inner: string[] = [];
   for (let i = 0; i < SLOTS; i++) {
     const t = max > 0 ? values[i] / max : 0;
-    const r = t <= 0 ? R_IN : R_IN + (R_OUT - R_IN) * Math.pow(t, 0.72);
+    const r = t <= 0 ? rIn : rIn + (rOut - rIn) * Math.pow(t, 0.72);
     const o = polar(r, slotDeg(i));
-    const inn = polar(R_IN, slotDeg(i));
+    const inn = polar(rIn, slotDeg(i));
     outer.push(`${o.x.toFixed(2)} ${o.y.toFixed(2)}`);
     inner.push(`${inn.x.toFixed(2)} ${inn.y.toFixed(2)}`);
   }
@@ -54,7 +78,7 @@ function polarAreaPath(values: number[], max: number): string {
   return `M${outer.join(' L')} Z M${inner.join(' L')} Z`;
 }
 
-function peakHint(values: number[]): string | null {
+function peakHint(values: number[], kind: string): string | null {
   const max = Math.max(...values);
   if (max <= 0) return null;
   const n = values.length;
@@ -78,157 +102,250 @@ function peakHint(values: number[]): string | null {
   }
   const startH = Math.floor((bestStart * SLOT_MIN) / 60);
   const endH = Math.ceil(((bestStart + bestLen) * SLOT_MIN) / 60) % 24;
-  if (bestLen <= 4) return `Plus longues vers ${startH} h`;
-  return `Plus longues entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
+  if (bestLen <= 4) return `${kind} vers ${startH} h`;
+  return `${kind} entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
 }
 
-function SleepAgenda({
-  sleeps,
-  days,
-  now,
+function mealRows(feeds: FeedingSession[], bottles: BottleFeed[]) {
+  return [
+    ...feeds.map((row) => ({ id: `f-${row.id}`, startedAt: row.startedAt, endedAt: row.endedAt })),
+    ...bottles.map((row) => ({ id: `b-${row.id}`, startedAt: row.fedAt, endedAt: row.fedAt })),
+  ];
+}
+
+function fillSleep(values: number[], sleeps: SleepSession[], now: number) {
+  for (const row of sleeps) addLocalCoverage(values, row.startedAt, row.endedAt, now);
+}
+
+function fillMeals(values: number[], feeds: FeedingSession[], bottles: BottleFeed[], now: number) {
+  for (const row of feeds) {
+    if (isNotedSession(row.startedAt, row.endedAt)) {
+      addLocalInstant(values, row.startedAt, now);
+    } else {
+      addLocalCoverage(values, row.startedAt, row.endedAt, now);
+    }
+  }
+  for (const row of bottles) addLocalInstant(values, row.fedAt, now);
+}
+
+function AgendaAxis({
+  ticks,
+  xAt,
+  width,
 }: {
-  sleeps: SleepSession[];
-  days: string[];
-  now: number;
+  ticks: number[];
+  xAt: (min: number) => number;
+  width: number;
 }) {
-  const VB_W = 320;
-  const PAD_L = 30;
-  const PAD_R = 14;
-  const PAD_T = 4;
-  const PAD_B = 20;
-  const ROW_H = 28;
-  const PLOT_W = VB_W - PAD_L - PAD_R;
-  const todayKey = localDateKey(new Date(now).toISOString());
-  const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes();
-  const ticks = [0, 6, 12, 18, 24];
-  const height = PAD_T + days.length * ROW_H + PAD_B;
-
-  const xAt = (min: number) => PAD_L + (Math.max(0, Math.min(DAY_MIN, min)) / DAY_MIN) * PLOT_W;
-
   return (
-    <svg
-      className="sleep-agenda"
-      viewBox={`0 0 ${VB_W} ${height}`}
-      role="img"
-      aria-label="Agenda des siestes sur 7 jours">
-      {days.map((day, i) => {
-        const y = PAD_T + i * ROW_H;
-        const naps = spansOnLocalDay(sleeps, day, now).map((span) => {
-          const x = xAt(span.startMin);
-          const w = Math.max(3, xAt(span.endMin) - x);
-          return { key: `${span.id}-${day}`, x, w, minutes: span.minutes, y };
-        });
-        return (
-          <g key={day}>
-            <rect
-              x={PAD_L}
-              y={y + 4}
-              width={PLOT_W}
-              height={ROW_H - 8}
-              rx="5"
-              className={day === todayKey ? 'sleep-agenda-track sleep-agenda-today' : 'sleep-agenda-track'}
-            />
-            <text
-              x={PAD_L - 4}
-              y={y + ROW_H / 2 + 1}
-              textAnchor="end"
-              dominantBaseline="middle"
-              className="sleep-agenda-day">
-              {weekdayShort(day)}
-            </text>
-            {naps.map((nap) => (
-              <g key={nap.key}>
-                <rect
-                  x={nap.x}
-                  y={y + 5}
-                  width={nap.w}
-                  height={ROW_H - 10}
-                  rx="4"
-                  className="sleep-agenda-nap">
-                  <title>{formatCompactMinutes(nap.minutes)}</title>
-                </rect>
-                {nap.w >= 22 ? (
-                  <text
-                    x={nap.x + nap.w / 2}
-                    y={y + ROW_H / 2 + 1}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="sleep-agenda-value">
-                    {formatCompactMinutes(nap.minutes)}
-                  </text>
-                ) : null}
-              </g>
-            ))}
-            {day === todayKey ? (
-              <line
-                x1={xAt(nowMin)}
-                y1={y + 3}
-                x2={xAt(nowMin)}
-                y2={y + ROW_H - 3}
-                className="sleep-agenda-now"
-              />
-            ) : null}
-          </g>
-        );
-      })}
+    <svg className="sleep-agenda sleep-agenda-axis" viewBox={`0 0 ${width} 18`} aria-hidden>
       {ticks.map((hour) => {
         const x = xAt(hour * 60);
         return (
-          <g key={hour}>
-            <line
-              x1={x}
-              y1={PAD_T + days.length * ROW_H}
-              x2={x}
-              y2={PAD_T + days.length * ROW_H + 4}
-              stroke="var(--text-muted)"
-              strokeWidth="1"
-            />
-            <text
-              x={x}
-              y={height - 3}
-              textAnchor={hour === 0 ? 'start' : hour === 24 ? 'end' : 'middle'}
-              fontSize="9"
-              className="sleep-agenda-tick">
-              {hour} h
-            </text>
-          </g>
+          <text
+            key={hour}
+            x={x}
+            y={12}
+            textAnchor={hour === 0 ? 'start' : hour === 24 ? 'end' : 'middle'}
+            className="sleep-agenda-tick">
+            {hour} h
+          </text>
         );
       })}
     </svg>
   );
 }
 
-export function SleepClock({ sleeps, now, days = [], agenda = false }: Props) {
-  const [view, setView] = useState<ViewMode>('clock');
+function DayAgenda({
+  sleeps,
+  feeds,
+  bottles,
+  days,
+  now,
+}: {
+  sleeps: SleepSession[];
+  feeds: FeedingSession[];
+  bottles: BottleFeed[];
+  days: string[];
+  now: number;
+}) {
+  const VB_W = 320;
+  const PAD_L = 30;
+  const PAD_R = 14;
+  const PAD_T = 2;
+  const PAD_B = 4;
+  const ROW_H = 40;
+  const PLOT_W = VB_W - PAD_L - PAD_R;
+  const todayKey = localDateKey(new Date(now).toISOString());
+  const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes();
+  const ticks = [0, 6, 12, 18, 24];
+  const rows = [...days].reverse();
+  const height = PAD_T + rows.length * ROW_H + PAD_B;
+  const meals = mealRows(feeds, bottles);
+  const xAt = (min: number) => PAD_L + (Math.max(0, Math.min(DAY_MIN, min)) / DAY_MIN) * PLOT_W;
+
+  return (
+    <div>
+      <AgendaAxis ticks={ticks} xAt={xAt} width={VB_W} />
+      <div className="sleep-agenda-wrap">
+        <svg
+          className="sleep-agenda"
+          viewBox={`0 0 ${VB_W} ${height}`}
+          role="img"
+          aria-label="Agenda des siestes et repas">
+          {rows.map((day, i) => {
+            const y = PAD_T + i * ROW_H;
+            const naps = spansOnLocalDay(sleeps, day, now);
+            const eats = spansOnLocalDay(meals, day, now);
+            return (
+              <g key={day}>
+                <rect
+                  x={PAD_L}
+                  y={y + 3}
+                  width={PLOT_W}
+                  height={12}
+                  rx="4"
+                  className={day === todayKey ? 'sleep-agenda-track sleep-agenda-today' : 'sleep-agenda-track'}
+                />
+                <rect
+                  x={PAD_L}
+                  y={y + 18}
+                  width={PLOT_W}
+                  height={16}
+                  rx="4"
+                  className={day === todayKey ? 'sleep-agenda-track sleep-agenda-today' : 'sleep-agenda-track'}
+                />
+                <text
+                  x={PAD_L - 4}
+                  y={y + ROW_H / 2 + 1}
+                  textAnchor="end"
+                  dominantBaseline="middle"
+                  className="sleep-agenda-day">
+                  {weekdayShort(day)}
+                </text>
+                {eats.map((span) => {
+                  const x = xAt(span.startMin);
+                  const w = Math.max(3, xAt(span.endMin) - x);
+                  return (
+                    <rect
+                      key={`${span.id}-${day}`}
+                      x={x}
+                      y={y + 4}
+                      width={w}
+                      height={10}
+                      rx="3"
+                      className="sleep-agenda-meal">
+                      <title>repas</title>
+                    </rect>
+                  );
+                })}
+                {naps.map((nap) => {
+                  const x = xAt(nap.startMin);
+                  const w = Math.max(3, xAt(nap.endMin) - x);
+                  return (
+                    <g key={`${nap.id}-${day}`}>
+                      <rect x={x} y={y + 19} width={w} height={14} rx="4" className="sleep-agenda-nap">
+                        <title>{formatCompactMinutes(nap.minutes)}</title>
+                      </rect>
+                      {w >= 22 && nap.minutes > 0 ? (
+                        <text
+                          x={x + w / 2}
+                          y={y + 27}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          className="sleep-agenda-value">
+                          {formatCompactMinutes(nap.minutes)}
+                        </text>
+                      ) : null}
+                    </g>
+                  );
+                })}
+                {day === todayKey ? (
+                  <line
+                    x1={xAt(nowMin)}
+                    y1={y + 2}
+                    x2={xAt(nowMin)}
+                    y2={y + ROW_H - 4}
+                    className="sleep-agenda-now"
+                  />
+                ) : null}
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+export function SleepClock({
+  sleeps,
+  feeds = [],
+  bottles = [],
+  now,
+  days = [],
+  agenda = false,
+}: Props) {
+  const [view, setView] = useState<ViewMode>(readClockView);
   const allowAgenda = agenda && days.length > 0;
   const mode: ViewMode = allowAgenda && view === 'agenda' ? 'agenda' : 'clock';
-  const values = Array.from({ length: SLOTS }, () => 0);
-  for (const row of sleeps) {
-    addLocalCoverage(values, row.startedAt, row.endedAt, now);
-  }
-  const max = Math.max(0, ...values);
+  const sleepValues = Array.from({ length: SLOTS }, () => 0);
+  const mealValues = Array.from({ length: SLOTS }, () => 0);
+  fillSleep(sleepValues, sleeps, now);
+  fillMeals(mealValues, feeds, bottles, now);
+  const sleepMax = Math.max(0, ...sleepValues);
+  const mealMax = Math.max(0, ...mealValues);
   const sleepMinutes =
-    days.length > 0
-      ? days.reduce((sum, day) => sum + totalMinutesOnLocalDay(sleeps, day, now), 0)
-      : 0;
+    days.length > 0 ? days.reduce((sum, day) => sum + totalMinutesOnLocalDay(sleeps, day, now), 0) : 0;
   const napCount =
     days.length > 0
       ? new Set(days.flatMap((day) => spansOnLocalDay(sleeps, day, now).map((span) => span.id))).size
       : sleeps.length;
-  const hint = peakHint(values);
+  const mealCount =
+    days.length > 0
+      ? new Set(days.flatMap((day) => spansOnLocalDay(mealRows(feeds, bottles), day, now).map((span) => span.id)))
+          .size
+      : feeds.length + bottles.length;
+  const hasData = napCount > 0 || mealCount > 0;
+  const dayCount = Math.max(1, days.length);
+  const avgSleepMin = Math.round(sleepMinutes / dayCount);
+  const avgMeals = mealCount / dayCount;
+  const avgHint =
+    days.length > 1
+      ? [
+          avgSleepMin > 0 ? `moyenne ${formatMinuteCount(avgSleepMin)} / j` : null,
+          mealCount > 0
+            ? `${avgMeals.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} repas / j`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : null;
+  const hint = [
+    avgHint,
+    peakHint(sleepValues, 'Siestes plus longues'),
+    peakHint(mealValues, 'Repas plus fréquents'),
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const hours = [0, 6, 12, 18];
+
+  const changeView = (next: ViewMode) => {
+    setView(next);
+    writeClockView(next);
+  };
 
   return (
     <Card>
       <div className="card-head">
-        <h2>Heures de sieste</h2>
+        <h2>Heures de sieste et repas</h2>
         {allowAgenda ? (
           <SegmentedControl
             className="chart-metric-switch"
             size="sm"
             value={mode}
-            onChange={setView}
-            ariaLabel="Type de graphique des siestes"
+            onChange={changeView}
+            ariaLabel="Type de graphique siestes et repas"
             options={[
               { key: 'clock', label: 'Cadran', ariaLabel: 'Cadran' },
               { key: 'agenda', label: 'Agenda', ariaLabel: 'Agenda' },
@@ -238,52 +355,60 @@ export function SleepClock({ sleeps, now, days = [], agenda = false }: Props) {
       </div>
       {mode === 'agenda' ? (
         <>
-          <SleepAgenda sleeps={sleeps} days={days} now={now} />
+          <DayAgenda sleeps={sleeps} feeds={feeds} bottles={bottles} days={days} now={now} />
+          <div className="bar-legend">
+            <span className="leg-breast">Repas</span>
+            <span className="leg-sleep">Siestes</span>
+          </div>
           <p className="muted pie-detail">
-            {napCount === 0
-              ? 'Aucune sieste sur 7 jours.'
-              : [sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null, `${napCount} sieste${napCount > 1 ? 's' : ''}`]
+            {!hasData
+              ? 'Aucune sieste ni repas sur cette période.'
+              : [avgHint, sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null, napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null, mealCount > 0 ? `${mealCount} repas` : null]
                   .filter(Boolean)
                   .join(' · ')}
           </p>
         </>
-      ) : napCount === 0 ? (
-        <p className="muted">Aucune sieste sur cette période.</p>
+      ) : !hasData ? (
+        <p className="muted">Aucune sieste ni repas sur cette période.</p>
       ) : (
         <>
           <div className="sleep-clock">
             <svg
               className="sleep-clock-svg"
-              viewBox="0 0 200 230"
+              viewBox="0 0 260 280"
               role="img"
-              aria-label="Cadran 24 heures des siestes les plus longues">
+              aria-label="Cadran 24 heures des siestes et repas">
               <defs>
                 <radialGradient id="sleep-clock-grad" cx="50%" cy="50%" r="50%">
                   <stop offset="42%" stopColor="#a8b6d4" />
                   <stop offset="100%" stopColor="#3d4f73" />
                 </radialGradient>
+                <radialGradient id="meal-clock-grad" cx="50%" cy="50%" r="50%">
+                  <stop offset="42%" stopColor="#e3a89a" />
+                  <stop offset="100%" stopColor="#c45c4a" />
+                </radialGradient>
               </defs>
-              <circle
-                cx={CX}
-                cy={CY}
-                r={R_OUT}
-                fill="none"
-                stroke="var(--border)"
-                strokeWidth="1"
-              />
-              {max > 0 ? (
+              <circle cx={CX} cy={CY} r={R_MEAL_OUT} fill="none" stroke="var(--border)" strokeWidth="1" />
+              {mealMax > 0 ? (
                 <path
-                  d={polarAreaPath(values, max)}
+                  d={polarRingPath(mealValues, mealMax, R_MEAL_IN, R_MEAL_OUT)}
+                  fill="url(#meal-clock-grad)"
+                  fillRule="evenodd"
+                />
+              ) : null}
+              {sleepMax > 0 ? (
+                <path
+                  d={polarRingPath(sleepValues, sleepMax, R_SLEEP_IN, R_SLEEP_OUT)}
                   fill="url(#sleep-clock-grad)"
                   fillRule="evenodd"
                 />
               ) : null}
-              <circle cx={CX} cy={CY} r={R_IN} fill="var(--surface)" />
+              <circle cx={CX} cy={CY} r={R_HOLE} fill="var(--surface)" />
               {hours.map((hour) => {
                 const deg = -90 + hour * 15;
-                const tick0 = polar(R_OUT + 2, deg);
-                const tick1 = polar(R_OUT + 8, deg);
-                const label = polar(R_OUT + 18, deg);
+                const tick0 = polar(R_MEAL_OUT + 2, deg);
+                const tick1 = polar(R_MEAL_OUT + 8, deg);
+                const label = polar(R_MEAL_OUT + 18, deg);
                 return (
                   <g key={hour}>
                     <line
@@ -306,20 +431,28 @@ export function SleepClock({ sleeps, now, days = [], agenda = false }: Props) {
                 );
               })}
               <text x={CX} y={CY - 6} textAnchor="middle" className="sleep-clock-center-value">
-                {napCount}
+                {days.length > 1 && avgSleepMin > 0
+                  ? avgSleepMin < 60
+                    ? `${avgSleepMin} min`
+                    : formatCompactMinutes(avgSleepMin)
+                  : String(napCount + mealCount)}
               </text>
               <text x={CX} y={CY + 10} textAnchor="middle" className="sleep-clock-center-label">
-                sieste{napCount > 1 ? 's' : ''}
+                {days.length > 1 && avgSleepMin > 0 ? '/ jour' : 'sur 24 h'}
               </text>
             </svg>
           </div>
-          <div className="sleep-clock-scale" aria-hidden>
-            <span>Court</span>
-            <span className="sleep-clock-scale-bar" />
-            <span>Longues</span>
+          <div className="bar-legend">
+            <span className="leg-breast">Repas</span>
+            <span className="leg-sleep">Siestes</span>
           </div>
           <p className="muted pie-detail">
-            {[sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null, hint]
+            {[
+              sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
+              napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
+              mealCount > 0 ? `${mealCount} repas` : null,
+              hint || null,
+            ]
               .filter(Boolean)
               .join(' · ')}
           </p>
