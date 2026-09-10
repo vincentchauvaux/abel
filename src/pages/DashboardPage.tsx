@@ -8,6 +8,7 @@ import { ActivityEditor } from '@/components/ActivityEditor';
 import { GrowthChart } from '@/components/GrowthChart';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
+import { RatioPie } from '@/components/RatioPie';
 import { SleepClock } from '@/components/SleepClock';
 import { Card } from '@/components/ui';
 import {
@@ -596,6 +597,10 @@ export function DashboardPage() {
       ],
     };
   });
+  const diapersToday = diapers.filter((row) => inRange(row.occurredAt));
+  const diaperPee = diapersToday.filter((row) => row.kind === 'PEE').length;
+  const diaperPoo = diapersToday.filter((row) => row.kind === 'POO').length;
+  const diaperBoth = diapersToday.filter((row) => row.kind === 'BOTH').length;
   const mealPeriodBreast = mealByDay.reduce((sum, row) => sum + row.breastCount, 0);
   const mealPeriodBottle = mealByDay.reduce((sum, row) => sum + row.bottleCount, 0);
   const mealPeriodMin = mealByDay.reduce((sum, row) => sum + row.breastMin, 0);
@@ -699,20 +704,45 @@ export function DashboardPage() {
         empty={isToday ? 'Aucune sieste aujourd’hui.' : 'Aucune sieste sur cette période.'}
         hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
       />
-      <Bars
-        title="Couches"
-        data={diaperBars}
-        tone="pee"
-        alignEnd
-        wide={isAll}
-        legend={
-          <div className="bar-legend">
-            <span className="leg-pee">Pipi</span>
-            <span className="leg-poo">Caca</span>
-            <span className="leg-both">Les deux</span>
-          </div>
-        }
-      />
+      {isToday ? (
+        <Card>
+          <h2>Couches</h2>
+          {diapersToday.length === 0 ? (
+            <p className="muted">Aucune couche aujourd’hui.</p>
+          ) : (
+            <RatioPie
+              slices={[
+                { key: 'pee', label: 'Pipi', value: diaperPee, color: 'var(--pee)', legendClass: 'leg-pee' },
+                { key: 'poo', label: 'Caca', value: diaperPoo, color: 'var(--poo)', legendClass: 'leg-poo' },
+                { key: 'both', label: 'Les deux', value: diaperBoth, color: 'var(--primary)', legendClass: 'leg-both' },
+              ]}
+              centerValue={diapersToday.length}
+              centerLabel="couches"
+              detail={[
+                diaperPee + diaperBoth > 0 ? `${diaperPee + diaperBoth} pipi` : null,
+                diaperPoo + diaperBoth > 0 ? `${diaperPoo + diaperBoth} caca` : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            />
+          )}
+        </Card>
+      ) : (
+        <Bars
+          title="Couches"
+          data={diaperBars}
+          tone="pee"
+          alignEnd
+          wide={isAll}
+          legend={
+            <div className="bar-legend">
+              <span className="leg-pee">Pipi</span>
+              <span className="leg-poo">Caca</span>
+              <span className="leg-both">Les deux</span>
+            </div>
+          }
+        />
+      )}
       <GrowthChart
         weights={measures.filter((row) => row.type === 'WEIGHT')}
         heights={measures.filter((row) => row.type === 'HEIGHT')}
