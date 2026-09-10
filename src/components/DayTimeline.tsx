@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { Card } from '@/components/ui';
 import type { FeedingSession, SleepSession } from '@/db/types';
 import { clipToLocalDay, formatMinuteCount, localDateKey } from '@/lib/dates';
@@ -7,17 +9,25 @@ type Props = {
   sleeps: SleepSession[];
   now: number;
   hint?: string;
+  header?: ReactNode;
 };
 
 const DAY_MIN = 24 * 60;
 const VB_W = 320;
-const PAD_L = 6;
-const PAD_R = 6;
+const PAD_L = 12;
+const PAD_R = 14;
 const PLOT_W = VB_W - PAD_L - PAD_R;
 const FEED_Y = 8;
 const SLEEP_Y = 36;
 const ROW_H = 24;
 const AXIS_Y = 72;
+const VB_H = 98;
+
+function tickAnchor(hour: number): 'start' | 'middle' | 'end' {
+  if (hour === 0) return 'start';
+  if (hour === 24) return 'end';
+  return 'middle';
+}
 
 function xAt(min: number): number {
   return PAD_L + (Math.max(0, Math.min(DAY_MIN, min)) / DAY_MIN) * PLOT_W;
@@ -63,7 +73,7 @@ function spansFor(
   return out;
 }
 
-export function DayTimeline({ feeds, sleeps, now, hint }: Props) {
+export function DayTimeline({ feeds, sleeps, now, hint, header }: Props) {
   const dayKey = localDateKey(new Date(now).toISOString());
   const feedSpans = spansFor(feeds, dayKey, now, 'tétée');
   const sleepSpans = spansFor(sleeps, dayKey, now, 'sieste');
@@ -74,7 +84,10 @@ export function DayTimeline({ feeds, sleeps, now, hint }: Props) {
   if (feedSpans.length === 0 && sleepSpans.length === 0) {
     return (
       <Card>
-        <h2>Tétées et siestes</h2>
+        <div className="card-head">
+          <h2>Tétées et siestes</h2>
+          {header}
+        </div>
         <p className="muted">Aucune tétée ni sieste aujourd’hui.</p>
       </Card>
     );
@@ -82,10 +95,13 @@ export function DayTimeline({ feeds, sleeps, now, hint }: Props) {
 
   return (
     <Card>
-      <h2>Tétées et siestes</h2>
+      <div className="card-head">
+        <h2>Tétées et siestes</h2>
+        {header}
+      </div>
       <svg
         className="day-timeline"
-        viewBox={`0 0 ${VB_W} 92`}
+        viewBox={`0 0 ${VB_W} ${VB_H}`}
         role="img"
         aria-label="Tétées et siestes sur 24 heures">
         <line
@@ -117,7 +133,7 @@ export function DayTimeline({ feeds, sleeps, now, hint }: Props) {
           return (
             <g key={hour}>
               <line x1={x} y1={AXIS_Y} x2={x} y2={AXIS_Y + 4} stroke="var(--text-muted)" strokeWidth="1" />
-              <text x={x} y={AXIS_Y + 16} textAnchor="middle" className="day-timeline-tick">
+              <text x={x} y={AXIS_Y + 18} textAnchor={tickAnchor(hour)} fontSize="9" className="day-timeline-tick">
                 {hour} h
               </text>
             </g>

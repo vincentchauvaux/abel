@@ -1243,6 +1243,11 @@ h2 {
   touch-action: pan-x;
 }
 
+.bars-wrap.wide {
+  overflow-x: scroll;
+  contain: inline-size;
+}
+
 .bars {
   display: flex;
   align-items: flex-end;
@@ -1364,13 +1369,20 @@ h2 {
 }
 
 .bars.wide {
-  gap: 6px;
+  gap: 8px;
   width: max-content;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.bars.wide.align-end {
+  margin-left: auto;
 }
 
 .bars.wide .bar-col {
   flex: 0 0 auto;
   min-width: 0;
+  box-sizing: content-box;
 }
 
 .bars.wide .bar {
@@ -1452,6 +1464,7 @@ h2 {
   height: auto;
   display: block;
   margin-top: 4px;
+  overflow: visible;
 }
 
 .day-timeline-feed {
@@ -1474,7 +1487,6 @@ h2 {
 
 .day-timeline-tick {
   fill: var(--text-muted);
-  font-size: 10px;
 }
 
 .sleep-agenda {
@@ -1492,7 +1504,6 @@ h2 {
 
 .sleep-agenda-tick {
   fill: var(--text-muted);
-  font-size: 9px;
 }
 
 .sleep-agenda-track {

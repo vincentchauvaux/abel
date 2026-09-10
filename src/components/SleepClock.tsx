@@ -98,9 +98,9 @@ function SleepAgenda({
 }) {
   const VB_W = 320;
   const PAD_L = 30;
-  const PAD_R = 6;
+  const PAD_R = 14;
   const PAD_T = 4;
-  const PAD_B = 18;
+  const PAD_B = 20;
   const ROW_H = 28;
   const PLOT_W = VB_W - PAD_L - PAD_R;
   const todayKey = localDateKey(new Date(now).toISOString());
@@ -191,7 +191,12 @@ function SleepAgenda({
               stroke="var(--text-muted)"
               strokeWidth="1"
             />
-            <text x={x} y={height - 2} textAnchor="middle" className="sleep-agenda-tick">
+            <text
+              x={x}
+              y={height - 3}
+              textAnchor={hour === 0 ? 'start' : hour === 24 ? 'end' : 'middle'}
+              fontSize="9"
+              className="sleep-agenda-tick">
               {hour} h
             </text>
           </g>
