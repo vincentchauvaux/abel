@@ -261,6 +261,46 @@ export function addLocalCoverage(
   }
 }
 
+/** Couverture d’une séance sur un jour local seulement (cadran Jour : pas d’heures futures ni d’hier soir). */
+export function addCoverageOnLocalDay(
+  counts: number[],
+  startedAt: string,
+  endedAt: string | null,
+  dayKey: string,
+  now = Date.now(),
+): void {
+  const slots = counts.length;
+  if (slots <= 0) return;
+  const clip = clipToLocalDay(startedAt, endedAt, dayKey, now);
+  if (!clip) return;
+  const slotMinutes = DAY_MINUTES / slots;
+  const duration = Math.max(1, clip.endMin - clip.startMin);
+  let t = clip.startMin;
+  let steps = 0;
+  const maxSteps = slots + 2;
+  while (t < clip.endMin && steps < maxSteps) {
+    steps += 1;
+    const slot = Math.min(slots - 1, Math.max(0, Math.floor(t / slotMinutes)));
+    const slotEnd = (slot + 1) * slotMinutes;
+    const overlap = Math.min(slotEnd, clip.endMin) - t;
+    if (overlap <= 0) break;
+    counts[slot] += overlap * duration;
+    t += overlap;
+  }
+}
+
+/** Instant uniquement s’il tombe sur ce jour local. */
+export function addInstantOnLocalDay(
+  counts: number[],
+  iso: string,
+  dayKey: string,
+  now = Date.now(),
+  weight = 120,
+): void {
+  if (localDateKey(iso) !== dayKey) return;
+  addLocalInstant(counts, iso, now, weight);
+}
+
 /** Point dans le temps (biberon, tétée notée) sur un cadran 24 h. */
 export function addLocalInstant(counts: number[], iso: string, now = Date.now(), weight = 120): void {
   const slots = counts.length;
