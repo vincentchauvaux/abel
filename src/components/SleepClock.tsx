@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { Card } from '@/components/ui';
@@ -79,7 +80,7 @@ function polarRingPath(values: number[], max: number, rIn: number, rOut: number)
   return `M${outer.join(' L')} Z M${inner.join(' L')} Z`;
 }
 
-function peakHint(values: number[], kind: string): string | null {
+function peakRange(values: number[]): string | null {
   const max = Math.max(...values);
   if (max <= 0) return null;
   const n = values.length;
@@ -103,8 +104,44 @@ function peakHint(values: number[], kind: string): string | null {
   }
   const startH = Math.floor((bestStart * SLOT_MIN) / 60);
   const endH = Math.ceil(((bestStart + bestLen) * SLOT_MIN) / 60) % 24;
-  if (bestLen <= 4) return `${kind} vers ${startH} h`;
-  return `${kind} entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
+  if (bestLen <= 4) return `vers ${startH} h`;
+  return `entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
+}
+
+type DetailSection = { title: string; lines: string[] };
+
+function ClockDetails({ empty, sections }: { empty?: string; sections: DetailSection[] }) {
+  const [open, setOpen] = useState(false);
+  const shown = sections.filter((section) => section.lines.length > 0);
+  if (!empty && shown.length === 0) return null;
+  return (
+    <div className="clock-details">
+      {open ? (
+        <div className="clock-details-panel">
+          {empty ? (
+            <p>{empty}</p>
+          ) : (
+            shown.map((section) => (
+              <section key={section.title}>
+                <h3>{section.title}</h3>
+                {section.lines.map((line) => (
+                  <p key={line}>{line}</p>
+                ))}
+              </section>
+            ))
+          )}
+        </div>
+      ) : null}
+      <button
+        type="button"
+        className="clock-details-toggle"
+        aria-expanded={open}
+        onClick={() => setOpen((value) => !value)}>
+        Infos
+        <ChevronDown size={14} className={`accordion-chevron${open ? ' open' : ''}`} aria-hidden />
+      </button>
+    </div>
+  );
 }
 
 function mealRows(feeds: FeedingSession[], bottles: BottleFeed[]) {
@@ -465,16 +502,56 @@ export function SleepClock({
       : String(mealCount);
   const sleepCenterLabel = days.length > 1 ? '/ jour' : 'sommeil';
   const mealCenterLabel = days.length > 1 && mealCount > 0 ? 'repas / j' : 'sur 24 h';
+  const sleepPeak = showSleep ? peakRange(sleepValues) : null;
+  const mealPeak = showMeals ? peakRange(mealValues) : null;
   const clockEmpty =
     (!showSleep || !hasSleep) && (!showMeals || !hasMeals);
-  const clockHint = [
-    showSleep ? sleepAvgHint : null,
-    showSleep ? peakHint(sleepValues, 'Siestes plus longues') : null,
-    showMeals ? mealAvgHint : null,
-    showMeals ? peakHint(mealValues, 'Repas plus fréquents') : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
+  const clockEmptyMessage = !showSleep && !showMeals
+    ? 'Active Siestes ou Repas sous le cadran.'
+    : clockEmpty
+      ? showSleep && showMeals
+        ? 'Aucune sieste ni repas sur cette période.'
+        : showMeals
+          ? 'Aucun repas sur cette période.'
+          : 'Aucune sieste sur cette période.'
+      : undefined;
+  const clockSections: DetailSection[] = [
+    {
+      title: 'Siestes',
+      lines: [
+        showSleep && sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
+        showSleep && napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
+        showSleep ? sleepAvgHint : null,
+        showSleep && sleepPeak ? `plus longues ${sleepPeak}` : null,
+      ].filter((line): line is string => Boolean(line)),
+    },
+    {
+      title: 'Repas',
+      lines: [
+        showMeals && mealCount > 0 ? `${mealCount} repas` : null,
+        showMeals ? mealAvgHint : null,
+        showMeals && mealPeak ? `plus fréquents ${mealPeak}` : null,
+      ].filter((line): line is string => Boolean(line)),
+    },
+  ];
+  const agendaEmpty = !hasSleep && !hasMeals ? 'Aucune sieste ni repas sur cette période.' : undefined;
+  const agendaSections: DetailSection[] = [
+    {
+      title: 'Siestes',
+      lines: [
+        sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
+        napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
+        sleepAvgHint,
+      ].filter((line): line is string => Boolean(line)),
+    },
+    {
+      title: 'Repas',
+      lines: [
+        mealCount > 0 ? `${mealCount} repas` : null,
+        mealAvgHint,
+      ].filter((line): line is string => Boolean(line)),
+    },
+  ];
   const clockCenter = showSleep
     ? sleepCenter
     : showMeals && hasMeals
@@ -485,12 +562,7 @@ export function SleepClock({
     : showMeals && hasMeals
       ? mealCenterLabel
       : 'sur 24 h';
-  const title =
-    showSleep && showMeals
-      ? 'Heures de sieste et repas'
-      : showMeals
-        ? 'Heures de repas'
-        : 'Heures de sieste';
+  const title = 'Résumé';
 
   const changeView = (next: ViewMode) => {
     setView(next);
@@ -541,19 +613,7 @@ export function SleepClock({
             <span className="leg-breast">Repas</span>
             <span className="leg-sleep">Siestes</span>
           </div>
-          <p className="muted pie-detail">
-            {!hasSleep && !hasMeals
-              ? 'Aucune sieste ni repas sur cette période.'
-              : [
-                  sleepAvgHint,
-                  mealAvgHint,
-                  sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
-                  napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
-                  mealCount > 0 ? `${mealCount} repas` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-          </p>
+          <ClockDetails empty={agendaEmpty} sections={agendaSections} />
         </>
       ) : !seriesToggle && !hasSleep ? (
         <p className="muted">Aucune sieste sur cette période.</p>
@@ -573,27 +633,10 @@ export function SleepClock({
                   ? 'Cadran 24 heures des repas'
                   : 'Cadran 24 heures des siestes'
             }
-            nowMin={dayKey === todayKey ? nowMin : undefined}
+            nowMin={nowMin}
           />
           {clockLegend}
-          <p className="muted pie-detail">
-            {!showSleep && !showMeals
-              ? 'Active Siestes ou Repas sous le cadran.'
-              : clockEmpty
-                ? showSleep && showMeals
-                  ? 'Aucune sieste ni repas sur cette période.'
-                  : showMeals
-                    ? 'Aucun repas sur cette période.'
-                    : 'Aucune sieste sur cette période.'
-                : [
-                    showSleep && sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
-                    showSleep && napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
-                    showMeals && mealCount > 0 ? `${mealCount} repas` : null,
-                    clockHint || null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-          </p>
+          <ClockDetails empty={clockEmptyMessage} sections={clockSections} />
         </>
       )}
     </Card>

@@ -1468,6 +1468,67 @@ h2 {
   opacity: 0.45;
 }
 
+.clock-details {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.clock-details-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  background: none;
+  padding: 4px 0 0;
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.62;
+}
+
+.clock-details-toggle[aria-expanded='true'],
+.clock-details-toggle:hover {
+  opacity: 1;
+}
+
+.clock-details-toggle .accordion-chevron {
+  width: 14px;
+  height: 14px;
+}
+
+.clock-details-panel {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--muted-bg);
+}
+
+.clock-details-panel h3 {
+  margin: 0 0 4px;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.clock-details-panel p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.clock-details-panel p + p {
+  margin-top: 2px;
+}
+
 .sleep-clock-scale {
   display: flex;
   align-items: center;
