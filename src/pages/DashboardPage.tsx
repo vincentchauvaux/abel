@@ -680,7 +680,7 @@ export function DashboardPage() {
             wide={isAll}
             empty="Aucune sieste sur cette période."
           />
-          <SleepClock sleeps={sleepsInPeriod} now={now} />
+          <SleepClock sleeps={sleepsInPeriod} now={now} days={period === '7d' ? days : undefined} />
         </>
       )}
       {isToday ? (
@@ -830,6 +830,9 @@ function barHeight(value: number, max: number) {
   return Math.max(14, (value / max) * 100);
 }
 
+const WIDE_VISIBLE = 6;
+const WIDE_GAP = 6;
+
 function Bars({
   title,
   data,
@@ -854,10 +857,26 @@ function Bars({
   legend?: ReactNode;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
+  const [colW, setColW] = useState(0);
   const max = Math.max(1, ...data.map((d) => d.value));
   const compact = !wide && data.length > 10;
   const dataKey = data.map((d) => d.key).join('|');
   const hasAbove = data.some((d) => d.above != null);
+
+  useLayoutEffect(() => {
+    if (!wide) return;
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => {
+      const visible = Math.min(WIDE_VISIBLE, Math.max(1, data.length));
+      const next = (el.clientWidth - WIDE_GAP * (visible - 1)) / visible;
+      setColW((prev) => (Math.abs(prev - next) < 0.5 ? prev : next));
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [wide, data.length]);
 
   useLayoutEffect(() => {
     if (!alignEnd) return;
@@ -869,7 +888,16 @@ function Bars({
     align();
     const id = requestAnimationFrame(align);
     return () => cancelAnimationFrame(id);
-  }, [alignEnd, dataKey, compact, wide, session, hasAbove]);
+  }, [alignEnd, dataKey, compact, wide, colW, session, hasAbove]);
+
+  const wideStyle =
+    wide && colW > 0
+      ? {
+          width: data.length * colW + WIDE_GAP * Math.max(0, data.length - 1),
+          minWidth: '100%',
+        }
+      : undefined;
+  const colStyle = wide && colW > 0 ? { flex: `0 0 ${colW}px`, width: colW } : undefined;
 
   return (
     <Card>
@@ -881,12 +909,14 @@ function Bars({
         <p className="muted">{empty ?? 'Rien à afficher.'}</p>
       ) : (
         <div className="bars-wrap" ref={wrapRef}>
-          <div className={`bars ${compact ? 'compact' : ''} ${wide ? 'wide' : ''} ${session ? 'sessions' : ''}`.trim()}>
+          <div
+            className={`bars ${compact ? 'compact' : ''} ${wide ? 'wide' : ''} ${session ? 'sessions' : ''}`.trim()}
+            style={wideStyle}>
             {data.map((d) => {
               const segs = d.segments?.filter((seg) => seg.value > 0) ?? [];
               const shown = d.display || (segs.length > 0 ? '' : d.value > 0 ? String(d.value) : '');
               return (
-                <div className="bar-col" key={d.key}>
+                <div className="bar-col" key={d.key} style={colStyle}>
                   {hasAbove ? <span className="bar-above">{d.above || '\u00a0'}</span> : null}
                   <div className="bar-stack">
                     <div

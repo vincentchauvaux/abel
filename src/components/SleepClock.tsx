@@ -1,6 +1,15 @@
+import { useState } from 'react';
+
+import { SegmentedControl } from '@/components/SegmentedControl';
 import { Card } from '@/components/ui';
 import type { SleepSession } from '@/db/types';
-import { addLocalCoverage, formatMinuteCount } from '@/lib/dates';
+import {
+  addLocalCoverage,
+  clipToLocalDay,
+  formatMinuteCount,
+  localDateKey,
+  weekdayShort,
+} from '@/lib/dates';
 
 const SLOTS = 96;
 const CX = 100;
@@ -8,10 +17,14 @@ const CY = 108;
 const R_OUT = 78;
 const R_IN = 44;
 const SLOT_MIN = (24 * 60) / SLOTS;
+const DAY_MIN = 24 * 60;
+
+type ViewMode = 'clock' | 'agenda';
 
 type Props = {
   sleeps: SleepSession[];
   now: number;
+  days?: string[];
 };
 
 function polar(r: number, deg: number) {
@@ -66,7 +79,132 @@ function peakHint(values: number[]): string | null {
   return `Plus longues entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
 }
 
-export function SleepClock({ sleeps, now }: Props) {
+function compactLabel(minutes: number): string {
+  if (minutes <= 0) return '';
+  if (minutes < 60) return String(Math.round(minutes));
+  const hours = Math.floor(minutes / 60);
+  const mins = Math.round(minutes % 60);
+  return mins === 0 ? `${hours}h` : `${hours}h${mins}`;
+}
+
+function SleepAgenda({
+  sleeps,
+  days,
+  now,
+}: {
+  sleeps: SleepSession[];
+  days: string[];
+  now: number;
+}) {
+  const VB_W = 320;
+  const PAD_L = 30;
+  const PAD_R = 6;
+  const PAD_T = 4;
+  const PAD_B = 18;
+  const ROW_H = 28;
+  const PLOT_W = VB_W - PAD_L - PAD_R;
+  const todayKey = localDateKey(new Date(now).toISOString());
+  const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes();
+  const ticks = [0, 6, 12, 18, 24];
+  const height = PAD_T + days.length * ROW_H + PAD_B;
+
+  const xAt = (min: number) => PAD_L + (Math.max(0, Math.min(DAY_MIN, min)) / DAY_MIN) * PLOT_W;
+
+  return (
+    <svg
+      className="sleep-agenda"
+      viewBox={`0 0 ${VB_W} ${height}`}
+      role="img"
+      aria-label="Agenda des siestes sur 7 jours">
+      {days.map((day, i) => {
+        const y = PAD_T + i * ROW_H;
+        const naps = sleeps.flatMap((row) => {
+          const clip = clipToLocalDay(row.startedAt, row.endedAt, day, now);
+          if (!clip) return [];
+          const minutes = clip.endMin - clip.startMin;
+          const x = xAt(clip.startMin);
+          const w = Math.max(3, xAt(clip.endMin) - x);
+          return [{ key: `${row.id}-${day}`, x, w, minutes, y }];
+        });
+        return (
+          <g key={day}>
+            <rect
+              x={PAD_L}
+              y={y + 4}
+              width={PLOT_W}
+              height={ROW_H - 8}
+              rx="5"
+              className={day === todayKey ? 'sleep-agenda-track sleep-agenda-today' : 'sleep-agenda-track'}
+            />
+            <text
+              x={PAD_L - 4}
+              y={y + ROW_H / 2 + 1}
+              textAnchor="end"
+              dominantBaseline="middle"
+              className="sleep-agenda-day">
+              {weekdayShort(day)}
+            </text>
+            {naps.map((nap) => (
+              <g key={nap.key}>
+                <rect
+                  x={nap.x}
+                  y={y + 5}
+                  width={nap.w}
+                  height={ROW_H - 10}
+                  rx="4"
+                  className="sleep-agenda-nap">
+                  <title>{compactLabel(nap.minutes)}</title>
+                </rect>
+                {nap.w >= 22 ? (
+                  <text
+                    x={nap.x + nap.w / 2}
+                    y={y + ROW_H / 2 + 1}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="sleep-agenda-value">
+                    {compactLabel(nap.minutes)}
+                  </text>
+                ) : null}
+              </g>
+            ))}
+            {day === todayKey ? (
+              <line
+                x1={xAt(nowMin)}
+                y1={y + 3}
+                x2={xAt(nowMin)}
+                y2={y + ROW_H - 3}
+                className="sleep-agenda-now"
+              />
+            ) : null}
+          </g>
+        );
+      })}
+      {ticks.map((hour) => {
+        const x = xAt(hour * 60);
+        return (
+          <g key={hour}>
+            <line
+              x1={x}
+              y1={PAD_T + days.length * ROW_H}
+              x2={x}
+              y2={PAD_T + days.length * ROW_H + 4}
+              stroke="var(--text-muted)"
+              strokeWidth="1"
+            />
+            <text x={x} y={height - 2} textAnchor="middle" className="sleep-agenda-tick">
+              {hour} h
+            </text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+export function SleepClock({ sleeps, now, days = [] }: Props) {
+  const [view, setView] = useState<ViewMode>('clock');
+  const allowAgenda = days.length > 0;
+  const mode: ViewMode = allowAgenda && view === 'agenda' ? 'agenda' : 'clock';
   const values = Array.from({ length: SLOTS }, () => 0);
   for (const row of sleeps) {
     addLocalCoverage(values, row.startedAt, row.endedAt, now);
@@ -82,8 +220,34 @@ export function SleepClock({ sleeps, now }: Props) {
 
   return (
     <Card>
-      <h2>Heures de sieste</h2>
-      {napCount === 0 ? (
+      <div className="card-head">
+        <h2>Heures de sieste</h2>
+        {allowAgenda ? (
+          <SegmentedControl
+            className="chart-metric-switch"
+            size="sm"
+            value={mode}
+            onChange={setView}
+            ariaLabel="Type de graphique des siestes"
+            options={[
+              { key: 'clock', label: 'Cadran', ariaLabel: 'Cadran' },
+              { key: 'agenda', label: 'Agenda', ariaLabel: 'Agenda' },
+            ]}
+          />
+        ) : null}
+      </div>
+      {mode === 'agenda' ? (
+        <>
+          <SleepAgenda sleeps={sleeps} days={days} now={now} />
+          <p className="muted pie-detail">
+            {napCount === 0
+              ? 'Aucune sieste sur 7 jours.'
+              : [sleepMin > 0 ? formatMinuteCount(Math.round(sleepMin / 60_000)) : null, `${napCount} sieste${napCount > 1 ? 's' : ''}`]
+                  .filter(Boolean)
+                  .join(' · ')}
+          </p>
+        </>
+      ) : napCount === 0 ? (
         <p className="muted">Aucune sieste sur cette période.</p>
       ) : (
         <>

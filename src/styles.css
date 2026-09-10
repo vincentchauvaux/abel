@@ -1240,6 +1240,7 @@ h2 {
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-x: contain;
+  touch-action: pan-x;
 }
 
 .bars {
@@ -1364,15 +1365,17 @@ h2 {
 
 .bars.wide {
   gap: 6px;
-  min-width: 200%;
+  width: max-content;
 }
 
 .bars.wide .bar-col {
-  min-width: 56px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .bars.wide .bar {
-  max-width: 44px;
+  max-width: none;
+  width: 78%;
 }
 
 .bars.wide .bar-seg-value {
@@ -1472,6 +1475,49 @@ h2 {
 .day-timeline-tick {
   fill: var(--text-muted);
   font-size: 10px;
+}
+
+.sleep-agenda {
+  width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 4px;
+}
+
+.sleep-agenda-day {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.sleep-agenda-tick {
+  fill: var(--text-muted);
+  font-size: 9px;
+}
+
+.sleep-agenda-track {
+  fill: var(--muted-bg);
+}
+
+.sleep-agenda-today {
+  fill: #e7eee8;
+}
+
+.sleep-agenda-nap {
+  fill: var(--sleep);
+}
+
+.sleep-agenda-value {
+  fill: #fff;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.sleep-agenda-now {
+  stroke: var(--text);
+  stroke-width: 1.25;
+  stroke-dasharray: 2 2;
+  opacity: 0.4;
 }
 
 .day-timeline-now {
