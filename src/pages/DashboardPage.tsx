@@ -688,6 +688,15 @@ export function DashboardPage() {
       )}
 
       <p className="dash-section">Graphiques</p>
+      <SleepClock
+        sleeps={sleepsInPeriod}
+        feeds={feedsInPeriod}
+        bottles={bottlesInPeriod}
+        now={now}
+        days={isToday ? [todayKey] : days}
+        agenda
+        seriesToggle
+      />
       {isToday ? (
         dayChart === 'timeline' ? (
           <DayTimeline
@@ -732,15 +741,6 @@ export function DashboardPage() {
         )
       ) : (
         <>
-          <SleepClock
-            sleeps={sleepsInPeriod}
-            feeds={feedsInPeriod}
-            bottles={bottlesInPeriod}
-            now={now}
-            days={days}
-            agenda
-            seriesToggle={isAll}
-          />
           <Bars
             title="Repas"
             data={mealBars}
