@@ -7,7 +7,7 @@ import { listSleep, startSleep, stopSleep } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatMinutes, formatTime, isNotFuture, startOfLocalDay } from '@/lib/dates';
+import { elapsedMs, formatDuration, formatMinuteCount, formatTime, isoAtLocalMinutes, localDateKey, spansOnLocalDay } from '@/lib/dates';
 
 export function SleepPage() {
   const { baby, tick } = useDb();
@@ -22,12 +22,9 @@ export function SleepPage() {
 
   const active = sessions.find((row) => !row.endedAt);
   const now = useNow(Boolean(active));
-  const todayStart = startOfLocalDay().toISOString();
-  const today = sessions.filter((row) => {
-    if (!isNotFuture(row.startedAt, now)) return false;
-    return row.startedAt >= todayStart || Boolean(row.endedAt && row.endedAt >= todayStart);
-  });
-  const todayMs = today.reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt, now), 0);
+  const todayKey = localDateKey(new Date(now).toISOString());
+  const todaySpans = spansOnLocalDay(sessions, todayKey, now);
+  const todayMinutes = todaySpans.reduce((sum, span) => sum + span.minutes, 0);
 
   return (
     <div className="screen">
@@ -58,19 +55,22 @@ export function SleepPage() {
         )}
       </Card>
       <Card>
-        <h2>Aujourd’hui · {formatMinutes(todayMs)}</h2>
-        {today.length === 0 ? (
+        <h2>Aujourd’hui · {todayMinutes > 0 ? formatMinuteCount(todayMinutes) : '0 min'}</h2>
+        {todaySpans.length === 0 ? (
           <p className="muted">Pas encore de sieste aujourd’hui.</p>
         ) : (
-          today.map((row) => (
-            <div className="line" key={row.id}>
-              <span>{formatTime(row.startedAt)}</span>
-              <span className="muted">
-                {formatDuration(elapsedMs(row.startedAt, row.endedAt, now))}
-                {row.endedAt ? '' : ' · en cours'}
-              </span>
-            </div>
-          ))
+          todaySpans.map((span) => {
+            const row = sessions.find((item) => item.id === span.id);
+            return (
+              <div className="line" key={span.id}>
+                <span>{formatTime(isoAtLocalMinutes(todayKey, span.startMin))}</span>
+                <span className="muted">
+                  {span.minutes > 0 ? formatMinuteCount(span.minutes) : 'notée'}
+                  {row && !row.endedAt ? ' · en cours' : ''}
+                </span>
+              </div>
+            );
+          })
         )}
       </Card>
     </div>

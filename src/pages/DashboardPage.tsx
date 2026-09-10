@@ -45,17 +45,21 @@ import type {
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem } from '@/lib/activity';
 import {
-  clipToLocalDay,
   eachLocalDay,
-  elapsedMs,
+  formatCompactMinutes,
   formatDateTime,
   formatMinuteCount,
   formatMinutes,
   formatTime,
+  isoAtLocalMinutes,
   isNotFuture,
   localDateKey,
+  minutesOnLocalDay,
+  overlapMs,
   periodRange,
+  spansOnLocalDay,
   startOfLocalDay,
+  totalMinutesOnLocalDay,
   weekdayShort,
   type Period,
 } from '@/lib/dates';
@@ -87,24 +91,6 @@ type BarDatum = {
   segments?: BarSegment[];
 };
 
-function isNotedSession(startedAt: string, endedAt?: string | null) {
-  if (!endedAt) return false;
-  return endedAt === startedAt || elapsedMs(startedAt, endedAt) < 15_000;
-}
-
-function sessionMinutes(startedAt: string, endedAt?: string | null, now = Date.now()) {
-  if (isNotedSession(startedAt, endedAt)) return 0;
-  return Math.max(0, Math.round(elapsedMs(startedAt, endedAt, now) / 60_000));
-}
-
-function compactBarMinutes(minutes: number, noted = false) {
-  if (noted || minutes <= 0) return '';
-  if (minutes < 60) return String(minutes);
-  const hours = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins === 0 ? `${hours}h` : `${hours}h${mins}`;
-}
-
 type DayChartMode = 'timeline' | 'bars';
 const DAY_CHART_KEY = 'abel.dash-day-chart';
 
@@ -124,23 +110,20 @@ function writeDayChart(mode: DayChartMode) {
   }
 }
 
-function sessionBars(
+function sessionBarsForDay(
   rows: { id: string; startedAt: string; endedAt?: string | null }[],
+  dayKey: string,
   now: number,
 ): BarDatum[] {
-  return [...rows]
-    .filter((row) => isNotFuture(row.startedAt, now))
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
-    .map((row) => {
-      const noted = isNotedSession(row.startedAt, row.endedAt);
-      const minutes = sessionMinutes(row.startedAt, row.endedAt, now);
-      return {
-        key: row.id,
-        label: formatTime(row.startedAt),
-        value: minutes,
-        display: compactBarMinutes(minutes, noted),
-      };
-    });
+  return spansOnLocalDay(rows, dayKey, now).map((span) => {
+    const label = formatCompactMinutes(span.minutes);
+    return {
+      key: span.id,
+      label: formatTime(isoAtLocalMinutes(dayKey, span.startMin)),
+      value: span.minutes,
+      display: label,
+    };
+  });
 }
 
 type FollowRow = {
@@ -249,15 +232,20 @@ export function DashboardPage() {
   const pumpedMl = pumps
     .filter((row) => inRange(row.startedAt))
     .reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0);
+  const rangeStartMs = from ? new Date(from).getTime() : 0;
   const sleepMs =
     period === 'today'
-      ? sleeps.reduce((sum, row) => {
-          const clip = clipToLocalDay(row.startedAt, row.endedAt, todayKey, now);
-          return sum + (clip ? (clip.endMin - clip.startMin) * 60_000 : 0);
-        }, 0)
-      : sleeps
-          .filter((row) => startedInRange(row.startedAt))
-          .reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt), 0);
+      ? totalMinutesOnLocalDay(sleeps, todayKey, now) * 60_000
+      : sleeps.reduce(
+          (sum, row) => sum + overlapMs(row.startedAt, row.endedAt, rangeStartMs, now + 90_000, now),
+          0,
+        );
+  const sleepsInPeriod = sleeps.filter((row) => {
+    if (!isNotFuture(row.startedAt, now)) return false;
+    const start = new Date(row.startedAt).getTime();
+    const end = row.endedAt ? new Date(row.endedAt).getTime() : now;
+    return end > rangeStartMs && start <= now;
+  });
   const diaperCount = diapers.filter((row) => inRange(row.occurredAt)).length;
   const solidsCount = solids.filter((row) => inRange(row.eatenAt)).length;
   const supplementsCount = supplements.filter((row) => inRange(row.givenAt)).length;
@@ -567,13 +555,16 @@ export function DashboardPage() {
       day,
       breastCount: breastRows.length,
       bottleCount: bottleRows.length,
-      breastMin: breastRows.reduce((sum, row) => sum + sessionMinutes(row.startedAt, row.endedAt, now), 0),
+      breastMin: sessions.reduce(
+        (sum, row) => sum + minutesOnLocalDay(row.startedAt, row.endedAt, day, now),
+        0,
+      ),
       bottleMl: bottleRows.reduce((sum, row) => sum + (Number(row.amountMl) || 0), 0),
     };
   });
   const mealBars: BarDatum[] = mealByDay.map((row) => {
     const total = row.breastCount + row.bottleCount;
-    const minLabel = compactBarMinutes(row.breastMin);
+    const minLabel = formatCompactMinutes(row.breastMin);
     const mlLabel = row.bottleMl > 0 ? String(row.bottleMl) : '';
     return {
       key: row.day,
@@ -599,12 +590,7 @@ export function DashboardPage() {
   const sleepBars: BarDatum[] = days.map((day) => ({
     key: day,
     label: dayLabel(day),
-    value: Math.round(
-      sleeps.reduce((sum, row) => {
-        const clip = clipToLocalDay(row.startedAt, row.endedAt, day, now);
-        return sum + (clip ? clip.endMin - clip.startMin : 0);
-      }, 0) / 60,
-    ),
+    value: Math.round(totalMinutesOnLocalDay(sleeps, day, now) / 60),
   }));
   const diaperBars: BarDatum[] = days.map((day) => {
     const rows = diapers.filter((row) => localDateKey(row.occurredAt) === day);
@@ -632,32 +618,16 @@ export function DashboardPage() {
   const diaperPee = diapersToday.filter((row) => row.kind === 'PEE').length;
   const diaperPoo = diapersToday.filter((row) => row.kind === 'POO').length;
   const diaperBoth = diapersToday.filter((row) => row.kind === 'BOTH').length;
-  const feedingMinutesToday = sessionsRange.reduce(
-    (sum, row) => sum + sessionMinutes(row.startedAt, row.endedAt, now),
-    0,
-  );
-  const sleepMinutesToday = sleeps.reduce((sum, row) => {
-    const clip = clipToLocalDay(row.startedAt, row.endedAt, todayKey, now);
-    return sum + (clip ? clip.endMin - clip.startMin : 0);
-  }, 0);
-  const sleepsInPeriod = sleeps.filter((row) => {
-    if (!isNotFuture(row.startedAt, now)) return false;
-    const start = new Date(row.startedAt).getTime();
-    const end = row.endedAt ? new Date(row.endedAt).getTime() : now;
-    const fromMs = from ? new Date(from).getTime() : 0;
-    return end > fromMs && start <= now;
-  });
+  const feedSessionBars = sessionBarsForDay(sessions, todayKey, now);
+  const sleepSessionBars = sessionBarsForDay(sleeps, todayKey, now);
+  const feedingMinutesToday = feedSessionBars.reduce((sum, row) => sum + row.value, 0);
+  const sleepMinutesToday = sleepSessionBars.reduce((sum, row) => sum + row.value, 0);
   const dayTimelineHint = [
     feedingMinutesToday > 0 ? `${formatMinuteCount(feedingMinutesToday)} tétées` : null,
-    sleepMinutesToday > 0 ? `${formatMinuteCount(Math.round(sleepMinutesToday))} siestes` : null,
+    sleepMinutesToday > 0 ? `${formatMinuteCount(sleepMinutesToday)} siestes` : null,
   ]
     .filter(Boolean)
     .join(' · ');
-  const feedSessionBars = sessionBars(sessionsRange, now);
-  const sleepSessionBars = sessionBars(
-    sleeps.filter((row) => startedInRange(row.startedAt)),
-    now,
-  );
   const dayChartSwitch = (
     <SegmentedControl
       size="sm"
@@ -749,7 +719,7 @@ export function DashboardPage() {
               session
               alignEnd
               empty="Aucune sieste aujourd’hui."
-              hint={sleepMinutesToday > 0 ? formatMinuteCount(Math.round(sleepMinutesToday)) : undefined}
+              hint={sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
             />
           </>
         )
@@ -790,7 +760,7 @@ export function DashboardPage() {
             wide={isAll}
             empty="Aucune sieste sur cette période."
           />
-          <SleepClock sleeps={sleepsInPeriod} now={now} days={period === '7d' ? days : undefined} />
+          <SleepClock sleeps={sleepsInPeriod} now={now} days={days} agenda={period === '7d'} />
         </>
       )}
       {isToday ? (

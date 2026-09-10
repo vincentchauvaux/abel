@@ -5,9 +5,11 @@ import { Card } from '@/components/ui';
 import type { SleepSession } from '@/db/types';
 import {
   addLocalCoverage,
-  clipToLocalDay,
+  formatCompactMinutes,
   formatMinuteCount,
   localDateKey,
+  spansOnLocalDay,
+  totalMinutesOnLocalDay,
   weekdayShort,
 } from '@/lib/dates';
 
@@ -25,6 +27,7 @@ type Props = {
   sleeps: SleepSession[];
   now: number;
   days?: string[];
+  agenda?: boolean;
 };
 
 function polar(r: number, deg: number) {
@@ -79,14 +82,6 @@ function peakHint(values: number[]): string | null {
   return `Plus longues entre ${startH} h et ${endH === 0 ? 24 : endH} h`;
 }
 
-function compactLabel(minutes: number): string {
-  if (minutes <= 0) return '';
-  if (minutes < 60) return String(Math.round(minutes));
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-  return mins === 0 ? `${hours}h` : `${hours}h${mins}`;
-}
-
 function SleepAgenda({
   sleeps,
   days,
@@ -118,13 +113,10 @@ function SleepAgenda({
       aria-label="Agenda des siestes sur 7 jours">
       {days.map((day, i) => {
         const y = PAD_T + i * ROW_H;
-        const naps = sleeps.flatMap((row) => {
-          const clip = clipToLocalDay(row.startedAt, row.endedAt, day, now);
-          if (!clip) return [];
-          const minutes = clip.endMin - clip.startMin;
-          const x = xAt(clip.startMin);
-          const w = Math.max(3, xAt(clip.endMin) - x);
-          return [{ key: `${row.id}-${day}`, x, w, minutes, y }];
+        const naps = spansOnLocalDay(sleeps, day, now).map((span) => {
+          const x = xAt(span.startMin);
+          const w = Math.max(3, xAt(span.endMin) - x);
+          return { key: `${span.id}-${day}`, x, w, minutes: span.minutes, y };
         });
         return (
           <g key={day}>
@@ -153,7 +145,7 @@ function SleepAgenda({
                   height={ROW_H - 10}
                   rx="4"
                   className="sleep-agenda-nap">
-                  <title>{compactLabel(nap.minutes)}</title>
+                  <title>{formatCompactMinutes(nap.minutes)}</title>
                 </rect>
                 {nap.w >= 22 ? (
                   <text
@@ -162,7 +154,7 @@ function SleepAgenda({
                     textAnchor="middle"
                     dominantBaseline="middle"
                     className="sleep-agenda-value">
-                    {compactLabel(nap.minutes)}
+                    {formatCompactMinutes(nap.minutes)}
                   </text>
                 ) : null}
               </g>
@@ -206,20 +198,23 @@ function SleepAgenda({
   );
 }
 
-export function SleepClock({ sleeps, now, days = [] }: Props) {
+export function SleepClock({ sleeps, now, days = [], agenda = false }: Props) {
   const [view, setView] = useState<ViewMode>('clock');
-  const allowAgenda = days.length > 0;
+  const allowAgenda = agenda && days.length > 0;
   const mode: ViewMode = allowAgenda && view === 'agenda' ? 'agenda' : 'clock';
   const values = Array.from({ length: SLOTS }, () => 0);
   for (const row of sleeps) {
     addLocalCoverage(values, row.startedAt, row.endedAt, now);
   }
   const max = Math.max(0, ...values);
-  const napCount = sleeps.length;
-  const sleepMin = sleeps.reduce((sum, row) => {
-    const end = row.endedAt ? new Date(row.endedAt).getTime() : now;
-    return sum + Math.max(0, end - new Date(row.startedAt).getTime());
-  }, 0);
+  const sleepMinutes =
+    days.length > 0
+      ? days.reduce((sum, day) => sum + totalMinutesOnLocalDay(sleeps, day, now), 0)
+      : 0;
+  const napCount =
+    days.length > 0
+      ? new Set(days.flatMap((day) => spansOnLocalDay(sleeps, day, now).map((span) => span.id))).size
+      : sleeps.length;
   const hint = peakHint(values);
   const hours = [0, 6, 12, 18];
 
@@ -247,7 +242,7 @@ export function SleepClock({ sleeps, now, days = [] }: Props) {
           <p className="muted pie-detail">
             {napCount === 0
               ? 'Aucune sieste sur 7 jours.'
-              : [sleepMin > 0 ? formatMinuteCount(Math.round(sleepMin / 60_000)) : null, `${napCount} sieste${napCount > 1 ? 's' : ''}`]
+              : [sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null, `${napCount} sieste${napCount > 1 ? 's' : ''}`]
                   .filter(Boolean)
                   .join(' · ')}
           </p>
@@ -324,7 +319,7 @@ export function SleepClock({ sleeps, now, days = [] }: Props) {
             <span>Longues</span>
           </div>
           <p className="muted pie-detail">
-            {[sleepMin > 0 ? formatMinuteCount(Math.round(sleepMin / 60_000)) : null, hint]
+            {[sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null, hint]
               .filter(Boolean)
               .join(' · ')}
           </p>

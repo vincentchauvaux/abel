@@ -141,6 +141,96 @@ export function clipToLocalDay(
   return { startMin, endMin };
 }
 
+/** Tétée / sieste notée sans chrono (durée nulle). */
+export function isNotedSession(startedAt: string, endedAt?: string | null) {
+  if (!endedAt) return false;
+  return endedAt === startedAt || elapsedMs(startedAt, endedAt) < 15_000;
+}
+
+/** Millisecondes d’une séance dans [rangeStart, rangeEnd], 0 si notée. */
+export function overlapMs(
+  startedAt: string,
+  endedAt: string | null | undefined,
+  rangeStartMs: number,
+  rangeEndMs: number,
+  now = Date.now(),
+): number {
+  if (isNotedSession(startedAt, endedAt)) return 0;
+  const start = new Date(startedAt).getTime();
+  if (!Number.isFinite(start) || !isNotFuture(startedAt, now)) return 0;
+  const finish = endedAt ? new Date(endedAt).getTime() : now;
+  const from = Math.max(start, rangeStartMs);
+  const to = Math.min(finish, rangeEndMs, now + 90_000);
+  return Math.max(0, to - from);
+}
+
+/** Minutes réellement couvertes par ce jour local (0 si notée). */
+export function minutesOnLocalDay(
+  startedAt: string,
+  endedAt: string | null | undefined,
+  dayKey: string,
+  now = Date.now(),
+): number {
+  if (isNotedSession(startedAt, endedAt)) return 0;
+  const clip = clipToLocalDay(startedAt, endedAt ?? null, dayKey, now);
+  if (!clip) return 0;
+  return Math.max(0, Math.round(clip.endMin - clip.startMin));
+}
+
+export function totalMinutesOnLocalDay(
+  rows: { startedAt: string; endedAt?: string | null }[],
+  dayKey: string,
+  now = Date.now(),
+): number {
+  return rows.reduce((sum, row) => sum + minutesOnLocalDay(row.startedAt, row.endedAt, dayKey, now), 0);
+}
+
+export type LocalDaySpan = {
+  id: string;
+  startMin: number;
+  endMin: number;
+  minutes: number;
+  noted: boolean;
+};
+
+/** Séances qui recouvrent ce jour, y compris une sieste commencée la veille. */
+export function spansOnLocalDay(
+  rows: { id: string; startedAt: string; endedAt?: string | null }[],
+  dayKey: string,
+  now = Date.now(),
+): LocalDaySpan[] {
+  const out: LocalDaySpan[] = [];
+  for (const row of rows) {
+    const clip = clipToLocalDay(row.startedAt, row.endedAt ?? null, dayKey, now);
+    if (!clip) continue;
+    const noted = isNotedSession(row.startedAt, row.endedAt);
+    out.push({
+      id: row.id,
+      startMin: clip.startMin,
+      endMin: clip.endMin,
+      minutes: noted ? 0 : Math.max(0, Math.round(clip.endMin - clip.startMin)),
+      noted,
+    });
+  }
+  out.sort((a, b) => a.startMin - b.startMin || a.id.localeCompare(b.id));
+  return out;
+}
+
+export function isoAtLocalMinutes(dayKey: string, minutes: number): string {
+  const start = startOfLocalDay(new Date(`${dayKey}T12:00:00`));
+  return new Date(start.getTime() + minutes * 60_000).toISOString();
+}
+
+/** 15, 2h, 2h48 — libellé des bâtons. */
+export function formatCompactMinutes(minutes: number): string {
+  const total = Math.round(Math.max(0, minutes));
+  if (total <= 0) return '';
+  if (total < 60) return String(total);
+  const hours = Math.floor(total / 60);
+  const mins = total % 60;
+  return mins === 0 ? `${hours}h` : `${hours}h${mins}`;
+}
+
 /** Ajoute la durée couverte (pondérée par la longueur de la sieste) sur les créneaux locaux. */
 export function addLocalCoverage(
   counts: number[],
@@ -192,10 +282,8 @@ export function activityAtFromDuration(
 }
 
 export function formatFeedLabel(startedAt: string, endedAt?: string | null, now = Date.now()): string {
-  if (endedAt && endedAt === startedAt) return 'notée';
-  const ms = elapsedMs(startedAt, endedAt, now);
-  if (endedAt && ms < 15_000) return 'notée';
-  return formatMinutes(ms);
+  if (isNotedSession(startedAt, endedAt)) return 'notée';
+  return formatMinutes(elapsedMs(startedAt, endedAt, now));
 }
 
 export function parseDecimal(input: string): number | null {

@@ -17,7 +17,7 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatFeedLabel, formatMinutes, formatTime, nowIso, startOfLocalDay } from '@/lib/dates';
+import { elapsedMs, formatDuration, formatMinuteCount, formatTime, isoAtLocalMinutes, localDateKey, nowIso, spansOnLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
 import { feedingSidesLabel, sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
@@ -49,9 +49,9 @@ export function FeedingPage() {
   const now = useNow(Boolean(active));
   const activeSegments = segments.filter((row) => row.feedingSessionId === active?.id);
   const open = activeSegments.find((row) => !row.endedAt);
-  const todayStart = startOfLocalDay().toISOString();
-  const today = sessions.filter((row) => row.startedAt >= todayStart);
-  const todayMs = today.reduce((sum, row) => sum + elapsedMs(row.startedAt, row.endedAt, now), 0);
+  const todayKey = localDateKey(new Date(now).toISOString());
+  const todaySpans = spansOnLocalDay(sessions, todayKey, now);
+  const todayMinutes = todaySpans.reduce((sum, span) => sum + span.minutes, 0);
 
   const sideMs = (side: Side) =>
     activeSegments
@@ -160,19 +160,24 @@ export function FeedingPage() {
         <h2>Aujourd’hui</h2>
         <p>
           <strong>
-            {today.length} tétée{today.length > 1 ? 's' : ''}
-            {todayMs > 0 ? ` · ${formatMinutes(todayMs)}` : ''}
+            {todaySpans.length} tétée{todaySpans.length > 1 ? 's' : ''}
+            {todayMinutes > 0 ? ` · ${formatMinuteCount(todayMinutes)}` : ''}
           </strong>
         </p>
-        {today.map((session) => {
+        {todaySpans.map((span) => {
+          const session = sessions.find((row) => row.id === span.id);
           const sides = feedingSidesLabel(
-            segments.filter((row) => row.feedingSessionId === session.id).map((row) => row.side),
+            segments.filter((row) => row.feedingSessionId === span.id).map((row) => row.side),
           );
           return (
-            <div className="line" key={session.id}>
-              <span>{formatTime(session.startedAt)}</span>
+            <div className="line" key={span.id}>
+              <span>{formatTime(isoAtLocalMinutes(todayKey, span.startMin))}</span>
               <span className="muted">
-                {session.endedAt ? formatFeedLabel(session.startedAt, session.endedAt, now) : 'en cours'}
+                {span.noted
+                  ? 'notée'
+                  : session && !session.endedAt
+                    ? `${formatMinuteCount(span.minutes)} · en cours`
+                    : formatMinuteCount(span.minutes)}
                 {sides ? ` · ${sides}` : ''}
               </span>
             </div>

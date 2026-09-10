@@ -1244,8 +1244,7 @@ h2 {
 }
 
 .bars-wrap.wide {
-  overflow-x: scroll;
-  contain: inline-size;
+  overflow-x: auto;
 }
 
 .bars {
@@ -1364,6 +1363,10 @@ h2 {
   min-width: 48px;
 }
 
+.bars.sessions .bar {
+  overflow: visible;
+}
+
 .bars.sessions .bar-value {
   font-size: 8px;
 }
@@ -1459,12 +1462,26 @@ h2 {
   background: linear-gradient(to right, #c5d0e3, #3d4f73);
 }
 
-.day-timeline {
+.day-timeline-wrap {
   width: 100%;
-  height: auto;
-  display: block;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
   margin-top: 4px;
-  overflow: visible;
+}
+
+.day-timeline-placeholder {
+  height: 98px;
+}
+
+.day-timeline {
+  display: block;
+  height: 98px;
+  max-width: none;
 }
 
 .day-timeline-feed {
@@ -1481,7 +1498,6 @@ h2 {
 
 .day-timeline-value {
   fill: #fff;
-  font-size: 9px;
   font-weight: 700;
 }
 
