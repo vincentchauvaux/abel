@@ -26,7 +26,6 @@ const DAY_MIN = 24 * 60;
 const CLOCK_VIEW_KEY = 'abel.dash-clock-view';
 
 type ViewMode = 'clock' | 'agenda';
-type ClockRing = 'sleep' | 'meal';
 
 type Props = {
   sleeps: SleepSession[];
@@ -129,40 +128,58 @@ function fillMeals(values: number[], feeds: FeedingSession[], bottles: BottleFee
 }
 
 function ClockFace({
-  values,
-  tone,
+  sleepValues,
+  mealValues,
+  showSleep,
+  showMeals,
   centerValue,
   centerLabel,
   ariaLabel,
 }: {
-  values: number[];
-  tone: ClockRing;
+  sleepValues: number[];
+  mealValues: number[];
+  showSleep: boolean;
+  showMeals: boolean;
   centerValue: string;
   centerLabel: string;
   ariaLabel: string;
 }) {
-  const max = Math.max(0, ...values);
+  const sleepMax = Math.max(0, ...sleepValues);
+  const mealMax = Math.max(0, ...mealValues);
+  const both = showSleep && showMeals;
   const hours = [0, 6, 12, 18];
-  const gradId = tone === 'sleep' ? 'sleep-clock-grad' : 'meal-clock-grad';
+  const mealIn = both ? 56 : R_SLEEP_IN;
+  const sleepOut = both ? 80 : R_SLEEP_OUT;
+  const op = both ? 0.86 : 1;
   return (
     <div className="sleep-clock">
       <svg className="sleep-clock-svg" viewBox="0 0 260 280" role="img" aria-label={ariaLabel}>
         <defs>
-          {tone === 'sleep' ? (
-            <radialGradient id={gradId} cx="50%" cy="50%" r="50%">
-              <stop offset="42%" stopColor="#a8b6d4" />
-              <stop offset="100%" stopColor="#3d4f73" />
-            </radialGradient>
-          ) : (
-            <radialGradient id={gradId} cx="50%" cy="50%" r="50%">
-              <stop offset="42%" stopColor="#e3a89a" />
-              <stop offset="100%" stopColor="#c45c4a" />
-            </radialGradient>
-          )}
+          <radialGradient id="sleep-clock-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="42%" stopColor="#a8b6d4" />
+            <stop offset="100%" stopColor="#3d4f73" />
+          </radialGradient>
+          <radialGradient id="meal-clock-grad" cx="50%" cy="50%" r="50%">
+            <stop offset="42%" stopColor="#e3a89a" />
+            <stop offset="100%" stopColor="#c45c4a" />
+          </radialGradient>
         </defs>
         <circle cx={CX} cy={CY} r={R_SLEEP_OUT} fill="none" stroke="var(--border)" strokeWidth="1" />
-        {max > 0 ? (
-          <path d={polarRingPath(values, max, R_SLEEP_IN, R_SLEEP_OUT)} fill={`url(#${gradId})`} fillRule="evenodd" />
+        {showMeals && mealMax > 0 ? (
+          <path
+            d={polarRingPath(mealValues, mealMax, mealIn, R_SLEEP_OUT)}
+            fill="url(#meal-clock-grad)"
+            fillRule="evenodd"
+            opacity={op}
+          />
+        ) : null}
+        {showSleep && sleepMax > 0 ? (
+          <path
+            d={polarRingPath(sleepValues, sleepMax, R_SLEEP_IN, sleepOut)}
+            fill="url(#sleep-clock-grad)"
+            fillRule="evenodd"
+            opacity={op}
+          />
         ) : null}
         <circle cx={CX} cy={CY} r={R_HOLE} fill="var(--surface)" />
         {hours.map((hour) => {
@@ -362,7 +379,8 @@ export function SleepClock({
   seriesToggle = false,
 }: Props) {
   const [view, setView] = useState<ViewMode>(readClockView);
-  const [ring, setRing] = useState<ClockRing>('sleep');
+  const [showSleep, setShowSleep] = useState(true);
+  const [showMeals, setShowMeals] = useState(false);
   const allowAgenda = agenda && days.length > 0;
   const mode: ViewMode = allowAgenda && view === 'agenda' ? 'agenda' : 'clock';
   const sleepValues = Array.from({ length: SLOTS }, () => 0);
@@ -391,29 +409,37 @@ export function SleepClock({
     days.length > 1 && mealCount > 0
       ? `${avgMeals.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} repas / j`
       : null;
-  const showMeals = seriesToggle && ring === 'meal';
-  const clockEmpty = showMeals ? !hasMeals : !hasSleep;
-  const clockHint = showMeals
-    ? [mealAvgHint, peakHint(mealValues, 'Repas plus fréquents')].filter(Boolean).join(' · ')
-    : [sleepAvgHint, peakHint(sleepValues, 'Siestes plus longues')].filter(Boolean).join(' · ');
-  const clockCenter =
-    showMeals
-      ? days.length > 1 && mealCount > 0
-        ? avgMeals.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
-        : String(mealCount)
-      : days.length > 1 && avgSleepMin > 0
-        ? avgSleepMin < 60
-          ? `${avgSleepMin} min`
-          : formatCompactMinutes(avgSleepMin)
-        : String(napCount);
-  const clockCenterLabel = showMeals
-    ? days.length > 1 && mealCount > 0
-      ? 'repas / j'
-      : 'sur 24 h'
-    : days.length > 1 && avgSleepMin > 0
-      ? '/ jour'
-      : 'sur 24 h';
-  const title = mode === 'clock' && showMeals ? 'Heures de repas' : 'Heures de sieste';
+  const sleepCenter =
+    days.length > 1 && avgSleepMin > 0
+      ? avgSleepMin < 60
+        ? `${avgSleepMin} min`
+        : formatCompactMinutes(avgSleepMin)
+      : String(napCount);
+  const mealCenter =
+    days.length > 1 && mealCount > 0
+      ? avgMeals.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
+      : String(mealCount);
+  const sleepCenterLabel = days.length > 1 && avgSleepMin > 0 ? '/ jour' : 'sur 24 h';
+  const mealCenterLabel = days.length > 1 && mealCount > 0 ? 'repas / j' : 'sur 24 h';
+  const clockEmpty =
+    (!showSleep || !hasSleep) && (!showMeals || !hasMeals);
+  const clockHint = [
+    showSleep ? sleepAvgHint : null,
+    showSleep ? peakHint(sleepValues, 'Siestes plus longues') : null,
+    showMeals ? mealAvgHint : null,
+    showMeals ? peakHint(mealValues, 'Repas plus fréquents') : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+  const clockCenter = showSleep && hasSleep ? sleepCenter : showMeals && hasMeals ? mealCenter : '—';
+  const clockCenterLabel =
+    showSleep && hasSleep ? sleepCenterLabel : showMeals && hasMeals ? mealCenterLabel : 'sur 24 h';
+  const title =
+    showSleep && showMeals
+      ? 'Heures de sieste et repas'
+      : showMeals
+        ? 'Heures de repas'
+        : 'Heures de sieste';
 
   const changeView = (next: ViewMode) => {
     setView(next);
@@ -424,16 +450,16 @@ export function SleepClock({
     <div className="bar-legend" role="group" aria-label="Données du cadran">
       <button
         type="button"
-        className={`leg-sleep${ring === 'sleep' ? ' is-on' : ''}`}
-        aria-pressed={ring === 'sleep'}
-        onClick={() => setRing('sleep')}>
+        className={`leg-sleep${showSleep ? ' is-on' : ''}`}
+        aria-pressed={showSleep}
+        onClick={() => setShowSleep((on) => !on)}>
         Siestes
       </button>
       <button
         type="button"
-        className={`leg-breast${ring === 'meal' ? ' is-on' : ''}`}
-        aria-pressed={ring === 'meal'}
-        onClick={() => setRing('meal')}>
+        className={`leg-breast${showMeals ? ' is-on' : ''}`}
+        aria-pressed={showMeals}
+        onClick={() => setShowMeals((on) => !on)}>
         Repas
       </button>
     </div>
@@ -480,36 +506,42 @@ export function SleepClock({
         </>
       ) : !seriesToggle && !hasSleep ? (
         <p className="muted">Aucune sieste sur cette période.</p>
-      ) : !seriesToggle || hasSleep || hasMeals ? (
+      ) : (
         <>
           <ClockFace
-            values={showMeals ? mealValues : sleepValues}
-            tone={showMeals ? 'meal' : 'sleep'}
+            sleepValues={sleepValues}
+            mealValues={mealValues}
+            showSleep={showSleep}
+            showMeals={showMeals}
             centerValue={clockEmpty ? '—' : clockCenter}
             centerLabel={clockCenterLabel}
-            ariaLabel={showMeals ? 'Cadran 24 heures des repas' : 'Cadran 24 heures des siestes'}
+            ariaLabel={
+              showSleep && showMeals
+                ? 'Cadran 24 heures des siestes et repas'
+                : showMeals
+                  ? 'Cadran 24 heures des repas'
+                  : 'Cadran 24 heures des siestes'
+            }
           />
           {clockLegend}
           <p className="muted pie-detail">
-            {clockEmpty
-              ? showMeals
-                ? 'Aucun repas sur cette période.'
-                : 'Aucune sieste sur cette période.'
-              : showMeals
-                ? [mealCount > 0 ? `${mealCount} repas` : null, clockHint || null].filter(Boolean).join(' · ')
+            {!showSleep && !showMeals
+              ? 'Active Siestes ou Repas sous le cadran.'
+              : clockEmpty
+                ? showSleep && showMeals
+                  ? 'Aucune sieste ni repas sur cette période.'
+                  : showMeals
+                    ? 'Aucun repas sur cette période.'
+                    : 'Aucune sieste sur cette période.'
                 : [
-                    sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
-                    napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
+                    showSleep && sleepMinutes > 0 ? formatMinuteCount(sleepMinutes) : null,
+                    showSleep && napCount > 0 ? `${napCount} sieste${napCount > 1 ? 's' : ''}` : null,
+                    showMeals && mealCount > 0 ? `${mealCount} repas` : null,
                     clockHint || null,
                   ]
                     .filter(Boolean)
                     .join(' · ')}
           </p>
-        </>
-      ) : (
-        <>
-          {clockLegend}
-          <p className="muted">Aucune sieste ni repas sur cette période.</p>
         </>
       )}
     </Card>

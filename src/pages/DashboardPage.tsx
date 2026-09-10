@@ -5,12 +5,9 @@ import { Link } from 'react-router-dom';
 import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { ActivityEditor } from '@/components/ActivityEditor';
-import { DayTimeline } from '@/components/DayTimeline';
 import { GrowthChart } from '@/components/GrowthChart';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
-import { RatioPie } from '@/components/RatioPie';
-import { SegmentedControl } from '@/components/SegmentedControl';
 import { SleepClock } from '@/components/SleepClock';
 import { Card } from '@/components/ui';
 import {
@@ -51,13 +48,11 @@ import {
   formatMinuteCount,
   formatMinutes,
   formatTime,
-  isoAtLocalMinutes,
   isNotFuture,
   localDateKey,
   minutesOnLocalDay,
   overlapMs,
   periodRange,
-  spansOnLocalDay,
   startOfLocalDay,
   totalMinutesOnLocalDay,
   weekdayShort,
@@ -90,41 +85,6 @@ type BarDatum = {
   above?: string;
   segments?: BarSegment[];
 };
-
-type DayChartMode = 'timeline' | 'bars';
-const DAY_CHART_KEY = 'abel.dash-day-chart';
-
-function readDayChart(): DayChartMode {
-  try {
-    return localStorage.getItem(DAY_CHART_KEY) === 'bars' ? 'bars' : 'timeline';
-  } catch {
-    return 'timeline';
-  }
-}
-
-function writeDayChart(mode: DayChartMode) {
-  try {
-    localStorage.setItem(DAY_CHART_KEY, mode);
-  } catch {
-    /* hors ligne / mode privé */
-  }
-}
-
-function sessionBarsForDay(
-  rows: { id: string; startedAt: string; endedAt?: string | null }[],
-  dayKey: string,
-  now: number,
-): BarDatum[] {
-  return spansOnLocalDay(rows, dayKey, now).map((span) => {
-    const label = formatCompactMinutes(span.minutes);
-    return {
-      key: span.id,
-      label: formatTime(isoAtLocalMinutes(dayKey, span.startMin)),
-      value: span.minutes,
-      display: label,
-    };
-  });
-}
 
 type FollowRow = {
   label: string;
@@ -169,13 +129,7 @@ export function DashboardPage() {
   const [goals, setGoals] = useState<ReminderRule | undefined>();
   const [notesOpen, setNotesOpen] = useState(false);
   const [favorites, setFavorites] = useState(() => readToolFavorites());
-  const [dayChart, setDayChart] = useState<DayChartMode>(readDayChart);
   const now = useNow(true, 30_000);
-
-  const changeDayChart = (mode: DayChartMode) => {
-    setDayChart(mode);
-    writeDayChart(mode);
-  };
 
   useEffect(() => {
     const sync = () => setFavorites(readToolFavorites());
@@ -529,6 +483,7 @@ export function DashboardPage() {
   );
 
   const isAll = period === 'all';
+  const isToday = period === 'today';
   const firstStamp = [
     ...sessions.map((row) => row.startedAt),
     ...bottles.map((row) => row.fedAt),
@@ -544,10 +499,11 @@ export function DashboardPage() {
         : periodRange('30d').from!
       : period === '30d'
         ? periodRange('30d').from!
-        : periodRange('7d').from!,
+        : isToday
+          ? periodRange('today').from!
+          : periodRange('7d').from!,
   );
   const compact = days.length > 10 && !isAll;
-  const isToday = period === 'today';
   const dayLabel = (day: string) => {
     if (isAll) return `${Number(day.slice(8))}/${Number(day.slice(5, 7))}`;
     return compact ? day.slice(8) : weekdayShort(day);
@@ -621,33 +577,6 @@ export function DashboardPage() {
   const mealPeriodBottle = mealByDay.reduce((sum, row) => sum + row.bottleCount, 0);
   const mealPeriodMin = mealByDay.reduce((sum, row) => sum + row.breastMin, 0);
   const mealPeriodMl = mealByDay.reduce((sum, row) => sum + row.bottleMl, 0);
-  const diapersToday = diapers.filter((row) => inRange(row.occurredAt));
-  const diaperPee = diapersToday.filter((row) => row.kind === 'PEE').length;
-  const diaperPoo = diapersToday.filter((row) => row.kind === 'POO').length;
-  const diaperBoth = diapersToday.filter((row) => row.kind === 'BOTH').length;
-  const feedSessionBars = sessionBarsForDay(sessions, todayKey, now);
-  const sleepSessionBars = sessionBarsForDay(sleeps, todayKey, now);
-  const feedingMinutesToday = feedSessionBars.reduce((sum, row) => sum + row.value, 0);
-  const sleepMinutesToday = sleepSessionBars.reduce((sum, row) => sum + row.value, 0);
-  const dayTimelineHint = [
-    feedingMinutesToday > 0 ? `${formatMinuteCount(feedingMinutesToday)} tétées` : null,
-    sleepMinutesToday > 0 ? `${formatMinuteCount(sleepMinutesToday)} siestes` : null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-  const dayChartSwitch = (
-    <SegmentedControl
-      size="sm"
-      className="chart-metric-switch"
-      value={dayChart}
-      onChange={changeDayChart}
-      ariaLabel="Présentation tétées et siestes"
-      options={[
-        { key: 'timeline', label: 'Ligne', ariaLabel: 'Ligne du temps' },
-        { key: 'bars', label: 'Barres', ariaLabel: 'Deux graphiques' },
-      ]}
-    />
-  );
 
   return (
     <div className="screen dashboard-screen">
@@ -693,130 +622,61 @@ export function DashboardPage() {
         feeds={feedsInPeriod}
         bottles={bottlesInPeriod}
         now={now}
-        days={isToday ? [todayKey] : days}
-        agenda
+        days={days}
+        agenda={isToday || period === '7d'}
         seriesToggle
       />
-      {isToday ? (
-        dayChart === 'timeline' ? (
-          <DayTimeline
-            feeds={sessions}
-            sleeps={sleeps}
-            now={now}
-            hint={dayTimelineHint || undefined}
-            header={dayChartSwitch}
-          />
-        ) : (
-          <>
-            <Bars
-              title="Tétées (min)"
-              header={dayChartSwitch}
-              data={feedSessionBars}
-              tone="meal"
-              session
-              alignEnd
-              empty="Aucune tétée aujourd’hui."
-              hint={
-                feedingMinutesToday > 0 || bottleCount > 0
-                  ? [
-                      feedingMinutesToday > 0 ? formatMinuteCount(feedingMinutesToday) : null,
-                      bottleCount > 0 ? `${bottleCount} biberon${bottleCount > 1 ? 's' : ''}` : null,
-                      bottleMl > 0 ? `${bottleMl} ml` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' · ')
-                  : undefined
-              }
-            />
-            <Bars
-              title="Siestes (min)"
-              data={sleepSessionBars}
-              tone="sleep"
-              session
-              alignEnd
-              empty="Aucune sieste aujourd’hui."
-              hint={sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
-            />
-          </>
-        )
-      ) : (
-        <>
-          <Bars
-            title="Repas"
-            data={mealBars}
-            tone="meal"
-            alignEnd
-            wide={isAll}
-            legend={
-              <div className="bar-legend">
-                <span className="leg-breast">Tétées</span>
-                <span className="leg-bottle">Biberons</span>
-              </div>
-            }
-            empty="Aucun repas sur cette période."
-            hint={
-              mealPeriodBreast + mealPeriodBottle > 0
-                ? [
-                    `${mealPeriodBreast + mealPeriodBottle} repas`,
-                    mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
-                    mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
-                    mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
-                    mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')
-                : undefined
-            }
-          />
-          <Bars
-            title="Sommeil (h)"
-            data={sleepBars}
-            tone="sleep"
-            alignEnd
-            wide={isAll}
-            empty="Aucune sieste sur cette période."
-          />
-        </>
-      )}
-      {isToday ? (
-        <Card>
-          <h2>Couches</h2>
-          {diapersToday.length === 0 ? (
-            <p className="muted">Aucune couche aujourd’hui.</p>
-          ) : (
-            <RatioPie
-              slices={[
-                { key: 'pee', label: 'Pipi', value: diaperPee, color: 'var(--pee)', legendClass: 'leg-pee' },
-                { key: 'poo', label: 'Caca', value: diaperPoo, color: 'var(--poo)', legendClass: 'leg-poo' },
-                { key: 'both', label: 'Les deux', value: diaperBoth, color: 'var(--primary)', legendClass: 'leg-both' },
-              ]}
-              centerValue={diapersToday.length}
-              centerLabel="couches"
-              detail={[
-                diaperPee + diaperBoth > 0 ? `${diaperPee + diaperBoth} pipi` : null,
-                diaperPoo + diaperBoth > 0 ? `${diaperPoo + diaperBoth} caca` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            />
-          )}
-        </Card>
-      ) : (
+      {!isToday ? (
         <Bars
-          title="Couches"
-          data={diaperBars}
-          tone="pee"
+          title="Repas"
+          data={mealBars}
+          tone="meal"
           alignEnd
           wide={isAll}
           legend={
             <div className="bar-legend">
-              <span className="leg-pee">Pipi</span>
-              <span className="leg-poo">Caca</span>
-              <span className="leg-both">Les deux</span>
+              <span className="leg-breast">Tétées</span>
+              <span className="leg-bottle">Biberons</span>
             </div>
           }
+          empty="Aucun repas sur cette période."
+          hint={
+            mealPeriodBreast + mealPeriodBottle > 0
+              ? [
+                  `${mealPeriodBreast + mealPeriodBottle} repas`,
+                  mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
+                  mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
+                  mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
+                  mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+              : undefined
+          }
         />
-      )}
+      ) : null}
+      <Bars
+        title="Sommeil (h)"
+        data={sleepBars}
+        tone="sleep"
+        alignEnd
+        wide={isAll}
+        empty="Aucune sieste sur cette période."
+      />
+      <Bars
+        title="Couches"
+        data={diaperBars}
+        tone="pee"
+        alignEnd
+        wide={isAll}
+        legend={
+          <div className="bar-legend">
+            <span className="leg-pee">Pipi</span>
+            <span className="leg-poo">Caca</span>
+            <span className="leg-both">Les deux</span>
+          </div>
+        }
+      />
       <GrowthChart
         weights={measures.filter((row) => row.type === 'WEIGHT')}
         heights={measures.filter((row) => row.type === 'HEIGHT')}
