@@ -739,46 +739,43 @@ export function DashboardPage() {
             now={now}
             days={days}
             agenda
+            seriesToggle={isAll}
           />
-          {period !== '30d' ? (
-            <>
-              <Bars
-                title="Repas"
-                data={mealBars}
-                tone="meal"
-                alignEnd
-                wide={isAll}
-                legend={
-                  <div className="bar-legend">
-                    <span className="leg-breast">Tétées</span>
-                    <span className="leg-bottle">Biberons</span>
-                  </div>
-                }
-                empty="Aucun repas sur cette période."
-                hint={
-                  mealPeriodBreast + mealPeriodBottle > 0
-                    ? [
-                        `${mealPeriodBreast + mealPeriodBottle} repas`,
-                        mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
-                        mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
-                        mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
-                        mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
-                      ]
-                        .filter(Boolean)
-                        .join(' · ')
-                    : undefined
-                }
-              />
-              <Bars
-                title="Sommeil (h)"
-                data={sleepBars}
-                tone="sleep"
-                alignEnd
-                wide={isAll}
-                empty="Aucune sieste sur cette période."
-              />
-            </>
-          ) : null}
+          <Bars
+            title="Repas"
+            data={mealBars}
+            tone="meal"
+            alignEnd
+            wide={isAll}
+            legend={
+              <div className="bar-legend">
+                <span className="leg-breast">Tétées</span>
+                <span className="leg-bottle">Biberons</span>
+              </div>
+            }
+            empty="Aucun repas sur cette période."
+            hint={
+              mealPeriodBreast + mealPeriodBottle > 0
+                ? [
+                    `${mealPeriodBreast + mealPeriodBottle} repas`,
+                    mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
+                    mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
+                    mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
+                    mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined
+            }
+          />
+          <Bars
+            title="Sommeil (h)"
+            data={sleepBars}
+            tone="sleep"
+            alignEnd
+            wide={isAll}
+            empty="Aucune sieste sur cette période."
+          />
         </>
       )}
       {isToday ? (

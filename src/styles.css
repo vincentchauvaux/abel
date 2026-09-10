@@ -1029,7 +1029,8 @@ h2 {
   font-size: 0.8rem;
 }
 
-.bar-legend span::before {
+.bar-legend span::before,
+.bar-legend button::before {
   content: '';
   display: inline-block;
   width: 10px;
@@ -1061,6 +1062,22 @@ h2 {
 
 .bar-legend .leg-sleep::before {
   background: var(--sleep);
+}
+
+.bar-legend button {
+  margin: 0;
+  padding: 4px 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--text-muted);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bar-legend button.is-on {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .bar.sleep {
