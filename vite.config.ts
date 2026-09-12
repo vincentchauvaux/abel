@@ -47,7 +47,8 @@ export default defineConfig({
               url.hostname === 'accounts.google.com' ||
               url.hostname.endsWith('.google.com') ||
               url.hostname.endsWith('.gstatic.com') ||
-              url.hostname.endsWith('.googleapis.com'),
+              url.hostname.endsWith('.googleapis.com') ||
+              url.hostname.endsWith('.googleusercontent.com'),
             handler: 'NetworkOnly',
           },
         ],

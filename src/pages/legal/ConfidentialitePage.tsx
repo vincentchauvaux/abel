@@ -36,6 +36,12 @@ export function ConfidentialitePage() {
           <strong>Horoscope du jour</strong> : signe astrologique dérivé de la date de naissance (requête vers le VPS,
           puis APIs publiques tierces ; texte mis en cache localement 24 h).
         </li>
+        <li>
+          <strong>Album photos (optionnel)</strong> : les photos restent dans <strong>votre Google Drive</strong> (dossier
+          créé ou lié par vous). Abel n’envoie pas ces fichiers vers le VPS ; l’appareil ne mémorise que l’identifiant
+          du dossier, localement. Un jeton d’accès Drive (durée courte, session du navigateur) est demandé avec le
+          périmètre <code>drive.file</code> (uniquement les fichiers de l’app).
+        </li>
       </ul>
       <p>
         Certaines données (santé infantile : température, compléments, etc.) peuvent être considérées comme des{' '}
@@ -52,6 +58,10 @@ export function ConfidentialitePage() {
           <strong>Synchronisation Google</strong> — votre consentement explicite lors de la connexion.
         </li>
         <li>
+          <strong>Album Google Drive</strong> — votre consentement lors de l’autorisation Drive (création ou liaison du
+          dossier, ajout de photos).
+        </li>
+        <li>
           <strong>Horoscope</strong> — fonctionnalité de divertissement, sur la base de votre saisie de la date de
           naissance.
         </li>
@@ -59,7 +69,7 @@ export function ConfidentialitePage() {
 
       <h2>Destinataires et sous-traitants</h2>
       <ul>
-        <li>Google LLC — authentification (Google Identity Services).</li>
+        <li>Google LLC — authentification (Google Identity Services) et, si vous utilisez l’album, stockage des photos sur votre Drive.</li>
         <li>GitHub Pages — hébergement de l’application.</li>
         <li>OVH SAS — hébergement API et base PostgreSQL (France).</li>
         <li>
@@ -75,6 +85,7 @@ export function ConfidentialitePage() {
         <li>Session Abel : jusqu’à 90 jours d’inactivité (renouvelée à chaque usage), ou jusqu’à déconnexion / suppression du compte.</li>
         <li>Données serveur : tant que le compte Google reste lié, ou jusqu’à suppression via Profil.</li>
         <li>Cache horoscope : 24 h dans le navigateur.</li>
+        <li>Album : les photos suivent la conservation de votre Google Drive ; le lien local du dossier jusqu’à détachement, déconnexion ou effacement de l’appareil.</li>
       </ul>
 
       <h2>Vos droits (RGPD)</h2>
@@ -89,7 +100,8 @@ export function ConfidentialitePage() {
         </li>
         <li>
           <strong>Suppression serveur</strong> : propriétaire — suppression du bébé pour tous ; co-parent — quitter le
-          partage sans effacer les données de l’autre parent (Profil, compte Google connecté).
+          partage sans effacer les données de l’autre parent (Profil, compte Google connecté). Les photos de l’album
+          restent dans Google Drive jusqu’à suppression dans Drive.
         </li>
       </ul>
       <p>

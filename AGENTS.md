@@ -19,7 +19,7 @@ Bébé | Dashboard (accueil) ↔ Outils (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (sections en accordéon : identité, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste sous le journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
+Tab bar : **Bébé** (sections en accordéon : identité, **album** (Google Drive), objectifs, horoscope, alertes, journal ; **Noter une entrée** juste sous le journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils (et « Noter une entrée ») est un **curseur glissable** (doigt ou souris) **conservé** au retour depuis un module. Grille d’icônes sans fond, libellés gris comme le Dashboard.
 
@@ -30,9 +30,9 @@ Activités en cours (tétée minuteur, sommeil, tire-lait à compléter) : bande
 ```
 src/
   pages/          Dashboard, Outils, Bébé, Profil, modules
-  components/     Layout (tab bar), ui
+  components/     Layout (tab bar), ui, album Drive
   db/             Dexie (IndexedDB) + api
-  lib/            dates UTC, libellés FR, Google Identity Services
+  lib/            dates UTC, libellés FR, Google Identity Services, Google Drive (album)
 ```
 
 ## Hébergement
@@ -84,9 +84,15 @@ Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : racc
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. Une phrase en petit à la fin : Mimom n’est pas un avis médical.
+Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **album photos** (Google Drive, pas le VPS), **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. Une phrase en petit à la fin : Mimom n’est pas un avis médical.
 
 Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
+
+### Album (Google Drive)
+
+Les photos **ne passent pas par le VPS** : dossier dans le Drive du compte Google connecté (idéalement le **parent principal**). Scope OAuth `drive.file` (uniquement les fichiers Mimom). **Ajouter un album** crée `Mimom — {prénom}` dans Mon Drive, ou dans un **Drive partagé** Workspace s’il est listé ; sinon coller le lien d’un dossier existant. Après création, Mimom partage le dossier (écriture) avec le co-parent / les gardiens connus. Galerie **masonry**, curseur de taille d’aperçus (`abel.album-thumb-size`), groupes par date (EXIF si Drive la fournit), filtre Du / Au. Lien du dossier en local (`abel.drive-album.{babyId}`), pas dans PostgreSQL. « Détacher » enlève le lien local, pas les fichiers Drive.
+
+Console Google Cloud : activer **Google Drive API** et ajouter le scope `https://www.googleapis.com/auth/drive.file` à l’écran de consentement OAuth (même client que la connexion).
 
 ## Auth Google
 
@@ -97,6 +103,8 @@ Créer le client OAuth « Application Web » : https://console.cloud.google.com/
 Identifiants : https://console.cloud.google.com/apis/credentials
 
 Origines JS autorisées : `https://mimom.be`, `https://www.mimom.be`, `https://vincentchauvaux.github.io` et `http://localhost:5173`.
+
+Pour l’album : activer [Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) et le scope `drive.file` sur l’écran de consentement. Jeton Drive en **sessionStorage** (séparé de la session Abel 90 j).
 
 Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus par `.github/workflows/pages.yml`).
 
@@ -128,7 +136,7 @@ La session Abel est stockée localement (pas le jeton Google, trop court). Sans 
 Pages accessibles depuis **Profil** ou `/legal/*` :
 
 - **Mentions légales** — éditeur, hébergeurs (GitHub Pages + OVH).
-- **Politique de confidentialité** — RGPD, finalités, droits, export/suppression.
+- **Politique de confidentialité** — RGPD, finalités, droits, export/suppression (album Drive : photos hors VPS).
 - **CGU** — conditions d’utilisation.
 - **Avertissement santé** — pas un dispositif médical.
 
@@ -202,7 +210,7 @@ Fichier `sw.js` (Workbox, `generateSW`) :
 | JS / CSS / HTML / icônes (précache, hashés) | cache-first |
 | Navigation SPA | `index.html` en repli **hors** `/api/` |
 | `/api/` (sync, session, sharing, invites, account, horoscope) | **NetworkOnly** — jamais en cache |
-| Google Identity (`accounts.google.com`, gstatic, googleapis) | **NetworkOnly** |
+| Google Identity / Drive (`accounts.google.com`, gstatic, googleapis, googleusercontent) | **NetworkOnly** |
 
 `skipWaiting` / `clientsClaim` **off** : une nouvelle version s’active au prochain lancement, sans recharger pendant une tétée ou un sommeil en cours. IndexedDB n’est jamais vidé par une MAJ du SW.
 
@@ -220,7 +228,7 @@ Saisie = IndexedDB immédiat (inchangé). Le SW permet d’**ouvrir** l’app sa
 
 - Pas de `beforeinstallprompt` : uniquement « Sur l’écran d’accueil ».
 - Notifications : comme aujourd’hui, tant que l’app/PWA est ouverte (pas de push APNs).
-- GIS : la connexion Google peut être plus capricieuse en standalone ; la **session Abel** (90 j) évite de se reconnecter à chaque ouverture.
+- GIS : la connexion Google peut être plus capricieuse en standalone ; la **session Abel** (90 j) évite de se reconnecter à chaque ouverture. L’album Drive ouvre une fenêtre OAuth : si elle est bloquée en plein écran, ouvrir Mimom dans Safari / Chrome.
 - SW : iOS 16.4+ est fiable ; versions plus anciennes : Add to Home Screen sans cache SW complet.
 
 ### Test

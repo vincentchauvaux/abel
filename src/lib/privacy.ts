@@ -1,7 +1,9 @@
 import { db } from '@/db/client';
 import { SYNC_TABLES } from '@/db/api';
+import { clearAlbumLocalData } from '@/lib/album';
 import { clearLegalConsent } from '@/lib/consent';
 import { clearAuthToken, readGoogleToken, signOutGoogle, SYNC_URL } from '@/lib/google';
+import { clearDriveSession } from '@/lib/google-drive';
 
 const HOROSCOPE_CACHE_PREFIX = 'abel-horoscope-';
 
@@ -34,6 +36,8 @@ export async function wipeLocalData() {
     }
   });
   signOutGoogle();
+  clearDriveSession();
+  clearAlbumLocalData();
   clearLegalConsent();
   for (let i = localStorage.length - 1; i >= 0; i -= 1) {
     const key = localStorage.key(i);

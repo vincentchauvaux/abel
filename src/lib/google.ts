@@ -23,6 +23,10 @@ function isGoogleIdToken(token: string): boolean {
   return token.split('.').length === 3;
 }
 
+export type GoogleTokenClient = {
+  requestAccessToken: (override?: { prompt?: string }) => void;
+};
+
 declare global {
   interface Window {
     google?: {
@@ -38,6 +42,21 @@ declare global {
             options: { theme?: string; size?: string; text?: string; width?: number; locale?: string },
           ) => void;
           disableAutoSelect: () => void;
+        };
+        oauth2?: {
+          initTokenClient: (config: {
+            client_id: string;
+            scope: string;
+            callback: (response: {
+              access_token?: string;
+              error?: string;
+              expires_in?: number;
+            }) => void;
+            error_callback?: (error: { type?: string; message?: string }) => void;
+            prompt?: string;
+            hint?: string;
+          }) => GoogleTokenClient;
+          revoke: (token: string, done?: () => void) => void;
         };
       };
     };
@@ -147,7 +166,7 @@ export async function ensureAbelSession(): Promise<void> {
   await exchangeGoogleSession(token);
 }
 
-function loadGis(): Promise<void> {
+export function loadGis(): Promise<void> {
   if (window.google?.accounts.id) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const existing = document.querySelector<HTMLScriptElement>('script[data-abel-gis]');
@@ -204,6 +223,7 @@ export function signOutGoogle() {
   localStorage.removeItem(TOKEN_KEY);
   notifyAuth();
   window.google?.accounts.id.disableAutoSelect();
+  window.dispatchEvent(new Event('abel-drive-logout'));
   if (token && navigator.onLine) {
     void fetch(`${SYNC_URL}/session`, {
       method: 'DELETE',

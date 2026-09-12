@@ -18,6 +18,7 @@ export function CguPage() {
       <ul>
         <li>L’app fonctionne hors ligne sur votre navigateur.</li>
         <li>La synchronisation cloud via Google est optionnelle.</li>
+        <li>L’album photos est optionnel et stocké sur votre Google Drive, pas sur les serveurs Mimom.</li>
         <li>L’éditeur peut faire évoluer ou interrompre le service sans préavis, dans la mesure du projet personnel.</li>
       </ul>
 
