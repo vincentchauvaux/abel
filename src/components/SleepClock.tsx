@@ -27,18 +27,12 @@ const R_SLEEP_OUT = 88;
 const SLOT_MIN = (24 * 60) / SLOTS;
 const DAY_MIN = 24 * 60;
 const CLOCK_VIEW_KEY = 'abel.dash-clock-view';
+const CLOCK_LEGEND_KEY = 'abel.dash-clock-legend';
 
 type ViewMode = 'clock' | 'agenda';
+type ClockLegend = { sleep: boolean; meals: boolean };
 
-type Props = {
-  sleeps: SleepSession[];
-  feeds?: FeedingSession[];
-  bottles?: BottleFeed[];
-  now: number;
-  days?: string[];
-  agenda?: boolean;
-  seriesToggle?: boolean;
-};
+const DEFAULT_LEGEND: ClockLegend = { sleep: true, meals: false };
 
 function readClockView(): ViewMode {
   try {
@@ -55,6 +49,38 @@ function writeClockView(mode: ViewMode) {
     /* hors ligne / mode privé */
   }
 }
+
+function readClockLegend(): ClockLegend {
+  try {
+    const raw = localStorage.getItem(CLOCK_LEGEND_KEY);
+    if (!raw) return DEFAULT_LEGEND;
+    const parsed = JSON.parse(raw) as Partial<ClockLegend>;
+    return {
+      sleep: parsed.sleep !== false,
+      meals: parsed.meals === true,
+    };
+  } catch {
+    return DEFAULT_LEGEND;
+  }
+}
+
+function writeClockLegend(legend: ClockLegend) {
+  try {
+    localStorage.setItem(CLOCK_LEGEND_KEY, JSON.stringify(legend));
+  } catch {
+    /* hors ligne / mode privé */
+  }
+}
+
+type Props = {
+  sleeps: SleepSession[];
+  feeds?: FeedingSession[];
+  bottles?: BottleFeed[];
+  now: number;
+  days?: string[];
+  agenda?: boolean;
+  seriesToggle?: boolean;
+};
 
 function polar(r: number, deg: number) {
   const a = (deg * Math.PI) / 180;
@@ -455,8 +481,8 @@ export function SleepClock({
   seriesToggle = false,
 }: Props) {
   const [view, setView] = useState<ViewMode>(readClockView);
-  const [showSleep, setShowSleep] = useState(true);
-  const [showMeals, setShowMeals] = useState(false);
+  const [showSleep, setShowSleep] = useState(() => readClockLegend().sleep);
+  const [showMeals, setShowMeals] = useState(() => readClockLegend().meals);
   const allowAgenda = agenda && days.length > 0;
   const mode: ViewMode = allowAgenda && view === 'agenda' ? 'agenda' : 'clock';
   const todayKey = localDateKey(new Date(now).toISOString());
@@ -575,14 +601,26 @@ export function SleepClock({
         type="button"
         className={`leg-sleep${showSleep ? ' is-on' : ''}`}
         aria-pressed={showSleep}
-        onClick={() => setShowSleep((on) => !on)}>
+        onClick={() =>
+          setShowSleep((on) => {
+            const next = !on;
+            writeClockLegend({ sleep: next, meals: showMeals });
+            return next;
+          })
+        }>
         Siestes
       </button>
       <button
         type="button"
         className={`leg-breast${showMeals ? ' is-on' : ''}`}
         aria-pressed={showMeals}
-        onClick={() => setShowMeals((on) => !on)}>
+        onClick={() =>
+          setShowMeals((on) => {
+            const next = !on;
+            writeClockLegend({ sleep: showSleep, meals: next });
+            return next;
+          })
+        }>
         Repas
       </button>
     </div>
