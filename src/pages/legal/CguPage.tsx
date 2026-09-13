@@ -11,7 +11,7 @@ export function CguPage() {
       <h2>Objet</h2>
       <p>
         {SITE.name} est une application web gratuite permettant de noter le quotidien d’un nourrisson (repas, couches,
-        sommeil, etc.). L’utilisation implique l’acceptation des présentes conditions.
+        bains, sommeil, etc.). L’utilisation implique l’acceptation des présentes conditions.
       </p>
 
       <h2>Accès au service</h2>

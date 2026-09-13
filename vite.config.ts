@@ -16,7 +16,7 @@ export default defineConfig({
         name: 'Mimom',
         short_name: 'Mimom',
         description:
-          'Suivi du bébé : tétées, couches, biberons, tire-lait, croissance. Un appui, une donnée.',
+          'Suivi du bébé : tétées, couches, bains, biberons, tire-lait, croissance. Un appui, une donnée.',
         lang: 'fr',
         dir: 'ltr',
         display: 'standalone',

@@ -1,5 +1,6 @@
 const ALBUM_PREFIX = 'abel.drive-album.';
 const THUMB_KEY = 'abel.album-thumb-size';
+const GROUP_BY_DATE_KEY = 'abel.album-group-by-date';
 
 export const ALBUM_THUMB_MIN = 72;
 export const ALBUM_THUMB_MAX = 220;
@@ -49,10 +50,20 @@ export function writeAlbumThumbSize(size: number) {
   localStorage.setItem(THUMB_KEY, String(size));
 }
 
+export function readAlbumGroupByDate(): boolean {
+  return localStorage.getItem(GROUP_BY_DATE_KEY) === '1';
+}
+
+export function writeAlbumGroupByDate(value: boolean) {
+  localStorage.setItem(GROUP_BY_DATE_KEY, value ? '1' : '0');
+}
+
 export function clearAlbumLocalData() {
   for (let i = localStorage.length - 1; i >= 0; i -= 1) {
     const key = localStorage.key(i);
-    if (key?.startsWith(ALBUM_PREFIX) || key === THUMB_KEY) localStorage.removeItem(key);
+    if (key?.startsWith(ALBUM_PREFIX) || key === THUMB_KEY || key === GROUP_BY_DATE_KEY) {
+      localStorage.removeItem(key);
+    }
   }
 }
 

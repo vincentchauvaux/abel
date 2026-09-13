@@ -120,6 +120,18 @@ const TABLES = {
       deletedAt: 'deleted_at',
     },
   },
+  bathEvents: {
+    sql: 'bath_events',
+    fields: {
+      id: 'id',
+      babyId: 'baby_id',
+      occurredAt: 'occurred_at',
+      createdBy: 'created_by',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      deletedAt: 'deleted_at',
+    },
+  },
   pumpingSessions: {
     sql: 'pumping_sessions',
     fields: {
@@ -256,6 +268,7 @@ const PUSH_ORDER = [
   'feedingSegments',
   'bottleFeeds',
   'diaperEvents',
+  'bathEvents',
   'pumpingSessions',
   'measurements',
   'reminderRules',
@@ -1136,6 +1149,7 @@ async function deleteAccount(user) {
       'feeding_sessions',
       'bottle_feeds',
       'diaper_events',
+      'bath_events',
       'pumping_sessions',
       'measurements',
       'reminder_rules',

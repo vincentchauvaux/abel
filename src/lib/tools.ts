@@ -11,7 +11,8 @@ export type ToolId =
   | 'growth'
   | 'sleep'
   | 'temperature'
-  | 'notes';
+  | 'notes'
+  | 'baths';
 
 export const TOOL_IDS: ToolId[] = [
   'feeding',
@@ -19,6 +20,7 @@ export const TOOL_IDS: ToolId[] = [
   'solids',
   'supplements',
   'diapers',
+  'baths',
   'pumping',
   'growth',
   'sleep',
@@ -32,6 +34,7 @@ export const TOOLS: Record<ToolId, { label: string; route: string; section: 'app
   solids: { label: 'Diversification', route: '/solids', section: 'apports' },
   supplements: { label: 'Compléments', route: '/supplements', section: 'apports' },
   diapers: { label: 'Couche', route: '/diapers', section: 'suivi' },
+  baths: { label: 'Bain', route: '/baths', section: 'suivi' },
   pumping: { label: 'Tire-lait', route: '/pumping', section: 'suivi' },
   growth: { label: 'Croissance', route: '/growth', section: 'suivi' },
   sleep: { label: 'Sommeil', route: '/sleep', section: 'suivi' },

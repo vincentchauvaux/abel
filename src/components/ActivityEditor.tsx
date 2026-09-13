@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Button, Chip, Field } from '@/components/ui';
 import {
+  deleteBath,
   deleteBottle,
   deleteDiaper,
   deleteFeeding,
@@ -14,6 +15,7 @@ import {
   deleteTemperature,
   listSessionSides,
   setFeedingSide,
+  updateBath,
   updateBottle,
   updateDiaper,
   updateFeedingSession,
@@ -159,6 +161,11 @@ export function ActivityEditor({ item, onClose }: Props) {
           setKind(row.kind);
           setWhen(toDatetimeLocalValue(row.occurredAt));
         }
+      } else if (item.kind === 'bath') {
+        const row = await db.bathEvents.get(item.id);
+        if (!cancelled && row) {
+          setWhen(toDatetimeLocalValue(row.occurredAt));
+        }
       } else if (item.kind === 'pumping') {
         const row = await db.pumpingSessions.get(item.id);
         if (!cancelled && row) {
@@ -269,6 +276,8 @@ export function ActivityEditor({ item, onClose }: Props) {
       } else if (item.kind === 'diaper') {
         if (kind !== 'PEE' && kind !== 'POO' && kind !== 'BOTH') return;
         await updateDiaper(item.id, kind, at);
+      } else if (item.kind === 'bath') {
+        await updateBath(item.id, at);
       } else if (item.kind === 'pumping') {
         const ml = parseDecimal(amount);
         if (ml === null || ml <= 0) {
@@ -377,6 +386,7 @@ export function ActivityEditor({ item, onClose }: Props) {
     if (!window.confirm('Supprimer cette entrée ?')) return;
     if (item.kind === 'bottle') await deleteBottle(item.id);
     else if (item.kind === 'diaper') await deleteDiaper(item.id);
+    else if (item.kind === 'bath') await deleteBath(item.id);
     else if (item.kind === 'pumping') await deletePumping(item.id);
     else if (item.kind === 'feeding') await deleteFeeding(item.id);
     else if (item.kind === 'solid') await deleteSolidFood(item.id);

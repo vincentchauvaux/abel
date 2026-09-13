@@ -12,6 +12,7 @@ const MODULE_PREFIXES = [
   '/solids',
   '/supplements',
   '/diapers',
+  '/baths',
   '/pumping',
   '/growth',
   '/sleep',

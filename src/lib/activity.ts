@@ -1,4 +1,5 @@
 import {
+  listBaths,
   listBottles,
   listDiapers,
   listMeasurements,
@@ -12,6 +13,7 @@ import {
   listTemperatures,
 } from '@/db/api';
 import type {
+  BathEvent,
   BottleFeed,
   DiaperEvent,
   FeedingSession,
@@ -31,6 +33,7 @@ export type ActivityKind =
   | 'feeding'
   | 'bottle'
   | 'diaper'
+  | 'bath'
   | 'pumping'
   | 'solid'
   | 'supplement'
@@ -51,12 +54,13 @@ export type ActivityItem = {
 };
 
 export async function listActivity(babyId: string, limit?: number): Promise<ActivityItem[]> {
-  const [sessions, segments, bottles, diapers, pumps, solids, supplements, sleeps, temps, notes, measures] =
+  const [sessions, segments, bottles, diapers, baths, pumps, solids, supplements, sleeps, temps, notes, measures] =
     await Promise.all([
       listSessions(babyId),
       listSegments(),
       listBottles(babyId),
       listDiapers(babyId),
+      listBaths(babyId),
       listPumps(babyId),
       listSolidFoods(babyId),
       listSupplements(babyId),
@@ -101,6 +105,17 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       at: row.occurredAt,
       title: 'Couche',
       detail: diaperLabel[row.kind],
+      createdBy: row.createdBy ?? null,
+    });
+  }
+
+  for (const row of baths) {
+    items.push({
+      id: row.id,
+      kind: 'bath',
+      at: row.occurredAt,
+      title: 'Bain',
+      detail: '',
       createdBy: row.createdBy ?? null,
     });
   }
@@ -195,6 +210,7 @@ export type ActivityRecord =
   | { kind: 'feeding'; row: FeedingSession }
   | { kind: 'bottle'; row: BottleFeed }
   | { kind: 'diaper'; row: DiaperEvent }
+  | { kind: 'bath'; row: BathEvent }
   | { kind: 'pumping'; row: PumpingSession }
   | { kind: 'solid'; row: SolidFood }
   | { kind: 'supplement'; row: Supplement }

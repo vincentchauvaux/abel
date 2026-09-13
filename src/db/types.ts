@@ -49,6 +49,12 @@ export type DiaperEvent = Stamp & {
   occurredAt: string;
   createdBy?: string | null;
 };
+export type BathEvent = Stamp & {
+  id: string;
+  babyId: string;
+  occurredAt: string;
+  createdBy?: string | null;
+};
 export type PumpingSession = Stamp & {
   id: string;
   babyId: string;

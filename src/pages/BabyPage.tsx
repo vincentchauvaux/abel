@@ -46,6 +46,7 @@ const JOURNAL_KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'feeding', label: 'Tétée' },
   { value: 'bottle', label: 'Biberon' },
   { value: 'diaper', label: 'Couche' },
+  { value: 'bath', label: 'Bain' },
   { value: 'pumping', label: 'Tire-lait' },
   { value: 'solid', label: 'Diversification' },
   { value: 'supplement', label: 'Complément' },

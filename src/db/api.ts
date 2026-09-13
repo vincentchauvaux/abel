@@ -1,6 +1,7 @@
 import { db, createId, notifyDb, notifyDbUrgent } from '@/db/client';
 import type {
   Baby,
+  BathEvent,
   BottleFeed,
   DiaperEvent,
   DiaperKind,
@@ -208,6 +209,33 @@ export async function updateDiaper(id: string, kind: DiaperKind, occurredAt?: st
 
 export async function deleteDiaper(id: string) {
   await db.diaperEvents.update(id, { deletedAt: nowIso(), ...touch() });
+  notifyDb();
+}
+
+export async function addBath(babyId: string, occurredAt = nowIso()) {
+  await db.bathEvents.add({
+    id: createId(),
+    babyId,
+    occurredAt,
+    ...actorStamp(),
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listBaths(babyId: string): Promise<BathEvent[]> {
+  return alive(await db.bathEvents.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.occurredAt.localeCompare(a.occurredAt),
+  );
+}
+
+export async function updateBath(id: string, occurredAt: string) {
+  await db.bathEvents.update(id, { occurredAt, ...touch() });
+  notifyDb();
+}
+
+export async function deleteBath(id: string) {
+  await db.bathEvents.update(id, { deletedAt: nowIso(), ...touch() });
   notifyDb();
 }
 
@@ -806,6 +834,7 @@ export const SYNC_TABLES = [
   'feedingSegments',
   'bottleFeeds',
   'diaperEvents',
+  'bathEvents',
   'pumpingSessions',
   'measurements',
   'reminderRules',
@@ -857,6 +886,7 @@ export async function hasLocalActivity(babyId: string): Promise<boolean> {
     db.feedingSessions.where('babyId').equals(babyId).count(),
     db.bottleFeeds.where('babyId').equals(babyId).count(),
     db.diaperEvents.where('babyId').equals(babyId).count(),
+    db.bathEvents.where('babyId').equals(babyId).count(),
     db.pumpingSessions.where('babyId').equals(babyId).count(),
     db.solidFoods.where('babyId').equals(babyId).count(),
     db.supplements.where('babyId').equals(babyId).count(),

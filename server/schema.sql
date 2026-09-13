@@ -55,6 +55,16 @@ CREATE TABLE IF NOT EXISTS diaper_events (
   deleted_at TIMESTAMPTZ
 );
 
+CREATE TABLE IF NOT EXISTS bath_events (
+  id UUID PRIMARY KEY,
+  baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
+  occurred_at TIMESTAMPTZ NOT NULL,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS pumping_sessions (
   id UUID PRIMARY KEY,
   baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,

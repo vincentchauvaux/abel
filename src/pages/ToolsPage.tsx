@@ -1,4 +1,4 @@
-import { Apple, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer, type LucideIcon } from 'lucide-react';
+import { Apple, Bath, Droplets, Heart, Milk, Moon, NotebookPen, Pill, Scale, Thermometer, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -13,6 +13,7 @@ const ICONS: Record<ToolId, LucideIcon> = {
   solids: Apple,
   supplements: Pill,
   diapers: Droplets,
+  baths: Bath,
   pumping: Milk,
   growth: Scale,
   sleep: Moon,

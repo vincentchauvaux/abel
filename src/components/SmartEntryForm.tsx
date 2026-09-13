@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button, Chip, Field } from '@/components/ui';
 import {
   addBottle,
+  addBath,
   addDiaper,
   addMeasurementAt,
   addNote,
@@ -41,6 +42,7 @@ export type SmartEntryType =
   | 'feeding'
   | 'bottle'
   | 'diaper'
+  | 'bath'
   | 'pumping'
   | 'solid'
   | 'supplement'
@@ -58,6 +60,7 @@ const APPORTS: { key: SmartEntryType; label: string }[] = [
 
 const SUIVI: { key: SmartEntryType; label: string }[] = [
   { key: 'diaper', label: 'Couche' },
+  { key: 'bath', label: 'Bain' },
   { key: 'pumping', label: 'Tire-lait' },
   { key: 'sleep', label: 'Sommeil' },
   { key: 'temperature', label: 'Température' },
@@ -228,6 +231,12 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     if (!baby) return;
     await addDiaper(baby.id, chosen, atIso());
     await finish(`Couche ${diaperLabel[chosen].toLowerCase()} notée`);
+  };
+
+  const saveBath = async () => {
+    if (!baby) return;
+    await addBath(baby.id, atIso());
+    await finish('Bain noté');
   };
 
   const save = async () => {
@@ -478,6 +487,15 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         </>
       ) : null}
 
+      {type === 'bath' ? (
+        <>
+          <p className="muted">Un appui = bain noté tout de suite.</p>
+          <button type="button" className="big" onClick={() => void saveBath()}>
+            Bain
+          </button>
+        </>
+      ) : null}
+
       {type === 'bottle' ? (
         <>
           <div className="row">
@@ -566,7 +584,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         </>
       ) : null}
 
-      {type !== 'feeding' && type !== 'diaper' ? (
+      {type !== 'feeding' && type !== 'diaper' && type !== 'bath' ? (
         <Button onClick={() => void save()}>Enregistrer</Button>
       ) : null}
 

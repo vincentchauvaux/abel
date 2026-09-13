@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 
 import { Layout } from '@/components/Layout';
 import { DbProvider, useDb } from '@/db/DbProvider';
+import { BathsPage } from '@/pages/BathsPage';
 import { BabyPage } from '@/pages/BabyPage';
 import { BottlePage } from '@/pages/BottlePage';
 import { DashboardPage } from '@/pages/DashboardPage';
@@ -61,6 +62,7 @@ export default function App() {
               <Route path="/solids" element={<SolidsPage />} />
               <Route path="/supplements" element={<SupplementsPage />} />
               <Route path="/diapers" element={<DiapersPage />} />
+              <Route path="/baths" element={<BathsPage />} />
               <Route path="/pumping" element={<PumpingPage />} />
               <Route path="/growth" element={<GrowthPage />} />
               <Route path="/sleep" element={<SleepPage />} />

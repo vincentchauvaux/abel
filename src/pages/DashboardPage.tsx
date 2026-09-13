@@ -14,6 +14,7 @@ import { Card } from '@/components/ui';
 import {
   getReminder,
   listBottles,
+  listBaths,
   listDiapers,
   listExerciseItems,
   listMeasurements,
@@ -31,6 +32,7 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type {
   BottleFeed,
+  BathEvent,
   DiaperEvent,
   ExerciseItem,
   FeedingSession,
@@ -143,6 +145,7 @@ export function DashboardPage() {
   const [sessions, setSessions] = useState<FeedingSession[]>([]);
   const [bottles, setBottles] = useState<BottleFeed[]>([]);
   const [diapers, setDiapers] = useState<DiaperEvent[]>([]);
+  const [baths, setBaths] = useState<BathEvent[]>([]);
   const [pumps, setPumps] = useState<PumpingSession[]>([]);
   const [sleeps, setSleeps] = useState<SleepSession[]>([]);
   const [solids, setSolids] = useState<SolidFood[]>([]);
@@ -181,7 +184,8 @@ export function DashboardPage() {
       listActivity(baby.id, 120),
       getReminder(baby.id),
       listExerciseItems(baby.id),
-    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r, ex]) => {
+      listBaths(baby.id),
+    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r, ex, ba]) => {
       setSessions(s);
       setBottles(b);
       setDiapers(d);
@@ -195,6 +199,7 @@ export function DashboardPage() {
       setActivity(log);
       setGoals(r);
       setExercises(ex);
+      setBaths(ba);
     });
   }, [baby, tick]);
 
@@ -238,6 +243,7 @@ export function DashboardPage() {
   });
   const bottlesInPeriod = bottles.filter((row) => inRange(row.fedAt) && isNotFuture(row.fedAt, now));
   const diaperCount = diapers.filter((row) => inRange(row.occurredAt)).length;
+  const bathCount = baths.filter((row) => inRange(row.occurredAt)).length;
   const solidsCount = solids.filter((row) => inRange(row.eatenAt)).length;
   const supplementsCount = supplements.filter((row) => inRange(row.givenAt)).length;
   const openNoteTodos = useMemo(
@@ -270,6 +276,7 @@ export function DashboardPage() {
   const lastFeed = sessions[0];
   const lastBottle = bottles[0];
   const lastDiaper = diapers[0];
+  const lastBath = baths[0];
   const lastSolid = solids.find((row) => inRange(row.eatenAt)) ?? solids[0];
   const lastSupplement = supplements.find((row) => inRange(row.givenAt)) ?? supplements[0];
   const lastTemp = temperatures.find((row) => inRange(row.measuredAt)) ?? temperatures[0];
@@ -339,6 +346,12 @@ export function DashboardPage() {
       value: diaperCount,
       sub: lastDiaper ? formatTime(lastDiaper.occurredAt) : '—',
       to: '/diapers',
+    },
+    {
+      label: 'Bains',
+      value: bathCount,
+      sub: lastBath ? formatTime(lastBath.occurredAt) : '—',
+      to: '/baths',
     },
     {
       label: 'Sommeil',
@@ -442,6 +455,12 @@ export function DashboardPage() {
         sub: lastDiaper ? formatTime(lastDiaper.occurredAt) : '—',
         to: TOOLS.diapers.route,
       },
+      baths: {
+        label: TOOLS.baths.label,
+        value: bathCount > 0 ? bathCount : '—',
+        sub: lastBath ? formatTime(lastBath.occurredAt) : '—',
+        to: TOOLS.baths.route,
+      },
       pumping: {
         label: TOOLS.pumping.label,
         value: `${stockMl} ml`,
@@ -486,6 +505,7 @@ export function DashboardPage() {
     solidsCount,
     supplementsCount,
     diaperCount,
+    bathCount,
     stockMl,
     pumpedMl,
     pumps.length,
@@ -495,6 +515,7 @@ export function DashboardPage() {
     lastSolid,
     lastSupplement,
     lastDiaper,
+    lastBath,
     lastWeight,
     lastHeight,
     lastHead,
