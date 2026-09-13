@@ -1189,12 +1189,16 @@ const server = createServer(async (req, res) => {
   }
 
   const url = new URL(req.url || '/', 'http://127.0.0.1');
+  const pathname =
+    url.pathname.length > 1 && url.pathname.endsWith('/')
+      ? url.pathname.replace(/\/+$/, '')
+      : url.pathname;
   try {
-    if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
+    if (req.method === 'GET' && (pathname === '/health' || pathname === '/')) {
       send(res, 200, { ok: true, album: albumConfigured() });
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/session') {
+    if (req.method === 'POST' && pathname === '/session') {
       if (overRateLimit(req, 'session')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1229,7 +1233,7 @@ const server = createServer(async (req, res) => {
       });
       return;
     }
-    if (req.method === 'DELETE' && url.pathname === '/session') {
+    if (req.method === 'DELETE' && pathname === '/session') {
       if (overRateLimit(req, 'session')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1238,7 +1242,7 @@ const server = createServer(async (req, res) => {
       send(res, 200, { ok: true });
       return;
     }
-    if (req.method === 'GET' && url.pathname === '/horoscope') {
+    if (req.method === 'GET' && pathname === '/horoscope') {
       if (overRateLimit(req, 'horoscope')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1251,7 +1255,7 @@ const server = createServer(async (req, res) => {
       send(res, 200, payload);
       return;
     }
-    if (req.method === 'GET' && url.pathname === '/sync') {
+    if (req.method === 'GET' && pathname === '/sync') {
       if (overRateLimit(req, 'sync')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1265,7 +1269,7 @@ const server = createServer(async (req, res) => {
       send(res, 200, result);
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/sync') {
+    if (req.method === 'POST' && pathname === '/sync') {
       if (overRateLimit(req, 'sync')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1280,7 +1284,7 @@ const server = createServer(async (req, res) => {
       send(res, 200, result);
       return;
     }
-    if (req.method === 'GET' && url.pathname === '/sharing') {
+    if (req.method === 'GET' && pathname === '/sharing') {
       if (overRateLimit(req, 'sharing')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1294,7 +1298,7 @@ const server = createServer(async (req, res) => {
       send(res, 200, result);
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/profile') {
+    if (req.method === 'POST' && pathname === '/profile') {
       if (overRateLimit(req, 'sharing')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1309,7 +1313,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/invites') {
+    if (req.method === 'POST' && pathname === '/invites') {
       if (overRateLimit(req, 'invites')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1324,7 +1328,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    const inviteAction = url.pathname.match(/^\/invites\/([^/]+)\/(accept|decline)$/);
+    const inviteAction = pathname.match(/^\/invites\/([^/]+)\/(accept|decline)$/);
     if (req.method === 'POST' && inviteAction) {
       if (overRateLimit(req, 'invites')) {
         send(res, 429, { error: 'rate_limit' });
@@ -1341,7 +1345,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    const inviteDelete = url.pathname.match(/^\/invites\/([^/]+)$/);
+    const inviteDelete = pathname.match(/^\/invites\/([^/]+)$/);
     if (req.method === 'DELETE' && inviteDelete) {
       if (overRateLimit(req, 'invites')) {
         send(res, 429, { error: 'rate_limit' });
@@ -1356,7 +1360,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    const memberDelete = url.pathname.match(/^\/members\/([^/]+)$/);
+    const memberDelete = pathname.match(/^\/members\/([^/]+)$/);
     if (req.method === 'DELETE' && memberDelete) {
       if (overRateLimit(req, 'sharing')) {
         send(res, 429, { error: 'rate_limit' });
@@ -1371,7 +1375,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    if (req.method === 'DELETE' && url.pathname === '/account') {
+    if (req.method === 'DELETE' && pathname === '/account') {
       if (overRateLimit(req, 'account')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1385,7 +1389,7 @@ const server = createServer(async (req, res) => {
       send(res, 200, { ok: true, ...result });
       return;
     }
-    if (req.method === 'GET' && url.pathname === '/album') {
+    if (req.method === 'GET' && pathname === '/album') {
       if (overRateLimit(req, 'album')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1399,7 +1403,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    if (req.method === 'PATCH' && url.pathname === '/album/access') {
+    if (req.method === 'PATCH' && pathname === '/album/access') {
       if (overRateLimit(req, 'sharing')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1414,7 +1418,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    if (req.method === 'POST' && url.pathname === '/album/photos') {
+    if (req.method === 'POST' && pathname === '/album/photos') {
       if (overRateLimit(req, 'album_upload')) {
         send(res, 429, { error: 'rate_limit' });
         return;
@@ -1428,7 +1432,7 @@ const server = createServer(async (req, res) => {
       send(res, result.status, result.body);
       return;
     }
-    const albumPhoto = url.pathname.match(/^\/album\/photos\/([^/]+)$/);
+    const albumPhoto = pathname.match(/^\/album\/photos\/([^/]+)$/);
     if (albumPhoto) {
       if (overRateLimit(req, 'album')) {
         send(res, 429, { error: 'rate_limit' });

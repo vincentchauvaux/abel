@@ -143,5 +143,8 @@ echo
 if dig +short mimom.be A | grep -qE '^[0-9]'; then
   curl -fsSk "https://mimom.be/api/health" || curl -fsS "http://mimom.be/api/health" || true
   echo
+  # GET /api/album sans session = 401, jamais 404 (slash Nginx).
+  album_code="$(curl -sS -o /dev/null -w '%{http_code}' -k https://mimom.be/api/album || true)"
+  echo "album_get:${album_code}"
 fi
 echo DEPLOY_OK

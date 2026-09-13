@@ -92,7 +92,7 @@ Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la m�
 
 Un album par bébé. **Pas Google Drive** pour l’instant (code Drive conservé pour plus tard). Photos **hors IndexedDB / hors sync Dexie** : API dédiée, fichiers **AES-256-GCM** dans `ALBUM_DIR` (défaut `/var/lib/abel/album`, chmod 700), hors webroot. Clé `ALBUM_ENCRYPTION_KEY` (32 octets hex) dans `server/.env`, dérivée par bébé (HKDF). Ré-encodage JPEG (EXIF/GPS retirés, max 2400 px, 8 Mo, 400 photos). GET image uniquement avec session Abel (blob côté client, pas d’URL signée). Propriétaire : accès toujours. **Co-parent et gardien** : case **Profil → Accès à l’album** (propriétaire ouvre le co-parent ; un parent qui a l’album peut ouvrir un gardien). Galerie masonry, curseur d’aperçus, groupes par date, filtre Du / Au. Suppression compte propriétaire = effacement des fichiers.
 
-API : `GET /album`, `PATCH /album/access`, `POST /album/photos`, `GET|DELETE /album/photos/:id`. Nginx `client_max_body_size 10m` sur `/api/album/`.
+API : `GET /album`, `PATCH /album/access`, `POST /album/photos`, `GET|DELETE /album/photos/:id`. Nginx `location /api/album` (sans slash final, sinon 301 → 404) et `client_max_body_size 10m`.
 
 ## Auth Google
 

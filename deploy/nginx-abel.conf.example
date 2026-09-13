@@ -14,7 +14,8 @@ location = /abel/api {
     return 301 $scheme://$host/abel/api/;
 }
 
-location /abel/api/album/ {
+# Pas de slash final : sinon Nginx 301 /abel/api/album → …/album/ et Node 404.
+location /abel/api/album {
     limit_req zone=abel_api burst=60 nodelay;
 
     if ($request_method = OPTIONS) {
@@ -26,7 +27,7 @@ location /abel/api/album/ {
         return 204;
     }
 
-    proxy_pass http://127.0.0.1:3030/album/;
+    proxy_pass http://127.0.0.1:3030/album;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
