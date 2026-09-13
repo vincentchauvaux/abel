@@ -252,3 +252,19 @@ CREATE TABLE IF NOT EXISTS album_photos (
 CREATE INDEX IF NOT EXISTS album_photos_baby_taken
   ON album_photos (baby_id, taken_at DESC)
   WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS exercise_items (
+  id UUID PRIMARY KEY,
+  baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  started_at TIMESTAMPTZ,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS exercise_items_baby
+  ON exercise_items (baby_id, created_at)
+  WHERE deleted_at IS NULL;

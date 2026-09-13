@@ -7,6 +7,7 @@ import type {
   FeedingSegment,
   FeedingSession,
   Measurement,
+  ExerciseItem,
   Note,
   PumpingSession,
   ReminderRule,
@@ -30,6 +31,7 @@ class AbelDB extends Dexie {
   sleepSessions!: Table<SleepSession, string>;
   temperatures!: Table<Temperature, string>;
   notes!: Table<Note, string>;
+  exerciseItems!: Table<ExerciseItem, string>;
 
   constructor() {
     super('abel');
@@ -131,6 +133,22 @@ class AbelDB extends Dexie {
           if (row.photoUrl === undefined) row.photoUrl = null;
         });
       });
+    this.version(6).stores({
+      babies: 'id',
+      feedingSessions: 'id, babyId, startedAt',
+      feedingSegments: 'id, feedingSessionId, startedAt',
+      bottleFeeds: 'id, babyId, fedAt, pumpingSessionId',
+      diaperEvents: 'id, babyId, occurredAt',
+      pumpingSessions: 'id, babyId, startedAt',
+      measurements: 'id, babyId, type, measuredAt',
+      reminderRules: 'id, babyId',
+      solidFoods: 'id, babyId, eatenAt',
+      supplements: 'id, babyId, givenAt',
+      sleepSessions: 'id, babyId, startedAt',
+      temperatures: 'id, babyId, measuredAt',
+      notes: 'id, babyId, notedAt, isTodo, doneAt',
+      exerciseItems: 'id, babyId, createdAt',
+    });
   }
 }
 

@@ -5,6 +5,7 @@ import type {
   DiaperEvent,
   DiaperKind,
   DiaperWhen,
+  ExerciseItem,
   FeedingSegment,
   FeedingSession,
   Measurement,
@@ -683,6 +684,44 @@ export async function deleteNote(id: string) {
   notifyDb();
 }
 
+export async function addExerciseItem(babyId: string, title: string, durationMinutes: number) {
+  const label = title.trim().slice(0, 40);
+  if (!label || durationMinutes < 1) return;
+  const existing = alive(await db.exerciseItems.where('babyId').equals(babyId).toArray());
+  if (existing.length >= 20) return;
+  await db.exerciseItems.add({
+    id: createId(),
+    babyId,
+    title: label,
+    durationMinutes,
+    startedAt: null,
+    ...actorStamp(),
+    ...stamp(),
+  });
+  notifyDb();
+}
+
+export async function listExerciseItems(babyId: string): Promise<ExerciseItem[]> {
+  return alive(await db.exerciseItems.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    a.createdAt.localeCompare(b.createdAt),
+  );
+}
+
+export async function startExerciseItem(id: string) {
+  await db.exerciseItems.update(id, { startedAt: nowIso(), ...touch() });
+  notifyDbUrgent();
+}
+
+export async function stopExerciseItem(id: string) {
+  await db.exerciseItems.update(id, { startedAt: null, ...touch() });
+  notifyDbUrgent();
+}
+
+export async function deleteExerciseItem(id: string) {
+  await db.exerciseItems.update(id, { deletedAt: nowIso(), startedAt: null, ...touch() });
+  notifyDb();
+}
+
 export async function updateFeedingSession(
   id: string,
   values: { startedAt?: string; endedAt?: string | null },
@@ -775,6 +814,7 @@ export const SYNC_TABLES = [
   'sleepSessions',
   'temperatures',
   'notes',
+  'exerciseItems',
 ] as const;
 
 export type SyncTable = (typeof SYNC_TABLES)[number];
@@ -795,7 +835,7 @@ export async function collectPending(options?: { skipPlaceholderBaby?: boolean }
     if (skipBabyId) {
       if (name === 'babies') {
         rows = rows.filter((row) => row.id !== skipBabyId);
-      } else if (name === 'reminderRules') {
+      } else if (name === 'reminderRules' || name === 'exerciseItems') {
         rows = rows.filter((row) => row.babyId !== skipBabyId);
       }
     }

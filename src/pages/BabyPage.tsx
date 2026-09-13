@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { AccordionSection } from '@/components/Accordion';
 import { BabyAlbum } from '@/components/BabyAlbum';
+import { BabyExercises } from '@/components/BabyExercises';
 import { JournalLine } from '@/components/JournalLine';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { BabyPhoto } from '@/components/BabyPhoto';
@@ -395,6 +396,9 @@ export function BabyPage() {
             </div>
           </>
         )}
+      </AccordionSection>
+      <AccordionSection id="exercises" title="Exercices" open={openSection === 'exercises'} onToggle={toggleSection}>
+        {baby ? <BabyExercises babyId={baby.id} canEdit={canEditBaby} /> : null}
       </AccordionSection>
       <AccordionSection
         id="horoscope"

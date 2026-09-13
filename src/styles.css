@@ -2268,6 +2268,28 @@ h2 {
   border-bottom: 0;
 }
 
+.exercise-config-row {
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.exercise-config-row strong {
+  flex: 1;
+  min-width: 0;
+}
+
+.exercise-count {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.exercise-done {
+  border-left-color: var(--accent);
+}
+
 .ok-flash {
   margin: 0;
   font-weight: 700;

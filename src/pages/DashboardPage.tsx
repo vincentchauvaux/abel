@@ -15,6 +15,7 @@ import {
   getReminder,
   listBottles,
   listDiapers,
+  listExerciseItems,
   listMeasurements,
   listNotes,
   completeNoteTodo,
@@ -24,11 +25,14 @@ import {
   listSolidFoods,
   listSupplements,
   listTemperatures,
+  startExerciseItem,
+  stopExerciseItem,
 } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type {
   BottleFeed,
   DiaperEvent,
+  ExerciseItem,
   FeedingSession,
   Measurement,
   MeasurementType,
@@ -71,6 +75,12 @@ import {
   mealAlertLine,
   sleepAlertLine,
 } from '@/lib/reminders';
+import {
+  exerciseIsDone,
+  exerciseIsRunning,
+  formatExerciseCountdown,
+  formatExerciseDuration,
+} from '@/lib/exercises';
 
 function latestMeasure(measures: Measurement[], type: MeasurementType) {
   return measures.find((row) => row.type === type);
@@ -145,7 +155,9 @@ export function DashboardPage() {
   const [goals, setGoals] = useState<ReminderRule | undefined>();
   const [notesOpen, setNotesOpen] = useState(false);
   const [favorites, setFavorites] = useState(() => readToolFavorites());
-  const now = useNow(true, 30_000);
+  const [exercises, setExercises] = useState<ExerciseItem[]>([]);
+  const exerciseRunning = exercises.some((row) => exerciseIsRunning(row));
+  const now = useNow(true, exerciseRunning ? 1000 : 30_000);
 
   useEffect(() => {
     const sync = () => setFavorites(readToolFavorites());
@@ -168,7 +180,8 @@ export function DashboardPage() {
       listMeasurements(baby.id),
       listActivity(baby.id, 120),
       getReminder(baby.id),
-    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r]) => {
+      listExerciseItems(baby.id),
+    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r, ex]) => {
       setSessions(s);
       setBottles(b);
       setDiapers(d);
@@ -181,6 +194,7 @@ export function DashboardPage() {
       setMeasures(m);
       setActivity(log);
       setGoals(r);
+      setExercises(ex);
     });
   }, [baby, tick]);
 
@@ -641,6 +655,42 @@ export function DashboardPage() {
           <span className="dash-follow-add" aria-hidden>
             +
           </span>
+        </div>
+      )}
+
+      <p className="dash-section">Exercices</p>
+      {exercises.length === 0 ? (
+        <p className="muted">
+          Paramètre un intitulé et un temps dans <Link to="/baby">Bébé → Exercices</Link>.
+        </p>
+      ) : (
+        <div className="active-now">
+          {exercises.map((item) => {
+            const running = exerciseIsRunning(item, now);
+            const done = exerciseIsDone(item, now);
+            return (
+              <div
+                key={item.id}
+                className={`active-now-row${running ? ' exercise-running' : ''}${done ? ' exercise-done' : ''}`}>
+                <div className="active-now-text">
+                  <strong>{item.title}</strong>
+                  <p className="active-now-meta exercise-count">{formatExerciseCountdown(item, now)}</p>
+                  <p className="muted active-now-meta">
+                    {done ? 'Terminé' : running ? 'En cours' : formatExerciseDuration(item.durationMinutes)}
+                  </p>
+                </div>
+                {running ? (
+                  <button type="button" className="btn btn-muted" onClick={() => void stopExerciseItem(item.id)}>
+                    Terminer
+                  </button>
+                ) : (
+                  <button type="button" className="btn btn-primary" onClick={() => void startExerciseItem(item.id)}>
+                    {done ? 'Relancer' : 'Démarrer'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 

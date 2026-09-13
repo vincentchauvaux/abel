@@ -234,6 +234,20 @@ const TABLES = {
       deletedAt: 'deleted_at',
     },
   },
+  exerciseItems: {
+    sql: 'exercise_items',
+    fields: {
+      id: 'id',
+      babyId: 'baby_id',
+      title: 'title',
+      durationMinutes: 'duration_minutes',
+      startedAt: 'started_at',
+      createdBy: 'created_by',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      deletedAt: 'deleted_at',
+    },
+  },
 };
 
 const PUSH_ORDER = [
@@ -250,6 +264,7 @@ const PUSH_ORDER = [
   'sleepSessions',
   'temperatures',
   'notes',
+  'exerciseItems',
 ];
 
 function dateOnly(value) {
@@ -1024,6 +1039,23 @@ async function handleSync(user, body) {
     for (const key of PUSH_ORDER) {
       if (key === 'babies') continue;
       if (access.role === 'guardian' && key === 'reminderRules') continue;
+      if (access.role === 'guardian' && key === 'exerciseItems') {
+        const rows = Array.isArray(changes[key]) ? changes[key] : [];
+        for (const raw of rows) {
+          const record = rewrite(raw);
+          if (!record?.id || (record.babyId && record.babyId !== babyId)) continue;
+          const { rows: existing } = await client.query(
+            `SELECT 1 FROM exercise_items WHERE id = $1 AND baby_id = $2 AND deleted_at IS NULL`,
+            [record.id, babyId],
+          );
+          if (!existing.length) continue;
+          await client.query(
+            `UPDATE exercise_items SET started_at = $3, updated_at = $4 WHERE id = $1 AND baby_id = $2`,
+            [record.id, babyId, record.startedAt ?? null, record.updatedAt],
+          );
+        }
+        continue;
+      }
       const def = TABLES[key];
       const rows = Array.isArray(changes[key]) ? changes[key] : [];
       for (const raw of rows) {
@@ -1112,6 +1144,7 @@ async function deleteAccount(user) {
       'sleep_sessions',
       'temperatures',
       'notes',
+      'exercise_items',
     ];
     for (const table of babyTables) {
       await client.query(`UPDATE ${table} SET deleted_at = $2, updated_at = $2 WHERE baby_id = $1`, [babyId, ts]);

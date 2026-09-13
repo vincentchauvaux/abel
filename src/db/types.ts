@@ -119,3 +119,12 @@ export type Note = Stamp & {
   doneAt: string | null;
   createdBy?: string | null;
 };
+/** Exercice paramétré sur Bébé : intitulé + durée. `startedAt` = compte à rebours en cours. */
+export type ExerciseItem = Stamp & {
+  id: string;
+  babyId: string;
+  title: string;
+  durationMinutes: number;
+  startedAt: string | null;
+  createdBy?: string | null;
+};

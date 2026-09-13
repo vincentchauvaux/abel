@@ -20,7 +20,7 @@ export function ConfidentialitePage() {
       <ul>
         <li>
           <strong>Sur l’appareil (IndexedDB)</strong> : prénom du bébé, date de naissance, tétées, biberons, couches,
-          sommeil, température, croissance, notes, objectifs de rappel, cache horoscope.
+          sommeil, température, croissance, notes, objectifs de rappel, exercices (intitulé + durée), cache horoscope.
         </li>
         <li>
           <strong>Si vous connectez Google</strong> : identifiant Google (<code>sub</code>), nom, e-mail, photo de
