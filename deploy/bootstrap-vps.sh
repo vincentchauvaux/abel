@@ -41,6 +41,8 @@ if [ ! -f "$ROOT/server/.env" ]; then
 PORT=3030
 DATABASE_URL=postgres://abel:${PASS}@127.0.0.1:5432/abel
 GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+ALBUM_ENCRYPTION_KEY=$(openssl rand -hex 32)
+ALBUM_DIR=/var/lib/abel/album
 EOF
 else
   if [ -n "${GOOGLE_CLIENT_ID:-}" ]; then
@@ -51,6 +53,16 @@ else
     fi
   fi
 fi
+
+ALBUM_DIR=/var/lib/abel/album
+install -d -m 700 "$ALBUM_DIR"
+if ! grep -q '^ALBUM_ENCRYPTION_KEY=' "$ROOT/server/.env"; then
+  echo "ALBUM_ENCRYPTION_KEY=$(openssl rand -hex 32)" >> "$ROOT/server/.env"
+fi
+if ! grep -q '^ALBUM_DIR=' "$ROOT/server/.env"; then
+  echo "ALBUM_DIR=${ALBUM_DIR}" >> "$ROOT/server/.env"
+fi
+chmod 600 "$ROOT/server/.env"
 
 # Schéma / migrations (amount_ml nullable, remaining_ml, pumping_session_id, etc.)
 sudo -u postgres psql -v ON_ERROR_STOP=1 -d abel -f "$ROOT/server/schema.sql" >/dev/null

@@ -11,6 +11,7 @@ export type SharingMember = {
   email?: string;
   name?: string;
   picture?: string;
+  albumAccess?: boolean;
 };
 
 export type SharingInvite = {
@@ -108,6 +109,16 @@ export async function cancelInvite(id: string): Promise<ApiResult<{ ok: true }>>
 
 export async function removeGuardian(userId: string): Promise<ApiResult<{ ok: true }>> {
   return sharingFetch(`/members/${encodeURIComponent(userId)}`, { method: 'DELETE' });
+}
+
+export async function setMemberAlbumAccess(
+  userId: string,
+  albumAccess: boolean,
+): Promise<ApiResult<{ ok: true }>> {
+  return sharingFetch('/album/access', {
+    method: 'PATCH',
+    body: JSON.stringify({ userId, albumAccess }),
+  });
 }
 
 export const INVITE_ERROR_LABEL: Record<string, string> = {

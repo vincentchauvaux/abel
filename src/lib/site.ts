@@ -21,7 +21,7 @@ export const SITE = {
   ],
   apiHost: 'mimom.be',
   apiUrl: 'https://mimom.be/api/',
-  legalUpdated: '12 septembre 2026',
+  legalUpdated: '13 septembre 2026',
 } as const;
 
 export const LEGAL_ROUTES = {

@@ -78,7 +78,7 @@ export function driveErrorMessage(error: unknown): string {
       return 'La fenêtre Google s’est fermée. Réessaie, ou ouvre Mimom dans le navigateur (pas en plein écran).';
     }
     if (error.message === 'access_denied') {
-      return 'Accès Drive refusé. Mimom n’utilise que le dossier de l’album, pas tout ton Drive.';
+      return 'Google a bloqué l’accès : Mimom est encore en mode test. Dans Google Cloud, ajoute cet e-mail comme testeur (Audience → Test users) et le scope drive.file (Data access), puis réessaie.';
     }
     if (error.message.includes('API has not been used') || error.message.includes('accessNotConfigured')) {
       return 'L’API Google Drive n’est pas encore activée pour ce projet Google Cloud.';

@@ -8,6 +8,16 @@ import { OAuth2Client } from 'google-auth-library';
 import pg from 'pg';
 
 import { dailyHoroscope } from './horoscope.mjs';
+import {
+  albumConfigured,
+  handleAlbumAccess,
+  handleAlbumDelete,
+  handleAlbumDownload,
+  handleAlbumGet,
+  handleAlbumUpload,
+  sendJpeg,
+  wipeAlbumFiles,
+} from './album.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 const envFile = join(root, '.env');
@@ -290,7 +300,7 @@ function cors(req, res) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Vary', 'Origin');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
   }
 }
 
@@ -301,6 +311,8 @@ const RATE_LIMITS = {
   sharing: { max: 60, windowMs: 60_000 },
   invites: { max: 10, windowMs: 3_600_000 },
   session: { max: 30, windowMs: 15 * 60 * 1000 },
+  album: { max: 240, windowMs: 60_000 },
+  album_upload: { max: 20, windowMs: 60_000 },
 };
 
 const SESSION_TTL_MS = 90 * 24 * 60 * 60 * 1000;
@@ -528,19 +540,23 @@ async function ensureOwnerMembership(client, babyId, sub, ts = new Date().toISOS
 
 async function resolveBabyAccess(client, user) {
   const { rows } = await client.query(
-    `SELECT m.baby_id, m.role FROM baby_members m
+    `SELECT m.baby_id, m.role, m.album_access FROM baby_members m
      JOIN babies b ON b.id = m.baby_id AND b.deleted_at IS NULL
      WHERE m.user_id = $1 AND m.deleted_at IS NULL
      ORDER BY m.joined_at ASC LIMIT 1`,
     [user.sub],
   );
   if (rows[0]) {
-    return { babyId: rows[0].baby_id, role: rows[0].role };
+    return {
+      babyId: rows[0].baby_id,
+      role: rows[0].role,
+      albumAccess: rows[0].role === 'owner' || Boolean(rows[0].album_access),
+    };
   }
   const babyId = await canonicalBabyId(client, user.sub);
-  if (!babyId) return { babyId: null, role: null };
+  if (!babyId) return { babyId: null, role: null, albumAccess: false };
   await ensureOwnerMembership(client, babyId, user.sub);
-  return { babyId, role: 'owner' };
+  return { babyId, role: 'owner', albumAccess: true };
 }
 
 async function countMembersByRole(client, babyId, role) {
@@ -665,7 +681,7 @@ async function handleSharingGet(user) {
     const babyName = await getBabyName(client, access.babyId);
     const members = (
       await client.query(
-        `SELECT m.role, m.user_id,
+        `SELECT m.role, m.user_id, m.album_access,
             COALESCE(NULLIF(p.email, ''), NULLIF(s.email, ''), CASE WHEN m.role IN ('member', 'guardian') THEN NULLIF(inv.invited_email, '') END, '') AS email,
             COALESCE(NULLIF(p.name, ''), NULLIF(s.name, ''), '') AS name,
             COALESCE(NULLIF(p.picture, ''), NULLIF(s.picture, ''), '') AS picture
@@ -695,6 +711,7 @@ async function handleSharingGet(user) {
       name: row.name || '',
       picture: row.picture || '',
       label: memberRoleLabel(row.role, row.user_id === user.sub),
+      albumAccess: row.role === 'owner' || Boolean(row.album_access),
     }));
 
     const sentInvites = (
@@ -1099,6 +1116,10 @@ async function deleteAccount(user) {
     for (const table of babyTables) {
       await client.query(`UPDATE ${table} SET deleted_at = $2, updated_at = $2 WHERE baby_id = $1`, [babyId, ts]);
     }
+    await client.query(`UPDATE album_photos SET deleted_at = $2 WHERE baby_id = $1 AND deleted_at IS NULL`, [
+      babyId,
+      ts,
+    ]);
     await client.query(
       `UPDATE feeding_segments s SET deleted_at = $2, updated_at = $2
        FROM feeding_sessions f WHERE f.id = s.feeding_session_id AND f.baby_id = $1`,
@@ -1114,6 +1135,7 @@ async function deleteAccount(user) {
       [babyId, ts],
     );
     await client.query('COMMIT');
+    await wipeAlbumFiles(babyId);
     return { action: 'deleted' };
   } catch (err) {
     await client.query('ROLLBACK');
@@ -1169,7 +1191,7 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', 'http://127.0.0.1');
   try {
     if (req.method === 'GET' && (url.pathname === '/health' || url.pathname === '/')) {
-      send(res, 200, { ok: true });
+      send(res, 200, { ok: true, album: albumConfigured() });
       return;
     }
     if (req.method === 'POST' && url.pathname === '/session') {
@@ -1362,6 +1384,82 @@ const server = createServer(async (req, res) => {
       const result = await deleteAccount(user);
       send(res, 200, { ok: true, ...result });
       return;
+    }
+    if (req.method === 'GET' && url.pathname === '/album') {
+      if (overRateLimit(req, 'album')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const result = await handleAlbumGet(pool, user, resolveBabyAccess);
+      send(res, result.status, result.body);
+      return;
+    }
+    if (req.method === 'PATCH' && url.pathname === '/album/access') {
+      if (overRateLimit(req, 'sharing')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const body = await readBody(req);
+      const result = await handleAlbumAccess(pool, user, body, resolveBabyAccess);
+      send(res, result.status, result.body);
+      return;
+    }
+    if (req.method === 'POST' && url.pathname === '/album/photos') {
+      if (overRateLimit(req, 'album_upload')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const result = await handleAlbumUpload(pool, user, req, resolveBabyAccess);
+      send(res, result.status, result.body);
+      return;
+    }
+    const albumPhoto = url.pathname.match(/^\/album\/photos\/([^/]+)$/);
+    if (albumPhoto) {
+      if (overRateLimit(req, 'album')) {
+        send(res, 429, { error: 'rate_limit' });
+        return;
+      }
+      const user = await verifyUser(req);
+      if (!user) {
+        send(res, 401, { error: 'auth' });
+        return;
+      }
+      const photoId = albumPhoto[1];
+      if (req.method === 'GET') {
+        const result = await handleAlbumDownload(
+          pool,
+          user,
+          photoId,
+          url.searchParams.get('variant') === 'full' ? 'full' : 'thumb',
+          resolveBabyAccess,
+        );
+        if (result.jpeg) {
+          sendJpeg(res, result.jpeg);
+          return;
+        }
+        send(res, result.status, result.body);
+        return;
+      }
+      if (req.method === 'DELETE') {
+        const result = await handleAlbumDelete(pool, user, photoId, resolveBabyAccess);
+        send(res, result.status, result.body);
+        return;
+      }
     }
     send(res, 404, { error: 'not_found' });
   } catch (err) {

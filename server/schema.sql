@@ -232,5 +232,23 @@ ALTER TABLE supplements ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE sleep_sessions ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE temperatures ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS created_by TEXT;
-ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS name TEXT NOT NULL DEFAULT '';
-ALTER TABLE auth_sessions ADD COLUMN IF NOT EXISTS picture TEXT NOT NULL DEFAULT '';
+ALTER TABLE baby_members ADD COLUMN IF NOT EXISTS album_access BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE baby_members ADD COLUMN IF NOT EXISTS album_granted_at TIMESTAMPTZ;
+ALTER TABLE baby_members ADD COLUMN IF NOT EXISTS album_granted_by TEXT;
+
+CREATE TABLE IF NOT EXISTS album_photos (
+  id UUID PRIMARY KEY,
+  baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
+  created_by TEXT NOT NULL,
+  taken_at TIMESTAMPTZ NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ,
+  mime_type TEXT NOT NULL,
+  byte_size INTEGER NOT NULL,
+  width INTEGER,
+  height INTEGER
+);
+
+CREATE INDEX IF NOT EXISTS album_photos_baby_taken
+  ON album_photos (baby_id, taken_at DESC)
+  WHERE deleted_at IS NULL;

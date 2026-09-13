@@ -272,7 +272,7 @@ export function BabyPage() {
         )}
       </AccordionSection>
       <AccordionSection id="album" title="Album" open={openSection === 'album'} onToggle={toggleSection}>
-        {baby ? <BabyAlbum open={openSection === 'album'} babyId={baby.id} babyName={name || baby.name} /> : null}
+        {baby ? <BabyAlbum open={openSection === 'album'} /> : null}
       </AccordionSection>
       <AccordionSection
         id="goals"

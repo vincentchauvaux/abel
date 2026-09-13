@@ -32,6 +32,7 @@ import {
   INVITE_ERROR_LABEL,
   memberRoleTitle,
   removeGuardian,
+  setMemberAlbumAccess,
   type InviteRole,
   type SharingMember,
   type SharingState,
@@ -349,8 +350,42 @@ export function ProfilePage() {
   const hasCoparent = familyMembers.some((row) => row.role === 'member');
   const canInviteCoparent = sharing?.role === 'owner' && !hasCoparent;
   const canInviteGuardian = sharing?.role === 'owner' || sharing?.role === 'member';
+  const selfAlbumAccess =
+    sharing?.role === 'owner' || Boolean(sharing?.members.find((row) => row.isYou)?.albumAccess);
+  const canGrantAlbum = sharing?.role === 'owner' || (sharing?.role === 'member' && selfAlbumAccess);
   const sharingRoleLabel =
     sharing?.role === 'guardian' ? ' (gardien)' : sharing?.role === 'member' ? ' (co-parent)' : ' (propriétaire)';
+
+  const canToggleAlbum = (member: SharingMember) => {
+    if (!canGrantAlbum || member.role === 'owner' || member.isYou) return false;
+    if (sharing?.role === 'owner') return member.role === 'member' || member.role === 'guardian';
+    return member.role === 'guardian';
+  };
+
+  const toggleAlbumAccess = async (member: SharingMember) => {
+    if (!member.userId || !canToggleAlbum(member)) return;
+    setBusy('album');
+    setSharingError('');
+    try {
+      const result = await setMemberAlbumAccess(member.userId, !member.albumAccess);
+      if (result === 'auth') {
+        setHasToken(false);
+        setSharingError('Session expirée. Reconnecte-toi.');
+        return;
+      }
+      if (result === 'rate_limit') {
+        setSharingError('Trop de requêtes — réessaie dans une minute.');
+        return;
+      }
+      if (result === 'error' || (result && typeof result === 'object' && 'error' in result)) {
+        setSharingError('Impossible de modifier l’accès à l’album.');
+        return;
+      }
+      await loadSharing();
+    } finally {
+      setBusy('');
+    }
+  };
 
   return (
     <div className="screen">
@@ -675,6 +710,50 @@ export function ProfilePage() {
                 Synchronise d’abord un bébé, puis invite un gardien par son e-mail Google.
               </p>
             ) : null}
+          </>
+        )}
+      </AccordionSection>
+      <AccordionSection
+        id="album-access"
+        title="Accès à l’album"
+        open={openSection === 'album-access'}
+        onToggle={toggleSection}>
+        {!user || needsReconnect ? (
+          <p className="muted">Connecte-toi avec Google pour gérer l’album photos.</p>
+        ) : sharing?.role === 'guardian' ? (
+          <p className="muted">
+            {selfAlbumAccess
+              ? 'Un parent t’a ouvert l’album. Tu peux voir et ajouter des photos dans Bébé.'
+              : 'Tu n’as pas accès à l’album. Un parent peut te l’ouvrir depuis son Profil.'}
+          </p>
+        ) : !sharing?.babyId ? (
+          <p className="muted">Synchronise d’abord un bébé, puis ouvre l’album au co-parent ou aux gardiens.</p>
+        ) : (
+          <>
+            <p className="muted">
+              Un album par bébé, chiffré sur mimom.be. Le propriétaire y a toujours accès. Co-parent et gardiens, seulement
+              si un parent coche ci-dessous.
+            </p>
+            {sharingError && openSection === 'album-access' ? <p className="muted">{sharingError}</p> : null}
+            <div className="sharing-block">
+              {(sharing.members ?? []).map((member, index) => (
+                <label key={`${member.userId || member.email || index}`} className="check-inline album-access-row">
+                  <input
+                    type="checkbox"
+                    checked={member.role === 'owner' || Boolean(member.albumAccess)}
+                    disabled={!canToggleAlbum(member) || busy !== ''}
+                    onChange={() => void toggleAlbumAccess(member)}
+                  />
+                  <span>
+                    {member.name || member.email || member.label}
+                    {member.isYou ? ' (vous)' : ''}
+                    {' · '}
+                    {memberRoleTitle(member.role)}
+                    {member.role === 'owner' ? ' — toujours' : ''}
+                  </span>
+                </label>
+              ))}
+            </div>
           </>
         )}
       </AccordionSection>

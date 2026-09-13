@@ -19,7 +19,7 @@ Bébé | Dashboard (accueil) ↔ Outils (bouton central) | Profil (Google)
                   └── grille d’icônes → pages module
 ```
 
-Tab bar : **Bébé** (sections en accordéon : identité, **album** (Google Drive), objectifs, horoscope, alertes, journal ; **Noter une entrée** juste sous le journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, RGPD, légal).
+Tab bar : **Bébé** (sections en accordéon : identité, **album**, objectifs, horoscope, alertes, journal ; **Noter une entrée** juste sous le journal) | bouton central (**Dashboard** = page d’accueil `/` ; depuis le dashboard → **Outils** `/tools` ; depuis un module → retour **Dashboard**) | **Profil** (accordéon : compte Google, co-parent, **gardien**, **accès à l’album**, RGPD, légal).
 
 Menu du bas en **position fixed**, **pleine largeur**. Les en-têtes de module (`←`) ramènent toujours au Dashboard. L’onglet Apports/Suivi sur Outils (et « Noter une entrée ») est un **curseur glissable** (doigt ou souris) **conservé** au retour depuis un module. Grille d’icônes sans fond, libellés gris comme le Dashboard.
 
@@ -30,9 +30,9 @@ Activités en cours (tétée minuteur, sommeil, tire-lait à compléter) : bande
 ```
 src/
   pages/          Dashboard, Outils, Bébé, Profil, modules
-  components/     Layout (tab bar), ui, album Drive
+  components/     Layout (tab bar), ui, album
   db/             Dexie (IndexedDB) + api
-  lib/            dates UTC, libellés FR, Google Identity Services, Google Drive (album)
+  lib/            dates UTC, libellés FR, Google Identity Services, album API
 ```
 
 ## Hébergement
@@ -84,15 +84,15 @@ Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : racc
 
 ## Page Bébé
 
-Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **album photos** (Google Drive, pas le VPS), **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. Une phrase en petit à la fin : Mimom n’est pas un avis médical.
+Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **album photos** (VPS chiffré, un album par bébé), **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. Une phrase en petit à la fin : Mimom n’est pas un avis médical.
 
 Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
 
-### Album (Google Drive)
+### Album (VPS chiffré)
 
-Les photos **ne passent pas par le VPS** : dossier dans le Drive du compte Google connecté (idéalement le **parent principal**). Scope OAuth `drive.file` (uniquement les fichiers Mimom). **Ajouter un album** crée `Mimom — {prénom}` dans Mon Drive, ou dans un **Drive partagé** Workspace s’il est listé ; sinon coller le lien d’un dossier existant. Après création, Mimom partage le dossier (écriture) avec le co-parent / les gardiens connus. Galerie **masonry**, curseur de taille d’aperçus (`abel.album-thumb-size`), groupes par date (EXIF si Drive la fournit), filtre Du / Au. Lien du dossier en local (`abel.drive-album.{babyId}`), pas dans PostgreSQL. « Détacher » enlève le lien local, pas les fichiers Drive.
+Un album par bébé. **Pas Google Drive** pour l’instant (code Drive conservé pour plus tard). Photos **hors IndexedDB / hors sync Dexie** : API dédiée, fichiers **AES-256-GCM** dans `ALBUM_DIR` (défaut `/var/lib/abel/album`, chmod 700), hors webroot. Clé `ALBUM_ENCRYPTION_KEY` (32 octets hex) dans `server/.env`, dérivée par bébé (HKDF). Ré-encodage JPEG (EXIF/GPS retirés, max 2400 px, 8 Mo, 400 photos). GET image uniquement avec session Abel (blob côté client, pas d’URL signée). Propriétaire : accès toujours. **Co-parent et gardien** : case **Profil → Accès à l’album** (propriétaire ouvre le co-parent ; un parent qui a l’album peut ouvrir un gardien). Galerie masonry, curseur d’aperçus, groupes par date, filtre Du / Au. Suppression compte propriétaire = effacement des fichiers.
 
-Console Google Cloud : activer **Google Drive API** et ajouter le scope `https://www.googleapis.com/auth/drive.file` à l’écran de consentement OAuth (même client que la connexion).
+API : `GET /album`, `PATCH /album/access`, `POST /album/photos`, `GET|DELETE /album/photos/:id`. Nginx `client_max_body_size 10m` sur `/api/album/`.
 
 ## Auth Google
 
@@ -103,8 +103,6 @@ Créer le client OAuth « Application Web » : https://console.cloud.google.com/
 Identifiants : https://console.cloud.google.com/apis/credentials
 
 Origines JS autorisées : `https://mimom.be`, `https://www.mimom.be`, `https://vincentchauvaux.github.io` et `http://localhost:5173`.
-
-Pour l’album : activer [Drive API](https://console.cloud.google.com/apis/library/drive.googleapis.com) et le scope `drive.file` sur l’écran de consentement. Jeton Drive en **sessionStorage** (séparé de la session Abel 90 j).
 
 Pour GitHub Pages : secrets repo `VITE_GOOGLE_CLIENT_ID` et `VITE_SYNC_URL` (lus par `.github/workflows/pages.yml`).
 
@@ -136,7 +134,7 @@ La session Abel est stockée localement (pas le jeton Google, trop court). Sans 
 Pages accessibles depuis **Profil** ou `/legal/*` :
 
 - **Mentions légales** — éditeur, hébergeurs (GitHub Pages + OVH).
-- **Politique de confidentialité** — RGPD, finalités, droits, export/suppression (album Drive : photos hors VPS).
+- **Politique de confidentialité** — RGPD, finalités, droits, export/suppression (album chiffré sur le VPS).
 - **CGU** — conditions d’utilisation.
 - **Avertissement santé** — pas un dispositif médical.
 
@@ -164,10 +162,11 @@ Bandeau de consentement à la première visite (stockage local). Connexion Googl
 
 - API en écoute `127.0.0.1` uniquement, derrière Nginx HTTPS.
 - CORS restreint aux origines Abel.
-- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/profile`, `/invites`, `/members` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
+- Auth Google obligatoire pour `/session` (création), `/sync`, `/sharing`, `/profile`, `/invites`, `/members`, `/album` et `DELETE /account`. `DELETE /session` révoque le jeton présenté.
 - Rate limiting API (`/horoscope`, `/sync`, `/sharing`, `/invites`, `/account`, `/session`) + Nginx `limit_req`.
 - En-têtes : `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `HSTS` (nginx).
 - `VITE_GOOGLE_CLIENT_ID` via secrets — pas de Client ID en dur dans le code.
+- Album : fichiers hors webroot, chiffrés AES-256-GCM, lecture uniquement avec session Abel, accès co-parent/gardien par grant explicite.
 - Pas de cookies de traçage tiers.
 
 ## Stack
@@ -228,7 +227,7 @@ Saisie = IndexedDB immédiat (inchangé). Le SW permet d’**ouvrir** l’app sa
 
 - Pas de `beforeinstallprompt` : uniquement « Sur l’écran d’accueil ».
 - Notifications : comme aujourd’hui, tant que l’app/PWA est ouverte (pas de push APNs).
-- GIS : la connexion Google peut être plus capricieuse en standalone ; la **session Abel** (90 j) évite de se reconnecter à chaque ouverture. L’album Drive ouvre une fenêtre OAuth : si elle est bloquée en plein écran, ouvrir Mimom dans Safari / Chrome.
+- GIS : la connexion Google peut être plus capricieuse en standalone ; la **session Abel** (90 j) évite de se reconnecter à chaque ouverture.
 - SW : iOS 16.4+ est fiable ; versions plus anciennes : Add to Home Screen sans cache SW complet.
 
 ### Test
@@ -266,7 +265,8 @@ babies (name, bornOn, photoUrl)
  ├── sleep_sessions
  ├── temperatures
  ├── notes
- └── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes, diaperWhen)
+ ├── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes, diaperWhen)
+ └── album_photos (VPS only, chiffré — pas Dexie)
 ```
 
 Chaque table métier : `id` UUID, `babyId`, timestamps UTC, `deletedAt` (soft delete), `syncStatus`. Les entrées (sauf `babies` / `reminder_rules` / segments) ont `createdBy` (Google `sub`) à la création.

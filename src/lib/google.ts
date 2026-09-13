@@ -14,6 +14,9 @@ export const SYNC_URL = (import.meta.env.VITE_SYNC_URL || 'https://mimom.be/api'
 );
 export const GOOGLE_CLIENT_CONSOLE_URL = 'https://console.cloud.google.com/auth/clients';
 export const GOOGLE_CREDENTIALS_URL = 'https://console.cloud.google.com/apis/credentials';
+export const GOOGLE_OAUTH_AUDIENCE_URL = 'https://console.cloud.google.com/auth/audience';
+export const GOOGLE_OAUTH_SCOPES_URL = 'https://console.cloud.google.com/auth/scopes';
+export const GOOGLE_DRIVE_API_URL = 'https://console.cloud.google.com/apis/library/drive.googleapis.com';
 
 function notifyAuth() {
   window.dispatchEvent(new Event('abel-auth'));

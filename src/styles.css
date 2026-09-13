@@ -2389,8 +2389,14 @@ h2 {
   color: var(--text-muted);
 }
 
-.album-error {
-  color: var(--danger);
+.album-access-row {
+  align-items: flex-start;
+  min-height: 44px;
+  width: 100%;
+}
+
+.album-access-row span {
+  color: var(--text);
 }
 
 .album-lightbox {
