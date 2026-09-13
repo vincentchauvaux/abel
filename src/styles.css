@@ -554,6 +554,16 @@ h2 {
   cursor: pointer;
 }
 
+.tile small {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.dash-follow-add svg {
+  display: block;
+  margin-left: 1px;
+}
+
 .icon-wrap {
   display: grid;
   place-items: center;
@@ -733,6 +743,8 @@ h2 {
   width: 32px;
   height: 32px;
   flex-shrink: 0;
+  border: 0;
+  padding: 0;
   border-radius: 999px;
   background: var(--muted-bg);
   color: var(--accent);
@@ -740,11 +752,17 @@ h2 {
   font-weight: 700;
   line-height: 1;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .screen a.dash-follow-add {
   text-decoration: none;
   color: var(--accent);
+}
+
+.screen a.dash-follow-main {
+  text-decoration: none;
+  color: inherit;
 }
 
 .dash-follow-add:active {

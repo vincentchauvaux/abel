@@ -8,6 +8,7 @@ import { BabyPage } from '@/pages/BabyPage';
 import { BottlePage } from '@/pages/BottlePage';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { DiapersPage } from '@/pages/DiapersPage';
+import { ExercisePage } from '@/pages/ExercisePage';
 import { FeedingPage } from '@/pages/FeedingPage';
 import { GrowthPage } from '@/pages/GrowthPage';
 import { CguPage } from '@/pages/legal/CguPage';
@@ -68,6 +69,7 @@ export default function App() {
               <Route path="/sleep" element={<SleepPage />} />
               <Route path="/temperature" element={<TemperaturePage />} />
               <Route path="/notes" element={<NotesPage />} />
+              <Route path="/exercises/:id" element={<ExercisePage />} />
               <Route path="/manual" element={<ManualPage />} />
               <Route path="/legal/mentions" element={<MentionsLegalesPage />} />
               <Route path="/legal/confidentialite" element={<ConfidentialitePage />} />

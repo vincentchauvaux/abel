@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check } from 'lucide-react';
+import { Check, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
@@ -26,8 +26,6 @@ import {
   listSolidFoods,
   listSupplements,
   listTemperatures,
-  startExerciseItem,
-  stopExerciseItem,
 } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type {
@@ -68,7 +66,20 @@ import {
   type Period,
 } from '@/lib/dates';
 import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
-import { FAVORITES_CHANGED, readToolFavorites, TOOL_IDS, TOOLS, toggleToolFavorite, type ToolId } from '@/lib/tools';
+import { startExerciseWithAlarm } from '@/lib/exercise-alarm';
+import {
+  exerciseFavoriteId,
+  exerciseIdFromFavorite,
+  exerciseRoute,
+  FAVORITES_CHANGED,
+  isToolId,
+  readToolFavorites,
+  TOOL_IDS,
+  TOOLS,
+  toggleToolFavorite,
+  type FavoriteId,
+  type ToolId,
+} from '@/lib/tools';
 import type { DiaperWhen } from '@/lib/goals';
 import {
   bottleMlAlertLine,
@@ -120,21 +131,37 @@ type FollowRow = {
   sub?: string;
   to: string;
   valueClassName?: string;
+  onStart?: () => void;
 };
 
-function FollowRowItem({ label, value, sub, to, valueClassName }: FollowRow) {
+function FollowRowItem({ label, value, sub, to, valueClassName, onStart }: FollowRow) {
+  const main = (
+    <>
+      <span className="muted">{label}</span>
+      <div className="dash-follow-values">
+        <strong className={valueClassName}>{value}</strong>
+        {sub ? <span className="muted dash-follow-sub">{sub}</span> : null}
+      </div>
+    </>
+  );
   return (
     <div className="dash-follow-row">
-      <div className="dash-follow-main">
-        <span className="muted">{label}</span>
-        <div className="dash-follow-values">
-          <strong className={valueClassName}>{value}</strong>
-          {sub ? <span className="muted dash-follow-sub">{sub}</span> : null}
-        </div>
-      </div>
-      <Link to={to} className="dash-follow-add" aria-label={`Ajouter · ${label}`}>
-        +
-      </Link>
+      {onStart ? (
+        <Link to={to} className="dash-follow-main">
+          {main}
+        </Link>
+      ) : (
+        <div className="dash-follow-main">{main}</div>
+      )}
+      {onStart ? (
+        <button type="button" className="dash-follow-add" onClick={onStart} aria-label={`Démarrer · ${label}`}>
+          <Play size={16} fill="currentColor" />
+        </button>
+      ) : (
+        <Link to={to} className="dash-follow-add" aria-label={`Ajouter · ${label}`}>
+          +
+        </Link>
+      )}
     </div>
   );
 }
@@ -528,10 +555,29 @@ export function DashboardPage() {
     notes.length,
   ]);
 
-  const favoriteRows = useMemo(
-    () => favorites.map((id) => toolRows[id]).filter(Boolean),
-    [favorites, toolRows],
-  );
+  const favoriteRows = useMemo(() => {
+    return favorites
+      .map((id) => {
+        const exerciseId = exerciseIdFromFavorite(id);
+        if (exerciseId) {
+          const item = exercises.find((row) => row.id === exerciseId);
+          if (!item) return null;
+          const running = exerciseIsRunning(item, now);
+          const done = exerciseIsDone(item, now);
+          return {
+            favoriteId: id,
+            label: item.title,
+            value: running || done ? formatExerciseCountdown(item, now) : formatExerciseDuration(item.durationMinutes),
+            sub: done ? 'Terminé' : running ? 'en cours' : undefined,
+            to: exerciseRoute(item.id),
+            onStart: () => void startExerciseWithAlarm(item.id),
+          } satisfies FollowRow & { favoriteId: FavoriteId };
+        }
+        const row = isToolId(id) ? toolRows[id] : undefined;
+        return row ? { ...row, favoriteId: id } : null;
+      })
+      .filter((row): row is FollowRow & { favoriteId: FavoriteId } => row != null);
+  }, [favorites, toolRows, exercises, now]);
 
   const isAll = period === 'all';
   const isToday = period === 'today';
@@ -650,8 +696,8 @@ export function DashboardPage() {
       <p className="dash-section">Favoris</p>
       {favoriteRows.length > 0 ? (
         <div className="dash-follow-list">
-          {favoriteRows.map((row) => (
-            <FollowRowItem key={row.label} {...row} />
+          {favoriteRows.map(({ favoriteId, ...row }) => (
+            <FollowRowItem key={favoriteId} {...row} />
           ))}
         </div>
       ) : (
@@ -662,7 +708,7 @@ export function DashboardPage() {
               className="dash-fav-select"
               value=""
               onChange={(event) => {
-                const id = event.target.value as ToolId;
+                const id = event.target.value as FavoriteId;
                 if (id) toggleToolFavorite(id);
               }}>
               <option value="">Ajouter un favori…</option>
@@ -671,47 +717,16 @@ export function DashboardPage() {
                   {TOOLS[id].label}
                 </option>
               ))}
+              {exercises.map((item) => (
+                <option key={item.id} value={exerciseFavoriteId(item.id)}>
+                  {item.title}
+                </option>
+              ))}
             </select>
           </label>
           <span className="dash-follow-add" aria-hidden>
             +
           </span>
-        </div>
-      )}
-
-      <p className="dash-section">Exercices</p>
-      {exercises.length === 0 ? (
-        <p className="muted">
-          Paramètre un intitulé et un temps dans <Link to="/baby">Bébé → Exercices</Link>.
-        </p>
-      ) : (
-        <div className="active-now">
-          {exercises.map((item) => {
-            const running = exerciseIsRunning(item, now);
-            const done = exerciseIsDone(item, now);
-            return (
-              <div
-                key={item.id}
-                className={`active-now-row${running ? ' exercise-running' : ''}${done ? ' exercise-done' : ''}`}>
-                <div className="active-now-text">
-                  <strong>{item.title}</strong>
-                  <p className="active-now-meta exercise-count">{formatExerciseCountdown(item, now)}</p>
-                  <p className="muted active-now-meta">
-                    {done ? 'Terminé' : running ? 'En cours' : formatExerciseDuration(item.durationMinutes)}
-                  </p>
-                </div>
-                {running ? (
-                  <button type="button" className="btn btn-muted" onClick={() => void stopExerciseItem(item.id)}>
-                    Terminer
-                  </button>
-                ) : (
-                  <button type="button" className="btn btn-primary" onClick={() => void startExerciseItem(item.id)}>
-                    {done ? 'Relancer' : 'Démarrer'}
-                  </button>
-                )}
-              </div>
-            );
-          })}
         </div>
       )}
 

@@ -24,6 +24,7 @@ import type {
 import { nowIso } from '@/lib/dates';
 import { readGoogleUser } from '@/lib/google';
 import { measurementUnit } from '@/lib/labels';
+import { exerciseFavoriteId, removeToolFavorite } from '@/lib/tools';
 
 function stamp() {
   const now = nowIso();
@@ -747,6 +748,7 @@ export async function stopExerciseItem(id: string) {
 
 export async function deleteExerciseItem(id: string) {
   await db.exerciseItems.update(id, { deletedAt: nowIso(), startedAt: null, ...touch() });
+  removeToolFavorite(exerciseFavoriteId(id));
   notifyDb();
 }
 

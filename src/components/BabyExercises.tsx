@@ -46,7 +46,8 @@ export function BabyExercises({ babyId, canEdit }: Props) {
   return (
     <>
       <p className="muted">
-        Intitulé + durée. Le dashboard affiche un compte à rebours pour chacun. Ce n’est pas un conseil médical.
+        Intitulé + durée. Chaque exercice apparaît dans Outils, peut être épinglé en favori, et sonne à la fin. Ce n’est
+        pas un conseil médical.
       </p>
       {items.length === 0 && !canEdit ? <p className="muted">Aucun exercice pour l’instant.</p> : null}
       {items.map((item) => (
@@ -109,7 +110,7 @@ export function BabyExercises({ babyId, canEdit }: Props) {
           )}
         </>
       ) : (
-        <p className="muted">Un parent paramètre les exercices. Tu peux lancer les comptes à rebours sur le dashboard.</p>
+        <p className="muted">Un parent paramètre les exercices. Tu peux lancer les comptes à rebours dans Outils.</p>
       )}
     </>
   );

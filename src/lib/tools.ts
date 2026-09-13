@@ -1,5 +1,6 @@
 const FAVORITES_KEY = 'abel-tool-favorites';
 export const FAVORITES_CHANGED = 'abel-favorites-changed';
+const EXERCISE_PREFIX = 'exercise:';
 
 export type ToolId =
   | 'feeding'
@@ -13,6 +14,8 @@ export type ToolId =
   | 'temperature'
   | 'notes'
   | 'baths';
+
+export type FavoriteId = ToolId | `${typeof EXERCISE_PREFIX}${string}`;
 
 export const TOOL_IDS: ToolId[] = [
   'feeding',
@@ -46,30 +49,57 @@ export function toolsInSection(section: 'apports' | 'suivi'): ToolId[] {
   return TOOL_IDS.filter((id) => TOOLS[id].section === section);
 }
 
-function isToolId(value: string): value is ToolId {
+export function exerciseFavoriteId(id: string): FavoriteId {
+  return `${EXERCISE_PREFIX}${id}`;
+}
+
+export function exerciseIdFromFavorite(id: string): string | null {
+  return id.startsWith(EXERCISE_PREFIX) ? id.slice(EXERCISE_PREFIX.length) : null;
+}
+
+export function exerciseRoute(id: string): string {
+  return `/exercises/${id}`;
+}
+
+export function isToolId(value: string): value is ToolId {
   return (TOOL_IDS as string[]).includes(value);
 }
 
-export function readToolFavorites(): ToolId[] {
+function isFavoriteId(value: string): value is FavoriteId {
+  if (isToolId(value)) return true;
+  return value.startsWith(EXERCISE_PREFIX) && value.length > EXERCISE_PREFIX.length;
+}
+
+export function readToolFavorites(): FavoriteId[] {
   try {
     const raw = localStorage.getItem(FAVORITES_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter((id): id is ToolId => typeof id === 'string' && isToolId(id));
+    return parsed.filter((id): id is FavoriteId => typeof id === 'string' && isFavoriteId(id));
   } catch {
     return [];
   }
 }
 
-export function isToolFavorite(id: ToolId): boolean {
+function writeFavorites(next: FavoriteId[]) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
+  window.dispatchEvent(new Event(FAVORITES_CHANGED));
+}
+
+export function isToolFavorite(id: FavoriteId): boolean {
   return readToolFavorites().includes(id);
 }
 
-export function toggleToolFavorite(id: ToolId): boolean {
+export function toggleToolFavorite(id: FavoriteId): boolean {
   const current = readToolFavorites();
   const next = current.includes(id) ? current.filter((row) => row !== id) : [...current, id];
-  localStorage.setItem(FAVORITES_KEY, JSON.stringify(next));
-  window.dispatchEvent(new Event(FAVORITES_CHANGED));
+  writeFavorites(next);
   return next.includes(id);
+}
+
+export function removeToolFavorite(id: FavoriteId) {
+  const current = readToolFavorites();
+  if (!current.includes(id)) return;
+  writeFavorites(current.filter((row) => row !== id));
 }

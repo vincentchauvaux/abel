@@ -4,23 +4,27 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui';
 import {
   getReminder,
+  listExerciseItems,
   listPumps,
   listSessions,
   listSleep,
+  stopExerciseItem,
   stopFeeding,
   stopSleep,
 } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
-import type { FeedingSession, PumpingSession, SleepSession } from '@/db/types';
+import type { ExerciseItem, FeedingSession, PumpingSession, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { elapsedMs, formatDuration, formatTime } from '@/lib/dates';
+import { exerciseIsRunning, formatExerciseCountdown } from '@/lib/exercises';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
-import { TOOLS } from '@/lib/tools';
+import { exerciseRoute, TOOLS } from '@/lib/tools';
 
 type ActiveItem =
   | { kind: 'feeding'; row: FeedingSession }
   | { kind: 'sleep'; row: SleepSession }
-  | { kind: 'pumping'; row: PumpingSession };
+  | { kind: 'pumping'; row: PumpingSession }
+  | { kind: 'exercise'; row: ExerciseItem };
 
 export function ActiveNowPanel() {
   const { baby, tick } = useDb();
@@ -34,19 +38,26 @@ export function ActiveNowPanel() {
       setItems([]);
       return;
     }
-    Promise.all([listSessions(baby.id), listSleep(baby.id), listPumps(baby.id), getReminder(baby.id)]).then(
-      ([feeds, sleeps, pumps, reminder]) => {
-        const next: ActiveItem[] = [];
-        const openFeed = feeds.find((row) => !row.endedAt);
-        if (openFeed) next.push({ kind: 'feeding', row: openFeed });
-        const openSleep = sleeps.find((row) => !row.endedAt);
-        if (openSleep) next.push({ kind: 'sleep', row: openSleep });
-        const openPump = pumps.find((row) => row.amountMl == null);
-        if (openPump) next.push({ kind: 'pumping', row: openPump });
-        setItems(next);
-        setGoals(reminder);
-      },
-    );
+    Promise.all([
+      listSessions(baby.id),
+      listSleep(baby.id),
+      listPumps(baby.id),
+      listExerciseItems(baby.id),
+      getReminder(baby.id),
+    ]).then(([feeds, sleeps, pumps, exercises, reminder]) => {
+      const next: ActiveItem[] = [];
+      const openFeed = feeds.find((row) => !row.endedAt);
+      if (openFeed) next.push({ kind: 'feeding', row: openFeed });
+      const openSleep = sleeps.find((row) => !row.endedAt);
+      if (openSleep) next.push({ kind: 'sleep', row: openSleep });
+      const openPump = pumps.find((row) => row.amountMl == null);
+      if (openPump) next.push({ kind: 'pumping', row: openPump });
+      for (const row of exercises) {
+        if (exerciseIsRunning(row)) next.push({ kind: 'exercise', row });
+      }
+      setItems(next);
+      setGoals(reminder);
+    });
   }, [baby, tick]);
 
   if (items.length === 0) return null;
@@ -57,7 +68,7 @@ export function ActiveNowPanel() {
     await notifyDiaperFromGoals(goals, endedAt);
   };
 
-  const openModule = (kind: ActiveItem['kind']) => {
+  const openModule = (kind: 'feeding' | 'sleep' | 'pumping') => {
     navigate(TOOLS[kind].route);
   };
 
@@ -89,6 +100,19 @@ export function ActiveNowPanel() {
                 </p>
               </button>
               <Button onClick={() => void stopSleep(item.row.id)}>Réveil</Button>
+            </div>
+          );
+        }
+        if (item.kind === 'exercise') {
+          return (
+            <div className="active-now-row exercise-running" key={`exercise-${item.row.id}`}>
+              <button type="button" className="active-now-open" onClick={() => navigate(exerciseRoute(item.row.id))}>
+                <strong>{item.row.title}</strong>
+                <p className="muted active-now-meta">{formatExerciseCountdown(item.row, now)}</p>
+              </button>
+              <Button tone="muted" onClick={() => void stopExerciseItem(item.row.id)}>
+                Terminer
+              </Button>
             </div>
           );
         }

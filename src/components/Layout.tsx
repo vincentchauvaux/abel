@@ -4,7 +4,8 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import { ConsentBanner } from '@/components/ConsentBanner';
 import { useDb } from '@/db/DbProvider';
-import { isToolFavorite, toggleToolFavorite, type ToolId } from '@/lib/tools';
+import { ExerciseAlarm } from '@/components/ExerciseAlarm';
+import { isToolFavorite, toggleToolFavorite, type FavoriteId } from '@/lib/tools';
 
 const MODULE_PREFIXES = [
   '/feeding',
@@ -18,6 +19,7 @@ const MODULE_PREFIXES = [
   '/sleep',
   '/temperature',
   '/notes',
+  '/exercises',
   '/manual',
 ];
 
@@ -37,6 +39,7 @@ export function Layout() {
   return (
     <div className="app">
       <Outlet />
+      <ExerciseAlarm />
       <ConsentBanner />
       <nav className="tabbar">
         <Link to="/baby" className={`tab ${onBaby ? 'on' : ''}`}>
@@ -63,7 +66,7 @@ export function Layout() {
   );
 }
 
-export function ModuleHeader({ title, toolId }: { title: string; toolId?: ToolId }) {
+export function ModuleHeader({ title, toolId }: { title: string; toolId?: FavoriteId }) {
   const navigate = useNavigate();
   const [favorite, setFavorite] = useState(() => (toolId ? isToolFavorite(toolId) : false));
 
