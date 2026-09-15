@@ -2,7 +2,7 @@ import { User } from 'lucide-react';
 
 import { useDb } from '@/db/DbProvider';
 import type { ActivityItem } from '@/lib/activity';
-import { formatTime } from '@/lib/dates';
+import { formatDateTime, formatTime } from '@/lib/dates';
 import { readGoogleUser } from '@/lib/google';
 import { temperatureLevelClass } from '@/lib/temperature';
 
@@ -31,16 +31,18 @@ export function JournalActor({ createdBy }: { createdBy?: string | null }) {
 export function JournalLine({
   item,
   onClick,
+  showDate = false,
 }: {
   item: ActivityItem;
   onClick?: () => void;
+  showDate?: boolean;
 }) {
   const detailClass = item.tempCelsius != null ? temperatureLevelClass(item.tempCelsius) : 'muted';
   const inner = (
     <>
       <span className="log-line-body">
         <span>
-          <strong>{formatTime(item.at)}</strong>
+          <strong>{showDate ? formatDateTime(item.at) : formatTime(item.at)}</strong>
           <span className="muted"> · {item.title}</span>
         </span>
         <span className={detailClass}>{item.detail}</span>

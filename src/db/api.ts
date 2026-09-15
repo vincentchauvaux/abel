@@ -7,6 +7,7 @@ import type {
   DiaperKind,
   DiaperWhen,
   ExerciseItem,
+  ExerciseSession,
   FeedingSegment,
   FeedingSession,
   Measurement,
@@ -22,6 +23,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { nowIso } from '@/lib/dates';
+import { exerciseEndsAt, exerciseIsDone, exerciseIsRunning } from '@/lib/exercises';
 import { readGoogleUser } from '@/lib/google';
 import { measurementUnit } from '@/lib/labels';
 import { exerciseFavoriteId, removeToolFavorite } from '@/lib/tools';
@@ -736,12 +738,63 @@ export async function listExerciseItems(babyId: string): Promise<ExerciseItem[]>
   );
 }
 
+async function openExerciseSession(itemId: string): Promise<ExerciseSession | undefined> {
+  return alive(await db.exerciseSessions.where('exerciseItemId').equals(itemId).toArray()).find(
+    (row) => !row.endedAt,
+  );
+}
+
+async function closeOpenExerciseSession(item: ExerciseItem, endedAt: string) {
+  const open = await openExerciseSession(item.id);
+  if (!open) return false;
+  await db.exerciseSessions.update(open.id, { endedAt, ...touch() });
+  return true;
+}
+
+export async function sealDueExerciseSessions(babyId: string, now = Date.now()) {
+  const items = await listExerciseItems(babyId);
+  let changed = false;
+  for (const item of items) {
+    if (!exerciseIsDone(item, now)) continue;
+    const ends = exerciseEndsAt(item);
+    if (ends == null) continue;
+    if (await closeOpenExerciseSession(item, new Date(ends).toISOString())) changed = true;
+  }
+  if (changed) notifyDb();
+}
+
 export async function startExerciseItem(id: string) {
-  await db.exerciseItems.update(id, { startedAt: nowIso(), ...touch() });
+  const item = await db.exerciseItems.get(id);
+  if (!item || item.deletedAt) return;
+  if (exerciseIsRunning(item)) return;
+  if (exerciseIsDone(item)) {
+    const ends = exerciseEndsAt(item);
+    if (ends) await closeOpenExerciseSession(item, new Date(ends).toISOString());
+  } else {
+    await closeOpenExerciseSession(item, nowIso());
+  }
+  const startedAt = nowIso();
+  await db.exerciseSessions.add({
+    id: createId(),
+    babyId: item.babyId,
+    exerciseItemId: item.id,
+    title: item.title,
+    durationMinutes: item.durationMinutes,
+    startedAt,
+    endedAt: null,
+    ...actorStamp(),
+    ...stamp(),
+  });
+  await db.exerciseItems.update(id, { startedAt, ...touch() });
   notifyDbUrgent();
 }
 
 export async function stopExerciseItem(id: string) {
+  const item = await db.exerciseItems.get(id);
+  if (!item || item.deletedAt) return;
+  const ends = exerciseEndsAt(item);
+  const endedAt = exerciseIsDone(item) && ends ? new Date(ends).toISOString() : nowIso();
+  await closeOpenExerciseSession(item, endedAt);
   await db.exerciseItems.update(id, { startedAt: null, ...touch() });
   notifyDbUrgent();
 }
@@ -749,6 +802,43 @@ export async function stopExerciseItem(id: string) {
 export async function deleteExerciseItem(id: string) {
   await db.exerciseItems.update(id, { deletedAt: nowIso(), startedAt: null, ...touch() });
   removeToolFavorite(exerciseFavoriteId(id));
+  notifyDb();
+}
+
+export async function listExerciseSessions(babyId: string): Promise<ExerciseSession[]> {
+  return alive(await db.exerciseSessions.where('babyId').equals(babyId).toArray()).sort((a, b) =>
+    b.startedAt.localeCompare(a.startedAt),
+  );
+}
+
+export async function updateExerciseSession(
+  id: string,
+  values: { startedAt?: string; endedAt?: string | null },
+) {
+  const row = await db.exerciseSessions.get(id);
+  if (!row || row.deletedAt) return;
+  await db.exerciseSessions.update(id, { ...values, ...touch() });
+  const nextStart = values.startedAt ?? row.startedAt;
+  const nextEnd = values.endedAt !== undefined ? values.endedAt : row.endedAt;
+  const item = await db.exerciseItems.get(row.exerciseItemId);
+  if (item && !item.deletedAt) {
+    if (!nextEnd) {
+      await db.exerciseItems.update(item.id, { startedAt: nextStart, ...touch() });
+    } else if (item.startedAt && (item.startedAt === row.startedAt || item.startedAt === nextStart)) {
+      await db.exerciseItems.update(item.id, { startedAt: null, ...touch() });
+    }
+  }
+  notifyDb();
+}
+
+export async function deleteExerciseSession(id: string) {
+  const row = await db.exerciseSessions.get(id);
+  if (!row || row.deletedAt) return;
+  await db.exerciseSessions.update(id, { deletedAt: nowIso(), ...touch() });
+  const item = await db.exerciseItems.get(row.exerciseItemId);
+  if (item && !item.deletedAt && item.startedAt && (item.startedAt === row.startedAt || !row.endedAt)) {
+    await db.exerciseItems.update(item.id, { startedAt: null, ...touch() });
+  }
   notifyDb();
 }
 
@@ -846,6 +936,7 @@ export const SYNC_TABLES = [
   'temperatures',
   'notes',
   'exerciseItems',
+  'exerciseSessions',
 ] as const;
 
 export type SyncTable = (typeof SYNC_TABLES)[number];
@@ -866,7 +957,7 @@ export async function collectPending(options?: { skipPlaceholderBaby?: boolean }
     if (skipBabyId) {
       if (name === 'babies') {
         rows = rows.filter((row) => row.id !== skipBabyId);
-      } else if (name === 'reminderRules' || name === 'exerciseItems') {
+      } else if (name === 'reminderRules' || name === 'exerciseItems' || name === 'exerciseSessions') {
         rows = rows.filter((row) => row.babyId !== skipBabyId);
       }
     }
@@ -896,6 +987,7 @@ export async function hasLocalActivity(babyId: string): Promise<boolean> {
     db.temperatures.where('babyId').equals(babyId).count(),
     db.notes.where('babyId').equals(babyId).count(),
     db.measurements.where('babyId').equals(babyId).count(),
+    db.exerciseSessions.where('babyId').equals(babyId).count(),
   ]);
   return checks.some((n) => n > 0);
 }

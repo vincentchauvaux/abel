@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#C45C4A" />
+    <title>Confidentialité — Mimom</title>
+    <link rel="icon" href="/logo.png" type="image/png" />
+    <style>
+      :root {
+        --bg: #f6f1ea;
+        --primary: #c45c4a;
+        --text: #2a2421;
+        --muted: #7a716b;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font: 17px/1.55 system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 24px 20px 64px;
+      }
+      h1 {
+        font-size: 1.6rem;
+      }
+      h2 {
+        font-size: 1.15rem;
+        margin-top: 1.8rem;
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 0.92rem;
+      }
+      a {
+        color: var(--primary);
+        font-weight: 700;
+      }
+      ul {
+        padding-left: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="muted"><a href="https://mimom.be/">← Mimom</a></p>
+      <h1>Confidentialité</h1>
+      <p class="muted">Dernière mise à jour : 14 septembre 2026</p>
+
+      <h2>Responsable du traitement</h2>
+      <p>
+        Vincent Chauvaux — contact via
+        <a href="https://github.com/vincentchauvaux/abel/issues">dépôt GitHub Abel (onglet Issues)</a>.
+      </p>
+
+      <h2>Données traitées</h2>
+      <p>Mimom peut traiter les catégories suivantes :</p>
+      <ul>
+        <li>
+          <strong>Sur l’appareil (IndexedDB)</strong> : prénom du bébé, date de naissance, tétées, biberons,
+          couches, bains, sommeil, température, croissance, notes, objectifs de rappel, exercices, cache horoscope.
+        </li>
+        <li>
+          <strong>Si vous connectez Google</strong> : identifiant Google (sub), nom, e-mail, photo de profil ; une
+          session Mimom (90 jours renouvelés à l’usage) ; les données bébé ci-dessus sont copiées sur le VPS OVH
+          (France) pour la sauvegarde multi-appareils.
+        </li>
+        <li>
+          <strong>Co-parent et gardien</strong> : si vous invitez une personne, elle accède aux données bébé selon
+          son rôle. Mimom ne partage pas votre compte Google : chacun se connecte avec le sien.
+        </li>
+        <li>
+          <strong>Horoscope du jour</strong> : signe astrologique dérivé de la date de naissance (requête vers le VPS,
+          puis APIs publiques ; texte mis en cache 24 h).
+        </li>
+        <li>
+          <strong>Album photos (optionnel)</strong> : un album par bébé, stocké chiffré (AES-256-GCM) sur le VPS OVH,
+          hors du dossier web. Les fichiers sont ré-encodés (métadonnées GPS retirées).
+        </li>
+      </ul>
+      <p>
+        Certaines données (température, compléments, croissance, etc.) peuvent être des
+        <strong>données relatives à la santé</strong> au sens du RGPD. Mimom est un carnet personnel, pas un
+        dispositif médical.
+      </p>
+
+      <h2>Finalités et bases légales</h2>
+      <ul>
+        <li><strong>Fonctionnement local</strong> — exécution du service demandé.</li>
+        <li><strong>Synchronisation Google</strong> — consentement explicite lors de la connexion.</li>
+        <li><strong>Album photos</strong> — consentement en ajoutant des photos.</li>
+        <li><strong>Horoscope</strong> — divertissement, sur la base de la date de naissance saisie.</li>
+      </ul>
+
+      <h2>Destinataires</h2>
+      <ul>
+        <li>Google LLC — authentification (Google Identity Services).</li>
+        <li>OVH SAS — hébergement de l’application, de l’API et de PostgreSQL (France).</li>
+        <li>GitHub Pages — miroir de secours de l’application.</li>
+      </ul>
+      <p>Aucune revente de données. Pas de publicité ciblée. Pas de cookies de traçage tiers.</p>
+
+      <h2>Durées de conservation</h2>
+      <ul>
+        <li>Données locales : jusqu’à suppression par vous ou effacement du navigateur.</li>
+        <li>Session : jusqu’à 90 jours d’inactivité, déconnexion ou suppression du compte.</li>
+        <li>Données serveur : tant que le compte reste lié, ou jusqu’à suppression via Profil.</li>
+      </ul>
+
+      <h2>Vos droits (RGPD)</h2>
+      <p>Droits d’accès, rectification, effacement, limitation, opposition et portabilité.</p>
+      <ul>
+        <li>Export JSON et effacement local : page Profil.</li>
+        <li>Suppression serveur : page Profil (compte Google connecté).</li>
+      </ul>
+      <p>
+        Contact :
+        <a href="https://github.com/vincentchauvaux/abel/issues">GitHub Abel — Issues</a>.
+        Réclamation possible auprès de la CNIL (cnil.fr).
+      </p>
+
+      <h2>Sécurité</h2>
+      <p>
+        API en HTTPS, authentifiée pour la sync. Album chiffré hors du répertoire web. Les données locales dépendent
+        de la sécurité de votre appareil.
+      </p>
+
+      <h2>Transferts hors UE</h2>
+      <p>
+        Google et GitHub peuvent traiter des données aux États-Unis. La synchronisation VPS reste en France (OVH).
+      </p>
+    </main>
+  </body>
+</html>

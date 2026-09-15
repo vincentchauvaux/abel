@@ -260,6 +260,22 @@ const TABLES = {
       deletedAt: 'deleted_at',
     },
   },
+  exerciseSessions: {
+    sql: 'exercise_sessions',
+    fields: {
+      id: 'id',
+      babyId: 'baby_id',
+      exerciseItemId: 'exercise_item_id',
+      title: 'title',
+      durationMinutes: 'duration_minutes',
+      startedAt: 'started_at',
+      endedAt: 'ended_at',
+      createdBy: 'created_by',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      deletedAt: 'deleted_at',
+    },
+  },
 };
 
 const PUSH_ORDER = [
@@ -278,6 +294,7 @@ const PUSH_ORDER = [
   'temperatures',
   'notes',
   'exerciseItems',
+  'exerciseSessions',
 ];
 
 function dateOnly(value) {
@@ -1159,6 +1176,7 @@ async function deleteAccount(user) {
       'temperatures',
       'notes',
       'exercise_items',
+      'exercise_sessions',
     ];
     for (const table of babyTables) {
       await client.query(`UPDATE ${table} SET deleted_at = $2, updated_at = $2 WHERE baby_id = $1`, [babyId, ts]);

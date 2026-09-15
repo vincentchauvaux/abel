@@ -9,6 +9,7 @@ type Props = {
   weights: Measurement[];
   heights: Measurement[];
   bornOn?: string | null;
+  hideTitle?: boolean;
 };
 
 const PAD_L = 36;
@@ -182,7 +183,7 @@ function SeriesPlot({
   );
 }
 
-export function GrowthChart({ weights, heights, bornOn }: Props) {
+export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [slot, setSlot] = useState(SLOT_MIN);
 
@@ -233,7 +234,7 @@ export function GrowthChart({ weights, heights, bornOn }: Props) {
 
   return (
     <Card>
-      <h2>Poids et taille</h2>
+      {hideTitle ? null : <h2>Poids et taille</h2>}
       <div className="growth-scroll" ref={scrollRef}>
         <div className="growth-inner">
           {hasWeight ? (

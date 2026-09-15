@@ -134,3 +134,14 @@ export type ExerciseItem = Stamp & {
   startedAt: string | null;
   createdBy?: string | null;
 };
+/** Séance d’exercice notée (journal), liée au modèle `exerciseItemId`. */
+export type ExerciseSession = Stamp & {
+  id: string;
+  babyId: string;
+  exerciseItemId: string;
+  title: string;
+  durationMinutes: number;
+  startedAt: string;
+  endedAt: string | null;
+  createdBy?: string | null;
+};

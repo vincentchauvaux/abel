@@ -2,9 +2,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import { Check, Play } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { AccordionSection } from '@/components/Accordion';
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { ActivityEditor } from '@/components/ActivityEditor';
+import { DashSection } from '@/components/DashSection';
 import { GrowthChart } from '@/components/GrowthChart';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
@@ -17,6 +17,7 @@ import {
   listBaths,
   listDiapers,
   listExerciseItems,
+  listExerciseSessions,
   listMeasurements,
   listNotes,
   completeNoteTodo,
@@ -33,6 +34,7 @@ import type {
   BathEvent,
   DiaperEvent,
   ExerciseItem,
+  ExerciseSession,
   FeedingSession,
   Measurement,
   MeasurementType,
@@ -46,6 +48,11 @@ import type {
 } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { listActivity, type ActivityItem } from '@/lib/activity';
+import {
+  DASH_SECTION_TITLES,
+  useDashLayout,
+  type DashSectionId,
+} from '@/lib/dash-layout';
 import {
   eachLocalDay,
   formatCompactMinutes,
@@ -183,9 +190,10 @@ export function DashboardPage() {
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [editing, setEditing] = useState<ActivityItem | null>(null);
   const [goals, setGoals] = useState<ReminderRule | undefined>();
-  const [notesOpen, setNotesOpen] = useState(false);
   const [favorites, setFavorites] = useState(() => readToolFavorites());
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
+  const [exerciseSessions, setExerciseSessions] = useState<ExerciseSession[]>([]);
+  const layout = useDashLayout();
   const exerciseRunning = exercises.some((row) => exerciseIsRunning(row));
   const now = useNow(true, exerciseRunning ? 1000 : 30_000);
 
@@ -212,7 +220,8 @@ export function DashboardPage() {
       getReminder(baby.id),
       listExerciseItems(baby.id),
       listBaths(baby.id),
-    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r, ex, ba]) => {
+      listExerciseSessions(baby.id),
+    ]).then(([s, b, d, p, sl, sf, sup, temp, n, m, log, r, ex, ba, exs]) => {
       setSessions(s);
       setBottles(b);
       setDiapers(d);
@@ -227,6 +236,7 @@ export function DashboardPage() {
       setGoals(r);
       setExercises(ex);
       setBaths(ba);
+      setExerciseSessions(exs);
     });
   }, [baby, tick]);
 
@@ -295,9 +305,6 @@ export function DashboardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- inRange dépend de period
   }, [notes, period, from, todayKey]);
 
-  const toggleNotesSection = (id: string) => {
-    if (id === 'notes') setNotesOpen((open) => !open);
-  };
   const tempsCount = temperatures.filter((row) => inRange(row.measuredAt)).length;
 
   const lastFeed = sessions[0];
@@ -687,14 +694,37 @@ export function DashboardPage() {
   const mealPeriodMin = mealByDay.reduce((sum, row) => sum + row.breastMin, 0);
   const mealPeriodMl = mealByDay.reduce((sum, row) => sum + row.bottleMl, 0);
 
-  return (
-    <div className="screen dashboard-screen">
-      <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
-      <ActiveNowPanel />
-      <PeriodSelector value={period} onChange={setPeriod} />
+  const exerciseRows: FollowRow[] = exercises.map((item) => {
+    const rows = exerciseSessions.filter((row) => row.exerciseItemId === item.id);
+    const inPeriod = rows.filter((row) => inRange(row.endedAt ?? row.startedAt));
+    const last = rows[0];
+    const running = exerciseIsRunning(item, now);
+    const done = exerciseIsDone(item, now);
+    return {
+      label: item.title,
+      value: running || done ? formatExerciseCountdown(item, now) : inPeriod.length > 0 ? inPeriod.length : '—',
+      sub: done
+        ? 'Terminé'
+        : running
+          ? 'en cours'
+          : last
+            ? formatTime(last.endedAt ?? last.startedAt)
+            : formatExerciseDuration(item.durationMinutes),
+      to: exerciseRoute(item.id),
+      onStart: () => void startExerciseWithAlarm(item.id),
+    };
+  });
 
-      <p className="dash-section">Favoris</p>
-      {favoriteRows.length > 0 ? (
+  const notesAction =
+    openNoteTodos.length > 0 ? (
+      <span className="dash-notes-badge">{openNoteTodos.length} à faire</span>
+    ) : dashboardNotes.length > 0 ? (
+      <span className="dash-notes-badge muted">{dashboardNotes.length}</span>
+    ) : null;
+
+  const dashBodies: Record<DashSectionId, ReactNode> = {
+    favorites:
+      favoriteRows.length > 0 ? (
         <div className="dash-follow-list">
           {favoriteRows.map(({ favoriteId, ...row }) => (
             <FollowRowItem key={favoriteId} {...row} />
@@ -728,125 +758,119 @@ export function DashboardPage() {
             +
           </span>
         </div>
-      )}
-
-      <p className="dash-section">Graphiques</p>
-      <SleepClock
-        sleeps={sleepsInPeriod}
-        feeds={feedsInPeriod}
-        bottles={bottlesInPeriod}
-        now={now}
-        days={days}
-        agenda={isToday || period === '7d'}
-        seriesToggle
-      />
-      <Bars
-        title={isToday ? 'Tétées (min)' : 'Repas'}
-        data={mealBars}
-        tone="meal"
-        session={isToday}
-        alignEnd
-        wide={!isToday && isAll}
-        legend={
-          isToday ? undefined : (
-            <div className="bar-legend">
-              <span className="leg-breast">Tétées</span>
-              <span className="leg-bottle">Biberons</span>
-            </div>
-          )
-        }
-        empty={isToday ? 'Aucune tétée aujourd’hui.' : 'Aucun repas sur cette période.'}
-        hint={
-          isToday
-            ? feedingMinutesToday > 0 || bottleCount > 0
-              ? [
-                  feedingMinutesToday > 0 ? formatMinuteCount(feedingMinutesToday) : null,
-                  bottleCount > 0 ? `${bottleCount} biberon${bottleCount > 1 ? 's' : ''}` : null,
-                  bottleMl > 0 ? `${bottleMl} ml` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : undefined
-            : mealPeriodBreast + mealPeriodBottle > 0
-              ? [
-                  `${mealPeriodBreast + mealPeriodBottle} repas`,
-                  mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
-                  mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
-                  mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
-                  mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-              : undefined
-        }
-      />
-      <Bars
-        title={isToday ? 'Siestes (min)' : 'Sommeil (h)'}
-        data={sleepBars}
-        tone="sleep"
-        session={isToday}
-        alignEnd
-        wide={!isToday && isAll}
-        empty={isToday ? 'Aucune sieste aujourd’hui.' : 'Aucune sieste sur cette période.'}
-        hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
-      />
-      {isToday ? (
-        <Card>
-          <h2>Couches</h2>
-          {diapersToday.length === 0 ? (
-            <p className="muted">Aucune couche aujourd’hui.</p>
-          ) : (
-            <RatioPie
-              slices={[
-                { key: 'pee', label: 'Pipi', value: diaperPee, color: 'var(--pee)', legendClass: 'leg-pee' },
-                { key: 'poo', label: 'Caca', value: diaperPoo, color: 'var(--poo)', legendClass: 'leg-poo' },
-                { key: 'both', label: 'Les deux', value: diaperBoth, color: 'var(--primary)', legendClass: 'leg-both' },
-              ]}
-              centerValue={diapersToday.length}
-              centerLabel="couches"
-              detail={[
-                diaperPee + diaperBoth > 0 ? `${diaperPee + diaperBoth} pipi` : null,
-                diaperPoo + diaperBoth > 0 ? `${diaperPoo + diaperBoth} caca` : null,
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            />
-          )}
-        </Card>
-      ) : (
+      ),
+    charts: (
+      <>
+        <SleepClock
+          sleeps={sleepsInPeriod}
+          feeds={feedsInPeriod}
+          bottles={bottlesInPeriod}
+          now={now}
+          days={days}
+          agenda={isToday || period === '7d'}
+          seriesToggle
+        />
         <Bars
-          title="Couches"
-          data={diaperBars}
-          tone="pee"
+          title={isToday ? 'Tétées (min)' : 'Repas'}
+          data={mealBars}
+          tone="meal"
+          session={isToday}
           alignEnd
-          wide={isAll}
+          wide={!isToday && isAll}
           legend={
-            <div className="bar-legend">
-              <span className="leg-pee">Pipi</span>
-              <span className="leg-poo">Caca</span>
-              <span className="leg-both">Les deux</span>
-            </div>
+            isToday ? undefined : (
+              <div className="bar-legend">
+                <span className="leg-breast">Tétées</span>
+                <span className="leg-bottle">Biberons</span>
+              </div>
+            )
+          }
+          empty={isToday ? 'Aucune tétée aujourd’hui.' : 'Aucun repas sur cette période.'}
+          hint={
+            isToday
+              ? feedingMinutesToday > 0 || bottleCount > 0
+                ? [
+                    feedingMinutesToday > 0 ? formatMinuteCount(feedingMinutesToday) : null,
+                    bottleCount > 0 ? `${bottleCount} biberon${bottleCount > 1 ? 's' : ''}` : null,
+                    bottleMl > 0 ? `${bottleMl} ml` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined
+              : mealPeriodBreast + mealPeriodBottle > 0
+                ? [
+                    `${mealPeriodBreast + mealPeriodBottle} repas`,
+                    mealPeriodBreast > 0 ? `${mealPeriodBreast} tétée${mealPeriodBreast > 1 ? 's' : ''}` : null,
+                    mealPeriodBottle > 0 ? `${mealPeriodBottle} bib` : null,
+                    mealPeriodMin > 0 ? formatMinuteCount(mealPeriodMin) : null,
+                    mealPeriodMl > 0 ? `${mealPeriodMl} ml` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                : undefined
           }
         />
-      )}
+        <Bars
+          title={isToday ? 'Siestes (min)' : 'Sommeil (h)'}
+          data={sleepBars}
+          tone="sleep"
+          session={isToday}
+          alignEnd
+          wide={!isToday && isAll}
+          empty={isToday ? 'Aucune sieste aujourd’hui.' : 'Aucune sieste sur cette période.'}
+          hint={isToday && sleepMinutesToday > 0 ? formatMinuteCount(sleepMinutesToday) : undefined}
+        />
+        {isToday ? (
+          <Card>
+            <h2>Couches</h2>
+            {diapersToday.length === 0 ? (
+              <p className="muted">Aucune couche aujourd’hui.</p>
+            ) : (
+              <RatioPie
+                slices={[
+                  { key: 'pee', label: 'Pipi', value: diaperPee, color: 'var(--pee)', legendClass: 'leg-pee' },
+                  { key: 'poo', label: 'Caca', value: diaperPoo, color: 'var(--poo)', legendClass: 'leg-poo' },
+                  { key: 'both', label: 'Les deux', value: diaperBoth, color: 'var(--primary)', legendClass: 'leg-both' },
+                ]}
+                centerValue={diapersToday.length}
+                centerLabel="couches"
+                detail={[
+                  diaperPee + diaperBoth > 0 ? `${diaperPee + diaperBoth} pipi` : null,
+                  diaperPoo + diaperBoth > 0 ? `${diaperPoo + diaperBoth} caca` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              />
+            )}
+          </Card>
+        ) : (
+          <Bars
+            title="Couches"
+            data={diaperBars}
+            tone="pee"
+            alignEnd
+            wide={isAll}
+            legend={
+              <div className="bar-legend">
+                <span className="leg-pee">Pipi</span>
+                <span className="leg-poo">Caca</span>
+                <span className="leg-both">Les deux</span>
+              </div>
+            }
+          />
+        )}
+      </>
+    ),
+    growth: (
       <GrowthChart
         weights={measures.filter((row) => row.type === 'WEIGHT')}
         heights={measures.filter((row) => row.type === 'HEIGHT')}
         bornOn={baby?.bornOn}
+        hideTitle
       />
-
-      <AccordionSection
-        id="notes"
-        title="Notes"
-        open={notesOpen}
-        onToggle={toggleNotesSection}
-        action={
-          openNoteTodos.length > 0 ? (
-            <span className="dash-notes-badge">{openNoteTodos.length} à faire</span>
-          ) : dashboardNotes.length > 0 ? (
-            <span className="dash-notes-badge muted">{dashboardNotes.length}</span>
-          ) : null
-        }>
+    ),
+    notes: (
+      <Card>
         {dashboardNotes.length === 0 ? (
           <p className="muted">
             {notes.length === 0 ? 'Pas encore de note.' : 'Aucune note sur cette période.'}
@@ -877,10 +901,10 @@ export function DashboardPage() {
             )}
           </div>
         )}
-      </AccordionSection>
-
+      </Card>
+    ),
+    alerts: (
       <Card>
-        <h2>Alertes</h2>
         <div className="alert-line">
           <span className="muted">Repas</span>
           <span>
@@ -902,20 +926,51 @@ export function DashboardPage() {
           <span>{diaperAlert}</span>
         </div>
       </Card>
-
-      <p className="dash-section">Apports</p>
+    ),
+    apports: (
       <div className="dash-follow-list">
         {apportRows.map((row) => (
           <FollowRowItem key={row.label} {...row} />
         ))}
       </div>
-
-      <p className="dash-section">Suivi</p>
+    ),
+    suivi: (
       <div className="dash-follow-list">
         {followRows.map((row) => (
           <FollowRowItem key={row.label} {...row} />
         ))}
       </div>
+    ),
+    exercises:
+      exerciseRows.length > 0 ? (
+        <div className="dash-follow-list">
+          {exerciseRows.map((row) => (
+            <FollowRowItem key={row.to} {...row} />
+          ))}
+        </div>
+      ) : (
+        <p className="muted">Aucun exercice. Ajoute-les sur Bébé.</p>
+      ),
+  };
+
+  return (
+    <div className="screen dashboard-screen">
+      <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
+      <ActiveNowPanel />
+      <PeriodSelector value={period} onChange={setPeriod} />
+
+      {layout.order.map((id) => (
+        <DashSection
+          key={id}
+          id={id}
+          title={DASH_SECTION_TITLES[id]}
+          collapsed={layout.isCollapsed(id)}
+          onToggle={layout.toggle}
+          onMove={layout.move}
+          action={id === 'notes' ? notesAction : undefined}>
+          {dashBodies[id]}
+        </DashSection>
+      ))}
 
       <Card>
         <h2>Entrées de la période</h2>

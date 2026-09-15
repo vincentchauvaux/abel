@@ -5,6 +5,7 @@ import {
   deleteBath,
   deleteBottle,
   deleteDiaper,
+  deleteExerciseSession,
   deleteFeeding,
   deleteMeasurement,
   deleteNote,
@@ -18,6 +19,7 @@ import {
   updateBath,
   updateBottle,
   updateDiaper,
+  updateExerciseSession,
   updateFeedingSession,
   updateMeasurement,
   updateNote,
@@ -70,10 +72,11 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [noteDone, setNoteDone] = useState(false);
   const [error, setError] = useState('');
 
-  const timed = item.kind === 'feeding' || item.kind === 'sleep' || item.kind === 'pumping';
+  const timed = item.kind === 'feeding' || item.kind === 'sleep' || item.kind === 'pumping' || item.kind === 'exercise';
+  const rangeDone = (item.kind === 'sleep' || item.kind === 'exercise') && sleepStatus === 'done';
   const showEnd =
     (item.kind === 'feeding' && feedStatus === 'done') ||
-    (item.kind === 'sleep' && sleepStatus === 'done') ||
+    rangeDone ||
     item.kind === 'pumping';
   const { date: startDate, time: startTime } = splitDatetimeLocal(when);
   const { date: endDate, time: endTime } = splitDatetimeLocal(endedWhen);
@@ -88,8 +91,9 @@ export function ActivityEditor({ item, onClose }: Props) {
   const syncDurationFromRange = (startLocal: string, endLocal: string) => {
     if (!endLocal.trim()) return;
     if (item.kind === 'feeding' && feedStatus === 'done') applyRangeToDuration(startLocal, endLocal, setFeedMinutes);
-    else if (item.kind === 'sleep' && sleepStatus === 'done') applyRangeToDuration(startLocal, endLocal, setSleepMinutes);
-    else if (item.kind === 'pumping') applyRangeToDuration(startLocal, endLocal, setPumpDuration);
+    else if ((item.kind === 'sleep' || item.kind === 'exercise') && sleepStatus === 'done') {
+      applyRangeToDuration(startLocal, endLocal, setSleepMinutes);
+    } else if (item.kind === 'pumping') applyRangeToDuration(startLocal, endLocal, setPumpDuration);
   };
 
   const applyDurationToEnd = (minutesText: string) => {
@@ -137,7 +141,11 @@ export function ActivityEditor({ item, onClose }: Props) {
       return end;
     }
     const mins = parseDecimal(
-      item.kind === 'sleep' ? sleepMinutes : item.kind === 'pumping' ? pumpDuration : feedMinutes,
+      item.kind === 'sleep' || item.kind === 'exercise'
+        ? sleepMinutes
+        : item.kind === 'pumping'
+          ? pumpDuration
+          : feedMinutes,
     );
     if (mins === null || mins <= 0) {
       return { error: 'Indique l’heure de fin ou la durée en minutes.' };
@@ -215,8 +223,9 @@ export function ActivityEditor({ item, onClose }: Props) {
           setText(row.name);
           setWhen(toDatetimeLocalValue(row.givenAt));
         }
-      } else if (item.kind === 'sleep') {
-        const row = await db.sleepSessions.get(item.id);
+      } else if (item.kind === 'sleep' || item.kind === 'exercise') {
+        const row =
+          item.kind === 'sleep' ? await db.sleepSessions.get(item.id) : await db.exerciseSessions.get(item.id);
         if (!cancelled && row) {
           setWhen(toDatetimeLocalValue(row.startedAt));
           if (!row.endedAt) {
@@ -333,26 +342,41 @@ export function ActivityEditor({ item, onClose }: Props) {
         await updateSolidFood(item.id, { food: text, eatenAt: at });
       } else if (item.kind === 'supplement') {
         await updateSupplement(item.id, { name: text, givenAt: at });
-      } else if (item.kind === 'sleep') {
+      } else if (item.kind === 'sleep' || item.kind === 'exercise') {
         if (sleepStatus === 'open') {
-          const session = await db.sleepSessions.get(item.id);
-          if (session) {
-            const otherOpen = (await db.sleepSessions.where('babyId').equals(session.babyId).toArray()).find(
-              (row) => row.id !== item.id && !row.deletedAt && !row.endedAt,
-            );
-            if (otherOpen) {
-              setError('Une autre sieste est déjà en cours. Termine-la d’abord.');
-              return;
+          if (item.kind === 'sleep') {
+            const session = await db.sleepSessions.get(item.id);
+            if (session) {
+              const otherOpen = (await db.sleepSessions.where('babyId').equals(session.babyId).toArray()).find(
+                (row) => row.id !== item.id && !row.deletedAt && !row.endedAt,
+              );
+              if (otherOpen) {
+                setError('Une autre sieste est déjà en cours. Termine-la d’abord.');
+                return;
+              }
             }
+            await updateSleep(item.id, { startedAt: at, endedAt: null });
+          } else {
+            const session = await db.exerciseSessions.get(item.id);
+            if (session) {
+              const otherOpen = (await db.exerciseSessions.where('babyId').equals(session.babyId).toArray()).find(
+                (row) => row.id !== item.id && !row.deletedAt && !row.endedAt,
+              );
+              if (otherOpen) {
+                setError('Un autre exercice est déjà en cours. Termine-le d’abord.');
+                return;
+              }
+            }
+            await updateExerciseSession(item.id, { startedAt: at, endedAt: null });
           }
-          await updateSleep(item.id, { startedAt: at, endedAt: null });
         } else {
           const end = endedAtFromForm(at);
           if (typeof end === 'object') {
             setError(end.error);
             return;
           }
-          await updateSleep(item.id, { startedAt: at, endedAt: end });
+          if (item.kind === 'sleep') await updateSleep(item.id, { startedAt: at, endedAt: end });
+          else await updateExerciseSession(item.id, { startedAt: at, endedAt: end });
         }
       } else if (item.kind === 'temperature') {
         const n = parseDecimal(amount);
@@ -392,6 +416,7 @@ export function ActivityEditor({ item, onClose }: Props) {
     else if (item.kind === 'solid') await deleteSolidFood(item.id);
     else if (item.kind === 'supplement') await deleteSupplement(item.id);
     else if (item.kind === 'sleep') await deleteSleep(item.id);
+    else if (item.kind === 'exercise') await deleteExerciseSession(item.id);
     else if (item.kind === 'temperature') await deleteTemperature(item.id);
     else if (item.kind === 'note') await deleteNote(item.id);
     else if (item.kind === 'measurement') await deleteMeasurement(item.id);
@@ -444,12 +469,12 @@ export function ActivityEditor({ item, onClose }: Props) {
             inputMode="decimal"
           />
         ) : null}
-        {item.kind === 'sleep' && sleepStatus === 'done' ? (
+        {rangeDone ? (
           <Field
             label="Durée (min)"
             value={sleepMinutes}
             onChange={(value) => handleDurationChange(value, 'sleep')}
-            placeholder="90"
+            placeholder={item.kind === 'exercise' ? '15' : '90'}
             inputMode="decimal"
           />
         ) : null}
@@ -463,7 +488,7 @@ export function ActivityEditor({ item, onClose }: Props) {
           />
         ) : null}
 
-        {item.kind === 'sleep' ? (
+        {item.kind === 'sleep' || item.kind === 'exercise' ? (
           <>
             <p className="goal-label">État</p>
             <div className="row">
@@ -477,19 +502,23 @@ export function ActivityEditor({ item, onClose }: Props) {
                 }}
               />
               <Chip
-                label="Terminée"
+                label={item.kind === 'exercise' ? 'Terminé' : 'Terminée'}
                 selected={sleepStatus === 'done'}
                 onClick={() => {
                   setSleepStatus('done');
                   const mins = parseDecimal(sleepMinutes);
-                  const nextMins = mins != null && mins > 0 ? Math.round(mins) : 60;
+                  const nextMins = mins != null && mins > 0 ? Math.round(mins) : item.kind === 'exercise' ? 15 : 60;
                   setSleepMinutes(String(nextMins));
                   setEndedWhen((prev) => prev || addMinutesToLocal(when, nextMins));
                 }}
               />
             </div>
             {sleepStatus === 'done' ? null : (
-              <p className="muted">Sommeil en cours — tu peux aussi le terminer depuis Outils ou le Dashboard.</p>
+              <p className="muted">
+                {item.kind === 'exercise'
+                  ? 'Exercice en cours — tu peux aussi le terminer depuis Outils ou le Dashboard.'
+                  : 'Sommeil en cours — tu peux aussi le terminer depuis Outils ou le Dashboard.'}
+              </p>
             )}
           </>
         ) : null}

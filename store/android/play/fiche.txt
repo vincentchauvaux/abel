@@ -1,0 +1,47 @@
+=== FICHE PLAY — coller tel quel ===
+
+Nom de l’application (≤ 30)
+Mimom
+
+Langue par défaut
+Français (France)
+
+Type
+Application (pas un jeu)
+
+Gratuit ou payant
+Gratuit
+
+E-mail de contact (obligatoire)
+[ton adresse Gmail du compte Play]
+
+Site web
+https://mimom.be/
+
+Politique de confidentialité
+https://mimom.be/privacy.html
+(repli tant que privacy.html n’est pas déployé : https://mimom.be/#/legal/confidentialite)
+
+Catégorie
+Style de vie → Parentalité
+
+Tags (exemples, 5 max selon l’écran)
+parentalité, bébé, famille, santé, mode de vie
+
+Description courte (≤ 80) — 64 caractères
+Carnet du bébé : tétées, couches, sommeil. Un appui, une donnée.
+
+Description complète (≤ 4000)
+Mimom est le carnet du quotidien de votre bébé, pensé pour un parent qui a l’enfant dans les bras : un appui, une donnée enregistrée tout de suite.
+
+Notez les tétées (minuteur, sein gauche ou droit), les biberons (quantité en ml), la diversification, les compléments, les couches, les bains, le tire-lait et le stock de lait, le sommeil, la température, la croissance et les notes. Les exercices que vous paramétrez (par exemple un temps sur le ventre) se lancent en un tap, avec un décompte.
+
+L’application fonctionne dans le navigateur et hors ligne. Les heures s’affichent en heure locale. Pas de publicité, pas d’achat intégré.
+
+Mimom n’est pas un dispositif médical et ne donne pas de conseil de santé. Les rappels (repas, couche, etc.) sont des règles que vous choisissez.
+
+En option : connexion avec Google pour synchroniser entre appareils, inviter un co-parent ou un gardien, et un album photos chiffré sur mimom.be.
+
+Site : https://mimom.be/
+Avertissement santé : https://mimom.be/#/legal/medical
+Confidentialité : https://mimom.be/privacy.html

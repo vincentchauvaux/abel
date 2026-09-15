@@ -1,6 +1,7 @@
 export const SITE = {
   name: 'Mimom',
   appUrl: 'https://mimom.be/',
+  privacyUrl: 'https://mimom.be/privacy.html',
   publisher: 'Vincent Chauvaux',
   publisherType: 'particulier — projet personnel à usage familial',
   contactUrl: 'https://github.com/vincentchauvaux/abel/issues',
@@ -21,7 +22,7 @@ export const SITE = {
   ],
   apiHost: 'mimom.be',
   apiUrl: 'https://mimom.be/api/',
-  legalUpdated: '13 septembre 2026',
+  legalUpdated: '14 septembre 2026',
 } as const;
 
 export const LEGAL_ROUTES = {

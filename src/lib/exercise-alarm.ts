@@ -66,13 +66,11 @@ export async function announceExerciseDone(title: string, key: string) {
 }
 
 export async function startExerciseWithAlarm(id: string) {
-  await unlockExerciseAudio();
+  void unlockExerciseAudio();
   if ('Notification' in window && Notification.permission === 'default') {
-    try {
-      await Notification.requestPermission();
-    } catch {
+    void Notification.requestPermission().catch(() => {
       /* ignore */
-    }
+    });
   }
   await startExerciseItem(id);
 }

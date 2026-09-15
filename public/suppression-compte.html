@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Supprimer le compte Mimom</title>
+    <link rel="icon" href="/logo.png" type="image/png" />
+    <style>
+      body {
+        margin: 0;
+        background: #f6f1ea;
+        color: #2a2421;
+        font: 17px/1.55 system-ui, -apple-system, Segoe UI, sans-serif;
+      }
+      main {
+        max-width: 40rem;
+        margin: 0 auto;
+        padding: 24px 20px 64px;
+      }
+      h1 {
+        font-size: 1.55rem;
+      }
+      h2 {
+        font-size: 1.12rem;
+        margin-top: 1.7rem;
+      }
+      .muted {
+        color: #7a716b;
+        font-size: 0.92rem;
+      }
+      a {
+        color: #c45c4a;
+        font-weight: 700;
+      }
+      ol,
+      ul {
+        padding-left: 1.2rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="muted"><a href="https://mimom.be/">← Mimom</a></p>
+      <h1>Supprimer votre compte Mimom</h1>
+      <p class="muted">Éditeur : Vincent Chauvaux — application Mimom (mimom.be)</p>
+
+      <p>
+        Cette page décrit comment demander la suppression du compte Mimom et des données associées. La procédure se
+        fait dans l’application, page <strong>Profil</strong>, une fois connecté avec Google.
+      </p>
+
+      <h2>1. Supprimer le compte et les données serveur</h2>
+      <ol>
+        <li>Ouvrez Mimom (site ou application Android).</li>
+        <li>Allez sur l’onglet <strong>Profil</strong>.</li>
+        <li>Connectez-vous avec le compte Google lié, si ce n’est pas déjà fait.</li>
+        <li>
+          Dans la section données / RGPD, choisissez la suppression du compte (libellé du type
+          <strong>Supprimer le bébé sur le VPS</strong> pour le propriétaire, ou quitter le partage pour un co-parent
+          ou un gardien).
+        </li>
+      </ol>
+      <ul>
+        <li>
+          <strong>Propriétaire</strong> : le bébé et les données de suivi sont supprimés sur le serveur pour tout le
+          monde ; l’album photos chiffré est effacé.
+        </li>
+        <li>
+          <strong>Co-parent ou gardien</strong> : vous quittez le partage. Les données du propriétaire ne sont pas
+          effacées.
+        </li>
+      </ul>
+
+      <h2>2. Effacer seulement cet appareil (sans supprimer le compte)</h2>
+      <p>
+        Sur Profil : <strong>Effacer les données sur cet appareil</strong>. Le cache local (IndexedDB) est vidé. Les
+        données restent sur le VPS si un compte Google est encore lié.
+      </p>
+
+      <h2>3. Supprimer une partie des données (sans supprimer le compte)</h2>
+      <p>Oui : dans le journal, chaque entrée peut être modifiée ou supprimée. Dans l’album, chaque photo peut être retirée.</p>
+
+      <h2>Données supprimées ou conservées</h2>
+      <ul>
+        <li>Suivi (tétées, couches, sommeil, etc.) sur le VPS : supprimé si le propriétaire supprime le compte.</li>
+        <li>Album : fichiers chiffrés effacés si le propriétaire supprime le compte ; sinon photo par photo.</li>
+        <li>Session Mimom : jusqu’à 90 jours d’inactivité, ou tout de suite à la déconnexion / suppression.</li>
+        <li>Compte Google : Mimom ne supprime pas votre compte Google, seulement le lien avec Mimom.</li>
+        <li>Sauvegardes serveur : éventuellement quelques jours le temps des copies de sécurité OVH, puis purge.</li>
+      </ul>
+
+      <p>
+        Export préalable : Profil → <strong>Exporter mes données</strong> (JSON). Contact :
+        <a href="https://github.com/vincentchauvaux/abel/issues">GitHub Abel — Issues</a>.
+      </p>
+      <p class="muted">
+        Voir aussi la
+        <a href="https://mimom.be/#/legal/confidentialite">politique de confidentialité</a>.
+      </p>
+    </main>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import { listExerciseItems } from '@/db/api';
+import { listExerciseItems, sealDueExerciseSessions } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { ExerciseItem } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
@@ -29,9 +29,10 @@ export function ExerciseAlarm() {
       const item = items.find((row) => row.id === id);
       if (!item?.startedAt || !exerciseIsDone(item, now)) continue;
       void announceExerciseDone(item.title, exerciseAlertKey(item.id, item.startedAt));
+      if (baby) void sealDueExerciseSessions(baby.id, now);
     }
     prevRunning.current = current;
-  }, [items, now]);
+  }, [items, now, baby]);
 
   return null;
 }

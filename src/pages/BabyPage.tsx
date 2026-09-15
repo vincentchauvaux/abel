@@ -51,6 +51,7 @@ const JOURNAL_KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'solid', label: 'Diversification' },
   { value: 'supplement', label: 'Complément' },
   { value: 'sleep', label: 'Sommeil' },
+  { value: 'exercise', label: 'Exercice' },
   { value: 'temperature', label: 'Température' },
   { value: 'note', label: 'Note' },
   { value: 'measurement', label: 'Croissance' },
@@ -164,11 +165,15 @@ export function BabyPage() {
   const filteredActivity = useMemo(
     () =>
       activity.filter((row) => {
-        if (localDateKey(row.at) !== journalDay) return false;
+        if (journalDay && localDateKey(row.at) !== journalDay) return false;
         if (!journalKinds.includes(row.kind)) return false;
         return true;
       }),
     [activity, journalDay, journalKinds],
+  );
+  const activityOnSelectedDay = useMemo(
+    () => (journalDay ? activity.filter((row) => localDateKey(row.at) === journalDay) : activity),
+    [activity, journalDay],
   );
 
   const mealAlert = useMemo(
@@ -449,10 +454,13 @@ export function BabyPage() {
       </AccordionSection>
       <AccordionSection id="journal" title="Journal" open={openSection === 'journal'} onToggle={toggleSection}>
         <div className="journal-filters">
-          <label className="field">
-            <span>Jour</span>
-            <input type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
-          </label>
+          <div className="journal-day-filter">
+            <label className="field">
+              <span>Jour</span>
+              <input type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
+            </label>
+            <Chip label="Tout" selected={!journalDay} onClick={() => setJournalDay('')} />
+          </div>
           <MultiSelectField
             label="Types"
             values={journalKinds}
@@ -463,13 +471,20 @@ export function BabyPage() {
         <p className="muted">Appuie sur une ligne pour modifier ou supprimer.</p>
         {filteredActivity.length === 0 ? (
           <p className="muted">
-            {activity.some((row) => localDateKey(row.at) === journalDay)
+            {activityOnSelectedDay.length > 0
               ? 'Aucune entrée pour ce filtre.'
-              : 'Aucune entrée ce jour-là.'}
+              : journalDay
+                ? 'Aucune entrée ce jour-là.'
+                : 'Aucune entrée.'}
           </p>
         ) : (
           filteredActivity.map((row) => (
-            <JournalLine key={`${row.kind}-${row.id}`} item={row} onClick={() => setEditing(row)} />
+            <JournalLine
+              key={`${row.kind}-${row.id}`}
+              item={row}
+              showDate={!journalDay}
+              onClick={() => setEditing(row)}
+            />
           ))
         )}
       </AccordionSection>

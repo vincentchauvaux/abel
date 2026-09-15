@@ -2,6 +2,7 @@ import {
   listBaths,
   listBottles,
   listDiapers,
+  listExerciseSessions,
   listMeasurements,
   listNotes,
   listPumps,
@@ -11,11 +12,13 @@ import {
   listSolidFoods,
   listSupplements,
   listTemperatures,
+  sealDueExerciseSessions,
 } from '@/db/api';
 import type {
   BathEvent,
   BottleFeed,
   DiaperEvent,
+  ExerciseSession,
   FeedingSession,
   Measurement,
   Note,
@@ -38,6 +41,7 @@ export type ActivityKind =
   | 'solid'
   | 'supplement'
   | 'sleep'
+  | 'exercise'
   | 'temperature'
   | 'note'
   | 'measurement';
@@ -53,22 +57,49 @@ export type ActivityItem = {
   startAt?: string;
 };
 
+export function exerciseSessionToActivity(row: ExerciseSession): ActivityItem {
+  return {
+    id: row.id,
+    kind: 'exercise',
+    at: activityAt(row.startedAt, row.endedAt),
+    title: row.title,
+    detail: row.endedAt ? formatMinutes(elapsedMs(row.startedAt, row.endedAt)) : 'en cours',
+    createdBy: row.createdBy ?? null,
+    startAt: row.startedAt,
+  };
+}
+
 export async function listActivity(babyId: string, limit?: number): Promise<ActivityItem[]> {
-  const [sessions, segments, bottles, diapers, baths, pumps, solids, supplements, sleeps, temps, notes, measures] =
-    await Promise.all([
-      listSessions(babyId),
-      listSegments(),
-      listBottles(babyId),
-      listDiapers(babyId),
-      listBaths(babyId),
-      listPumps(babyId),
-      listSolidFoods(babyId),
-      listSupplements(babyId),
-      listSleep(babyId),
-      listTemperatures(babyId),
-      listNotes(babyId),
-      listMeasurements(babyId),
-    ]);
+  await sealDueExerciseSessions(babyId);
+  const [
+    sessions,
+    segments,
+    bottles,
+    diapers,
+    baths,
+    pumps,
+    solids,
+    supplements,
+    sleeps,
+    temps,
+    notes,
+    measures,
+    exercises,
+  ] = await Promise.all([
+    listSessions(babyId),
+    listSegments(),
+    listBottles(babyId),
+    listDiapers(babyId),
+    listBaths(babyId),
+    listPumps(babyId),
+    listSolidFoods(babyId),
+    listSupplements(babyId),
+    listSleep(babyId),
+    listTemperatures(babyId),
+    listNotes(babyId),
+    listMeasurements(babyId),
+    listExerciseSessions(babyId),
+  ]);
 
   const items: ActivityItem[] = [];
 
@@ -168,6 +199,9 @@ export async function listActivity(babyId: string, limit?: number): Promise<Acti
       startAt: row.startedAt,
     });
   }
+  for (const row of exercises) {
+    items.push(exerciseSessionToActivity(row));
+  }
   for (const row of temps) {
     items.push({
       id: row.id,
@@ -215,6 +249,7 @@ export type ActivityRecord =
   | { kind: 'solid'; row: SolidFood }
   | { kind: 'supplement'; row: Supplement }
   | { kind: 'sleep'; row: SleepSession }
+  | { kind: 'exercise'; row: ExerciseSession }
   | { kind: 'temperature'; row: Temperature }
   | { kind: 'note'; row: Note }
   | { kind: 'measurement'; row: Measurement };

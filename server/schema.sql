@@ -278,3 +278,21 @@ CREATE TABLE IF NOT EXISTS exercise_items (
 CREATE INDEX IF NOT EXISTS exercise_items_baby
   ON exercise_items (baby_id, created_at)
   WHERE deleted_at IS NULL;
+
+CREATE TABLE IF NOT EXISTS exercise_sessions (
+  id UUID PRIMARY KEY,
+  baby_id UUID NOT NULL REFERENCES babies (id) ON DELETE CASCADE,
+  exercise_item_id UUID NOT NULL,
+  title TEXT NOT NULL,
+  duration_minutes INTEGER NOT NULL,
+  started_at TIMESTAMPTZ NOT NULL,
+  ended_at TIMESTAMPTZ,
+  created_by TEXT,
+  created_at TIMESTAMPTZ NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL,
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS exercise_sessions_baby
+  ON exercise_sessions (baby_id, started_at DESC)
+  WHERE deleted_at IS NULL;
