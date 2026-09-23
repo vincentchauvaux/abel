@@ -5,15 +5,20 @@ import { SegmentedControl } from '@/components/SegmentedControl';
 import { Card } from '@/components/ui';
 import type { BottleFeed, FeedingSession, SleepSession } from '@/db/types';
 import {
+  addCoverageInWindow,
   addCoverageOnLocalDay,
+  addInstantInWindow,
   addInstantOnLocalDay,
   addLocalCoverage,
   addLocalInstant,
+  countInWindow,
   formatCompactMinutes,
   formatMinuteCount,
   isNotedSession,
   localDateKey,
+  rollingWindowStart,
   spansOnLocalDay,
+  totalMinutesInWindow,
   totalMinutesOnLocalDay,
   weekdayShort,
 } from '@/lib/dates';
@@ -177,7 +182,12 @@ function mealRows(feeds: FeedingSession[], bottles: BottleFeed[]) {
   ];
 }
 
-function fillSleep(values: number[], sleeps: SleepSession[], now: number, dayKey?: string) {
+function fillSleep(values: number[], sleeps: SleepSession[], now: number, dayKey?: string, rolling = false) {
+  if (rolling) {
+    const windowStart = rollingWindowStart(now);
+    for (const row of sleeps) addCoverageInWindow(values, row.startedAt, row.endedAt ?? null, windowStart, now);
+    return;
+  }
   if (dayKey) {
     for (const row of sleeps) addCoverageOnLocalDay(values, row.startedAt, row.endedAt ?? null, dayKey, now);
     return;
@@ -185,7 +195,26 @@ function fillSleep(values: number[], sleeps: SleepSession[], now: number, dayKey
   for (const row of sleeps) addLocalCoverage(values, row.startedAt, row.endedAt, now);
 }
 
-function fillMeals(values: number[], feeds: FeedingSession[], bottles: BottleFeed[], now: number, dayKey?: string) {
+function fillMeals(
+  values: number[],
+  feeds: FeedingSession[],
+  bottles: BottleFeed[],
+  now: number,
+  dayKey?: string,
+  rolling = false,
+) {
+  if (rolling) {
+    const windowStart = rollingWindowStart(now);
+    for (const row of feeds) {
+      if (isNotedSession(row.startedAt, row.endedAt)) {
+        addInstantInWindow(values, row.startedAt, windowStart, now);
+      } else {
+        addCoverageInWindow(values, row.startedAt, row.endedAt, windowStart, now);
+      }
+    }
+    for (const row of bottles) addInstantInWindow(values, row.fedAt, windowStart, now);
+    return;
+  }
   if (dayKey) {
     for (const row of feeds) {
       if (isNotedSession(row.startedAt, row.endedAt)) {
@@ -207,12 +236,50 @@ function fillMeals(values: number[], feeds: FeedingSession[], bottles: BottleFee
   for (const row of bottles) addLocalInstant(values, row.fedAt, now);
 }
 
-function clearSlotsAfterNow(values: number[], now: number) {
-  const d = new Date(now);
-  const nowMin = d.getHours() * 60 + d.getMinutes() + d.getSeconds() / 60;
-  const slotMinutes = DAY_MIN / values.length;
-  const firstFuture = Math.ceil(nowMin / slotMinutes);
-  for (let i = firstFuture; i < values.length; i++) values[i] = 0;
+function doughnutSlice(fromMin: number, toMin: number, rIn: number, rOut: number): string {
+  const a0 = -90 + (fromMin / DAY_MIN) * 360;
+  const a1 = -90 + (toMin / DAY_MIN) * 360;
+  const o0 = polar(rOut, a0);
+  const o1 = polar(rOut, a1);
+  const i1 = polar(rIn, a1);
+  const i0 = polar(rIn, a0);
+  return `M${o0.x.toFixed(2)} ${o0.y.toFixed(2)} A${rOut} ${rOut} 0 0 1 ${o1.x.toFixed(2)} ${o1.y.toFixed(2)} L${i1.x.toFixed(2)} ${i1.y.toFixed(2)} A${rIn} ${rIn} 0 0 0 ${i0.x.toFixed(2)} ${i0.y.toFixed(2)} Z`;
+}
+
+/** Fondu autour de maintenant : la fin des 24 h s’estompe, le début (il y a 24 h) aussi. */
+function NowFade({ nowMin, rIn, rOut }: { nowMin: number; rIn: number; rOut: number }) {
+  const endFade = 80;
+  const startFade = 40;
+  const endSteps = 16;
+  const startSteps = 10;
+  const slices: { key: string; d: string; opacity: number }[] = [];
+  for (let i = 0; i < endSteps; i++) {
+    const t0 = i / endSteps;
+    const t1 = (i + 1) / endSteps;
+    const mid = (t0 + t1) / 2;
+    slices.push({
+      key: `end-${i}`,
+      d: doughnutSlice(nowMin - endFade * (1 - t0), nowMin - endFade * (1 - t1), rIn, rOut),
+      opacity: 0.06 + 0.52 * Math.pow(mid, 1.25),
+    });
+  }
+  for (let i = 0; i < startSteps; i++) {
+    const t0 = i / startSteps;
+    const t1 = (i + 1) / startSteps;
+    const mid = (t0 + t1) / 2;
+    slices.push({
+      key: `start-${i}`,
+      d: doughnutSlice(nowMin + startFade * t0, nowMin + startFade * t1, rIn, rOut),
+      opacity: 0.06 + 0.42 * (1 - mid),
+    });
+  }
+  return (
+    <g className="sleep-clock-fade-group" pointerEvents="none">
+      {slices.map((slice) => (
+        <path key={slice.key} d={slice.d} className="sleep-clock-fade" opacity={slice.opacity} />
+      ))}
+    </g>
+  );
 }
 
 function ClockFace({
@@ -274,6 +341,7 @@ function ClockFace({
             opacity={op}
           />
         ) : null}
+        {nowMin != null ? <NowFade nowMin={nowMin} rIn={R_HOLE} rOut={R_SLEEP_OUT + 1} /> : null}
         <circle cx={CX} cy={CY} r={R_HOLE} fill="var(--surface)" />
         {nowInner && nowOuter ? (
           <line
@@ -487,23 +555,26 @@ export function SleepClock({
   const mode: ViewMode = allowAgenda && view === 'agenda' ? 'agenda' : 'clock';
   const todayKey = localDateKey(new Date(now).toISOString());
   const dayKey = days.length === 1 ? days[0] : undefined;
+  const rolling = Boolean(dayKey && dayKey === todayKey);
+  const windowStart = rollingWindowStart(now);
   const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes() + new Date(now).getSeconds() / 60;
   const sleepValues = Array.from({ length: SLOTS }, () => 0);
   const mealValues = Array.from({ length: SLOTS }, () => 0);
-  fillSleep(sleepValues, sleeps, now, dayKey);
-  fillMeals(mealValues, feeds, bottles, now, dayKey);
-  if (dayKey === todayKey) {
-    clearSlotsAfterNow(sleepValues, now);
-    clearSlotsAfterNow(mealValues, now);
-  }
-  const sleepMinutes =
-    days.length > 0 ? days.reduce((sum, day) => sum + totalMinutesOnLocalDay(sleeps, day, now), 0) : 0;
-  const napCount =
-    days.length > 0
+  fillSleep(sleepValues, sleeps, now, dayKey, rolling);
+  fillMeals(mealValues, feeds, bottles, now, dayKey, rolling);
+  const sleepMinutes = rolling
+    ? totalMinutesInWindow(sleeps, windowStart, now)
+    : days.length > 0
+      ? days.reduce((sum, day) => sum + totalMinutesOnLocalDay(sleeps, day, now), 0)
+      : 0;
+  const napCount = rolling
+    ? countInWindow(sleeps, windowStart, now)
+    : days.length > 0
       ? new Set(days.flatMap((day) => spansOnLocalDay(sleeps, day, now).map((span) => span.id))).size
       : sleeps.length;
-  const mealCount =
-    days.length > 0
+  const mealCount = rolling
+    ? countInWindow(mealRows(feeds, bottles), windowStart, now)
+    : days.length > 0
       ? new Set(days.flatMap((day) => spansOnLocalDay(mealRows(feeds, bottles), day, now).map((span) => span.id)))
           .size
       : feeds.length + bottles.length;
@@ -526,7 +597,7 @@ export function SleepClock({
     days.length > 1 && mealCount > 0
       ? avgMeals.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
       : String(mealCount);
-  const sleepCenterLabel = days.length > 1 ? '/ jour' : 'sommeil';
+  const sleepCenterLabel = days.length > 1 ? '/ jour' : rolling ? '24 h' : 'sommeil';
   const mealCenterLabel = days.length > 1 && mealCount > 0 ? 'repas / j' : 'sur 24 h';
   const sleepPeak = showSleep ? peakRange(sleepValues) : null;
   const mealPeak = showMeals ? peakRange(mealValues) : null;
@@ -536,10 +607,16 @@ export function SleepClock({
     ? 'Active Siestes ou Repas sous le cadran.'
     : clockEmpty
       ? showSleep && showMeals
-        ? 'Aucune sieste ni repas sur cette période.'
+        ? rolling
+          ? 'Aucune sieste ni repas sur les 24 dernières heures.'
+          : 'Aucune sieste ni repas sur cette période.'
         : showMeals
-          ? 'Aucun repas sur cette période.'
-          : 'Aucune sieste sur cette période.'
+          ? rolling
+            ? 'Aucun repas sur les 24 dernières heures.'
+            : 'Aucun repas sur cette période.'
+          : rolling
+            ? 'Aucune sieste sur les 24 dernières heures.'
+            : 'Aucune sieste sur cette période.'
       : undefined;
   const clockSections: DetailSection[] = [
     {
@@ -666,10 +743,16 @@ export function SleepClock({
             centerLabel={clockCenterLabel}
             ariaLabel={
               showSleep && showMeals
-                ? 'Cadran 24 heures des siestes et repas'
+                ? rolling
+                  ? 'Cadran des 24 dernières heures, siestes et repas'
+                  : 'Cadran 24 heures des siestes et repas'
                 : showMeals
-                  ? 'Cadran 24 heures des repas'
-                  : 'Cadran 24 heures des siestes'
+                  ? rolling
+                    ? 'Cadran des 24 dernières heures des repas'
+                    : 'Cadran 24 heures des repas'
+                  : rolling
+                    ? 'Cadran des 24 dernières heures des siestes'
+                    : 'Cadran 24 heures des siestes'
             }
             nowMin={nowMin}
           />

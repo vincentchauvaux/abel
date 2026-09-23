@@ -794,6 +794,11 @@ h2 {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  cursor: pointer;
+}
+
+.dash-follow-main:active {
+  opacity: 0.82;
 }
 
 .dash-follow-values {
@@ -1559,9 +1564,14 @@ h2 {
 
 .sleep-clock-now {
   stroke: var(--text);
-  stroke-width: 1.5;
+  stroke-width: 1.75;
   stroke-linecap: round;
-  opacity: 0.45;
+  opacity: 0.55;
+}
+
+.sleep-clock-fade {
+  fill: var(--surface);
+  pointer-events: none;
 }
 
 .clock-details {

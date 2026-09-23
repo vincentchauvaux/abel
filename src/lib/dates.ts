@@ -185,6 +185,47 @@ export function totalMinutesOnLocalDay(
   return rows.reduce((sum, row) => sum + minutesOnLocalDay(row.startedAt, row.endedAt, dayKey, now), 0);
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Début des 24 dernières heures (cadran Jour). */
+export function rollingWindowStart(now = Date.now()): number {
+  return now - DAY_MS;
+}
+
+/** Minutes réellement couvertes dans [windowStart, now] (sieste à cheval coupée). */
+export function totalMinutesInWindow(
+  rows: { startedAt: string; endedAt?: string | null }[],
+  windowStart: number,
+  now = Date.now(),
+): number {
+  let minutes = 0;
+  for (const row of rows) {
+    if (isNotedSession(row.startedAt, row.endedAt)) continue;
+    const rawStart = new Date(row.startedAt).getTime();
+    if (!Number.isFinite(rawStart)) continue;
+    const start = Math.max(rawStart, windowStart);
+    const end = Math.min(row.endedAt ? new Date(row.endedAt).getTime() : now, now);
+    if (end > start) minutes += (end - start) / 60_000;
+  }
+  return Math.max(0, Math.round(minutes));
+}
+
+/** Nombre de séances qui recouvrent [windowStart, now]. */
+export function countInWindow(
+  rows: { id: string; startedAt: string; endedAt?: string | null }[],
+  windowStart: number,
+  now = Date.now(),
+): number {
+  const ids = new Set<string>();
+  for (const row of rows) {
+    const start = new Date(row.startedAt).getTime();
+    if (!Number.isFinite(start)) continue;
+    const end = row.endedAt ? new Date(row.endedAt).getTime() : now;
+    if (end > windowStart && start <= now + 90_000) ids.add(row.id);
+  }
+  return ids.size;
+}
+
 export type LocalDaySpan = {
   id: string;
   startMin: number;
@@ -261,7 +302,52 @@ export function addLocalCoverage(
   }
 }
 
-/** Couverture d’une séance sur un jour local seulement (cadran Jour : pas d’heures futures ni d’hier soir). */
+/** Couverture d’une séance dans une fenêtre [windowStart, now] (cadran des 24 dernières heures). */
+export function addCoverageInWindow(
+  counts: number[],
+  startedAt: string,
+  endedAt: string | null,
+  windowStart: number,
+  now = Date.now(),
+): void {
+  const slots = counts.length;
+  if (slots <= 0) return;
+  const rawStart = new Date(startedAt).getTime();
+  if (!Number.isFinite(rawStart)) return;
+  const start = Math.max(rawStart, windowStart);
+  const end = Math.min(endedAt ? new Date(endedAt).getTime() : now, now + 90_000);
+  if (end <= start) return;
+  const slotMinutes = DAY_MINUTES / slots;
+  const napMinutes = Math.max(1, (end - start) / 60_000);
+  let t = start;
+  let steps = 0;
+  const maxSteps = slots * 400;
+  while (t < end && steps < maxSteps) {
+    steps += 1;
+    const d = new Date(t);
+    const mins = d.getHours() * 60 + d.getMinutes();
+    const slot = Math.floor(mins / slotMinutes) % slots;
+    const remain = slotMinutes - (mins % slotMinutes);
+    const overlap = Math.min(remain, (end - t) / 60_000);
+    counts[slot] += overlap * napMinutes;
+    t += Math.max(1, remain) * 60_000;
+  }
+}
+
+/** Instant s’il tombe dans [windowStart, now]. */
+export function addInstantInWindow(
+  counts: number[],
+  iso: string,
+  windowStart: number,
+  now = Date.now(),
+  weight = 120,
+): void {
+  const t = new Date(iso).getTime();
+  if (!Number.isFinite(t) || t < windowStart || t > now + 90_000) return;
+  addLocalInstant(counts, iso, now, weight);
+}
+
+/** Couverture d’une séance sur un jour local seulement (cadran moyenne / autre jour). */
 export function addCoverageOnLocalDay(
   counts: number[],
   startedAt: string,

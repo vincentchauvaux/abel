@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Play } from 'lucide-react';
+import { Check, Play, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
@@ -24,6 +24,9 @@ import {
   listPumps,
   listSessions,
   listSleep,
+  startSleep,
+  stopSleep,
+  stopExerciseItem,
   listSolidFoods,
   listSupplements,
   listTemperatures,
@@ -138,10 +141,11 @@ type FollowRow = {
   sub?: string;
   to: string;
   valueClassName?: string;
-  onStart?: () => void;
+  onToggle?: () => void;
+  running?: boolean;
 };
 
-function FollowRowItem({ label, value, sub, to, valueClassName, onStart }: FollowRow) {
+function FollowRowItem({ label, value, sub, to, valueClassName, onToggle, running }: FollowRow) {
   const main = (
     <>
       <span className="muted">{label}</span>
@@ -153,19 +157,23 @@ function FollowRowItem({ label, value, sub, to, valueClassName, onStart }: Follo
   );
   return (
     <div className="dash-follow-row">
-      {onStart ? (
-        <Link to={to} className="dash-follow-main">
-          {main}
-        </Link>
-      ) : (
-        <div className="dash-follow-main">{main}</div>
-      )}
-      {onStart ? (
-        <button type="button" className="dash-follow-add" onClick={onStart} aria-label={`Démarrer · ${label}`}>
-          <Play size={16} fill="currentColor" />
+      <Link to={to} className="dash-follow-main">
+        {main}
+      </Link>
+      {onToggle ? (
+        <button
+          type="button"
+          className="dash-follow-add"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onToggle();
+          }}
+          aria-label={running ? `Arrêter · ${label}` : `Démarrer · ${label}`}>
+          {running ? <Square size={13} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
         </button>
       ) : (
-        <Link to={to} className="dash-follow-add" aria-label={`Ajouter · ${label}`}>
+        <Link to={to} className="dash-follow-add" aria-label={`Ouvrir · ${label}`}>
           +
         </Link>
       )}
@@ -195,7 +203,8 @@ export function DashboardPage() {
   const [exerciseSessions, setExerciseSessions] = useState<ExerciseSession[]>([]);
   const layout = useDashLayout();
   const exerciseRunning = exercises.some((row) => exerciseIsRunning(row));
-  const now = useNow(true, exerciseRunning ? 1000 : 30_000);
+  const sleepRunning = sleeps.some((row) => !row.endedAt);
+  const now = useNow(true, exerciseRunning || sleepRunning ? 1000 : 30_000);
 
   useEffect(() => {
     const sync = () => setFavorites(readToolFavorites());
@@ -392,6 +401,13 @@ export function DashboardPage() {
       value: sleepMs > 0 ? formatMinutes(sleepMs) : '—',
       sub: activeSleep ? 'en cours' : '—',
       to: '/sleep',
+      running: Boolean(activeSleep),
+      onToggle: baby
+        ? () => {
+            if (activeSleep) void stopSleep(activeSleep.id);
+            else void startSleep(baby.id);
+          }
+        : undefined,
     },
     {
       label: 'Tire-lait',
@@ -517,6 +533,13 @@ export function DashboardPage() {
         value: sleepMs > 0 ? formatMinutes(sleepMs) : '—',
         sub: activeSleep ? 'en cours' : '—',
         to: TOOLS.sleep.route,
+        running: Boolean(activeSleep),
+        onToggle: baby
+          ? () => {
+              if (activeSleep) void stopSleep(activeSleep.id);
+              else void startSleep(baby.id);
+            }
+          : undefined,
       },
       temperature: {
         label: TOOLS.temperature.label,
@@ -560,6 +583,7 @@ export function DashboardPage() {
     headFmt,
     openNoteTodos.length,
     notes.length,
+    baby,
   ]);
 
   const favoriteRows = useMemo(() => {
@@ -577,7 +601,11 @@ export function DashboardPage() {
             value: running || done ? formatExerciseCountdown(item, now) : formatExerciseDuration(item.durationMinutes),
             sub: done ? 'Terminé' : running ? 'en cours' : undefined,
             to: exerciseRoute(item.id),
-            onStart: () => void startExerciseWithAlarm(item.id),
+            running,
+            onToggle: () => {
+              if (running) void stopExerciseItem(item.id);
+              else void startExerciseWithAlarm(item.id);
+            },
           } satisfies FollowRow & { favoriteId: FavoriteId };
         }
         const row = isToolId(id) ? toolRows[id] : undefined;
@@ -711,7 +739,11 @@ export function DashboardPage() {
             ? formatTime(last.endedAt ?? last.startedAt)
             : formatExerciseDuration(item.durationMinutes),
       to: exerciseRoute(item.id),
-      onStart: () => void startExerciseWithAlarm(item.id),
+      running,
+      onToggle: () => {
+        if (running) void stopExerciseItem(item.id);
+        else void startExerciseWithAlarm(item.id);
+      },
     };
   });
 
@@ -762,9 +794,9 @@ export function DashboardPage() {
     charts: (
       <>
         <SleepClock
-          sleeps={sleepsInPeriod}
-          feeds={feedsInPeriod}
-          bottles={bottlesInPeriod}
+          sleeps={isToday ? sleeps : sleepsInPeriod}
+          feeds={isToday ? sessions : feedsInPeriod}
+          bottles={isToday ? bottles : bottlesInPeriod}
           now={now}
           days={days}
           agenda={isToday || period === '7d'}
