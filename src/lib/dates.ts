@@ -257,6 +257,11 @@ export function spansOnLocalDay(
   return out;
 }
 
+/** Listes des modules : plus récente en haut (l’agenda et les graphes restent chronologiques). */
+export function spansNewestFirst(spans: LocalDaySpan[]): LocalDaySpan[] {
+  return [...spans].sort((a, b) => b.endMin - a.endMin || b.startMin - a.startMin || b.id.localeCompare(a.id));
+}
+
 export function isoAtLocalMinutes(dayKey: string, minutes: number): string {
   const start = startOfLocalDay(new Date(`${dayKey}T12:00:00`));
   return new Date(start.getTime() + minutes * 60_000).toISOString();

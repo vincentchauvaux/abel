@@ -17,7 +17,7 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatMinuteCount, formatTime, isoAtLocalMinutes, localDateKey, nowIso, spansOnLocalDay } from '@/lib/dates';
+import { elapsedMs, formatDuration, formatMinuteCount, formatTime, isoAtLocalMinutes, localDateKey, nowIso, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
 import { feedingSidesLabel, sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
@@ -50,7 +50,7 @@ export function FeedingPage() {
   const activeSegments = segments.filter((row) => row.feedingSessionId === active?.id);
   const open = activeSegments.find((row) => !row.endedAt);
   const todayKey = localDateKey(new Date(now).toISOString());
-  const todaySpans = spansOnLocalDay(sessions, todayKey, now);
+  const todaySpans = spansNewestFirst(spansOnLocalDay(sessions, todayKey, now));
   const todayMinutes = todaySpans.reduce((sum, span) => sum + span.minutes, 0);
 
   const sideMs = (side: Side) =>

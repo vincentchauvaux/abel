@@ -8,7 +8,7 @@ Fonctionne dans le **navigateur** (téléphone ou ordinateur), y compris hors li
 
 - Offline-first : 3 h du matin, pas de réseau, ça doit marcher.
 - Pas de recommandation médicale. Les rappels sont des règles personnalisables.
-- Chaque icône Outils ouvre un **module** (écran complet : action + historique + réglages). Cœur à droite du titre pour épingler l’outil en **Favoris** sur le dashboard (ordre de sélection, stocké en local). Si aucun favori : section Favoris avec **+** et liste déroulante pour en ajouter depuis le dashboard. Les **exercices** paramétrés sur Bébé apparaissent dans Outils (onglet Exercices) comme des outils : cœur, favori, triangle **Démarrer** à la place du + ; à la fin du décompte, sonnerie (onglet / PWA ouverte) et **entrée de journal**.
+- Chaque icône Outils ouvre un **module** (écran complet : action + historique + réglages). Dans le module, l’historique du jour est **plus récent en haut**. Cœur à droite du titre pour épingler l’outil en **Favoris** sur le dashboard (ordre de sélection, stocké en local). Si aucun favori : section Favoris avec **+** et liste déroulante pour en ajouter depuis le dashboard. Les **exercices** paramétrés sur Bébé apparaissent dans Outils (onglet Exercices) comme des outils : cœur, favori, triangle **Démarrer** à la place du + ; à la fin du décompte, sonnerie (onglet / PWA ouverte) et **entrée de journal**.
 - Le dashboard répond d’abord à : « Où en est mon bébé aujourd’hui ? »
 
 ## Navigation
