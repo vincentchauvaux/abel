@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
-import { Button, Card } from '@/components/ui';
-import { addBath, deleteBath, listBaths, updateBath } from '@/db/api';
+import { Card } from '@/components/ui';
+import { addBath, listBaths } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { BathEvent } from '@/db/types';
-import { formatTime, fromDatetimeLocalValue, startOfLocalDay, toDatetimeLocalValue } from '@/lib/dates';
+import { bathEventToActivity, type ActivityItem } from '@/lib/activity';
+import { startOfLocalDay } from '@/lib/dates';
 
 export function BathsPage() {
   const { baby, tick } = useDb();
   const [events, setEvents] = useState<BathEvent[]>([]);
-  const [editing, setEditing] = useState<BathEvent | null>(null);
-  const [when, setWhen] = useState('');
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -32,52 +34,15 @@ export function BathsPage() {
           <p className="muted">Un appui enregistre l’heure tout de suite.</p>
         ) : (
           today.map((row) => (
-            <button
+            <JournalLine
               key={row.id}
-              type="button"
-              className="line"
-              style={{ width: '100%', background: 'none', border: 0, padding: '8px 0', cursor: 'pointer' }}
-              onClick={() => {
-                setEditing(row);
-                setWhen(toDatetimeLocalValue(row.occurredAt));
-              }}>
-              <strong>{formatTime(row.occurredAt)}</strong>
-              <span className="muted">Bain</span>
-            </button>
+              item={bathEventToActivity(row)}
+              onClick={() => setEditing(bathEventToActivity(row))}
+            />
           ))
         )}
       </Card>
-      {editing ? (
-        <div className="overlay" onClick={() => setEditing(null)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <h2>Modifier</h2>
-            <label className="field">
-              <span>Date et heure</span>
-              <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
-            </label>
-            <Button
-              onClick={() => {
-                updateBath(editing.id, fromDatetimeLocalValue(when));
-                setEditing(null);
-              }}>
-              Enregistrer
-            </Button>
-            <Button
-              tone="danger"
-              onClick={() => {
-                if (confirm('Supprimer ce bain ?')) {
-                  deleteBath(editing.id);
-                  setEditing(null);
-                }
-              }}>
-              Supprimer
-            </Button>
-            <Button tone="muted" onClick={() => setEditing(null)}>
-              Fermer
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

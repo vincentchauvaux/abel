@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
-import { TemperatureValue } from '@/components/TemperatureValue';
 import { Button, Card, Field } from '@/components/ui';
 import { addTemperature, listTemperatures } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Temperature } from '@/db/types';
-import { formatDateTime, parseDecimal } from '@/lib/dates';
+import { temperatureToActivity, type ActivityItem } from '@/lib/activity';
+import { parseDecimal } from '@/lib/dates';
 import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
 
 export function TemperaturePage() {
   const { baby, tick } = useDb();
   const [rows, setRows] = useState<Temperature[]>([]);
   const [value, setValue] = useState('');
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -50,13 +53,15 @@ export function TemperaturePage() {
           <p className="muted">Pas encore de mesure.</p>
         ) : (
           rows.slice(0, 30).map((row) => (
-            <div className="line" key={row.id}>
-              <span className="muted">{formatDateTime(row.measuredAt)}</span>
-              <TemperatureValue celsius={row.celsius} />
-            </div>
+            <JournalLine
+              key={row.id}
+              item={temperatureToActivity(row)}
+              onClick={() => setEditing(temperatureToActivity(row))}
+            />
           ))
         )}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card } from '@/components/ui';
 import { listExerciseItems, listExerciseSessions, stopExerciseItem } from '@/db/api';
@@ -9,7 +10,7 @@ import { useDb } from '@/db/DbProvider';
 import type { ExerciseItem, ExerciseSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { exerciseSessionToActivity, type ActivityItem } from '@/lib/activity';
-import { formatTime, startOfLocalDay } from '@/lib/dates';
+import { startOfLocalDay } from '@/lib/dates';
 import { startExerciseWithAlarm } from '@/lib/exercise-alarm';
 import {
   exerciseIsDone,
@@ -47,15 +48,31 @@ export function ExercisePage() {
   if (!item) return null;
 
   const done = exerciseIsDone(item, now);
+  const liveSession = sessions.find((row) => !row.endedAt);
 
   return (
     <div className="screen">
       <ModuleHeader title={item.title} toolId={exerciseFavoriteId(item.id)} />
       <Card>
-        <div className="timer">{formatExerciseCountdown(item, now)}</div>
-        <p className="muted" style={{ textAlign: 'center' }}>
-          {done ? 'Terminé' : running ? 'En cours' : formatExerciseDuration(item.durationMinutes)}
-        </p>
+        {running && liveSession ? (
+          <button
+            type="button"
+            className="timer-edit"
+            onClick={() => setEditing(exerciseSessionToActivity(liveSession))}
+            aria-label="Modifier l’exercice en cours">
+            <div className="timer">{formatExerciseCountdown(item, now)}</div>
+            <p className="muted" style={{ textAlign: 'center' }}>
+              En cours · modifier
+            </p>
+          </button>
+        ) : (
+          <>
+            <div className="timer">{formatExerciseCountdown(item, now)}</div>
+            <p className="muted" style={{ textAlign: 'center' }}>
+              {done ? 'Terminé' : formatExerciseDuration(item.durationMinutes)}
+            </p>
+          </>
+        )}
         {running ? (
           <Button tone="muted" onClick={() => void stopExerciseItem(item.id)}>
             Terminer
@@ -74,15 +91,11 @@ export function ExercisePage() {
           today.map((row) => {
             const activity = exerciseSessionToActivity(row);
             return (
-              <button
+              <JournalLine
                 key={row.id}
-                type="button"
-                className="line"
-                style={{ width: '100%', background: 'none', border: 0, padding: '8px 0', cursor: 'pointer' }}
-                onClick={() => setEditing(activity)}>
-                <strong>{formatTime(activity.at)}</strong>
-                <span className="muted">{activity.detail}</span>
-              </button>
+                item={activity}
+                onClick={() => setEditing(activity)}
+              />
             );
           })
         )}

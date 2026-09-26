@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import { addPumping, listMilkStock, listPumps, startPumping, updatePumping } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { PumpingSession, Side } from '@/db/types';
+import { pumpingSessionToActivity, type ActivityItem } from '@/lib/activity';
 import {
   formatDateTime,
   formatTime,
@@ -24,6 +27,7 @@ export function PumpingPage() {
   const [duration, setDuration] = useState('');
   const [side, setSide] = useState<Side | null>(null);
   const [when, setWhen] = useState(toDatetimeLocalValue());
+  const [editingEntry, setEditingEntry] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -139,14 +143,14 @@ export function PumpingPage() {
       <Card>
         <h2>Aujourd’hui · {todayMl} ml tirés</h2>
         {today.map((row) => (
-          <div className="line" key={row.id}>
-            <strong>{formatTime(row.startedAt)}</strong>
-            <span className="muted">
-              {row.amountMl == null ? 'à compléter' : `${row.amountMl} ml · reste ${row.remainingMl ?? 0}`}
-            </span>
-          </div>
+          <JournalLine
+            key={row.id}
+            item={pumpingSessionToActivity(row)}
+            onClick={() => setEditingEntry(pumpingSessionToActivity(row))}
+          />
         ))}
       </Card>
+      {editingEntry ? <ActivityEditor item={editingEntry} onClose={() => setEditingEntry(null)} /> : null}
     </div>
   );
 }

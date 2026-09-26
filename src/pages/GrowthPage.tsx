@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { GrowthChart } from '@/components/GrowthChart';
 import { Button, Card, Field } from '@/components/ui';
 import { addMeasurement, listMeasurements } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Measurement, MeasurementType } from '@/db/types';
-import { formatDate, parseDecimal } from '@/lib/dates';
+import { measurementToActivity, type ActivityItem } from '@/lib/activity';
+import { parseDecimal } from '@/lib/dates';
 import { measurementLabel, measurementUnit } from '@/lib/labels';
 
 const TYPES: MeasurementType[] = ['WEIGHT', 'HEIGHT', 'HEAD_CIRCUMFERENCE'];
@@ -16,6 +19,7 @@ export function GrowthPage() {
   const [rows, setRows] = useState<Measurement[]>([]);
   const [adding, setAdding] = useState<MeasurementType | null>(null);
   const [value, setValue] = useState('');
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -69,17 +73,17 @@ export function GrowthPage() {
               <p className="muted">Pas encore de mesure.</p>
             ) : (
               list.map((row) => (
-                <div className="line" key={row.id}>
-                  <span className="muted">{formatDate(row.measuredAt)}</span>
-                  <strong>
-                    {String(row.value).replace('.', ',')} {row.unit}
-                  </strong>
-                </div>
+                <JournalLine
+                  key={row.id}
+                  item={measurementToActivity(row)}
+                  onClick={() => setEditing(measurementToActivity(row))}
+                />
               ))
             )}
           </Card>
         );
       })}
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Field } from '@/components/ui';
 import { addNote, listNotes } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Note } from '@/db/types';
-import { formatDateTime } from '@/lib/dates';
+import { noteToActivity, type ActivityItem } from '@/lib/activity';
 
 export function NotesPage() {
   const { baby, tick } = useDb();
   const [rows, setRows] = useState<Note[]>([]);
   const [body, setBody] = useState('');
   const [asTodo, setAsTodo] = useState(false);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -53,16 +56,15 @@ export function NotesPage() {
           <p className="muted">Pas encore de note.</p>
         ) : (
           rows.map((row) => (
-            <div key={row.id} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <span className="muted">
-                {formatDateTime(row.notedAt)}
-                {row.isTodo ? (row.doneAt ? ' · fait' : ' · à faire') : ''}
-              </span>
-              <p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{row.body}</p>
-            </div>
+            <JournalLine
+              key={row.id}
+              item={noteToActivity(row)}
+              onClick={() => setEditing(noteToActivity(row))}
+            />
           ))
         )}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

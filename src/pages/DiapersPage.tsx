@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
-import { Button, Card, Chip } from '@/components/ui';
-import { addDiaper, deleteDiaper, listDiapers, updateDiaper } from '@/db/api';
+import { Card } from '@/components/ui';
+import { addDiaper, listDiapers } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { DiaperEvent } from '@/db/types';
-import { formatTime, startOfLocalDay } from '@/lib/dates';
-import { diaperLabel } from '@/lib/labels';
+import { diaperEventToActivity, type ActivityItem } from '@/lib/activity';
+import { startOfLocalDay } from '@/lib/dates';
 
 export function DiapersPage() {
   const { baby, tick } = useDb();
   const [events, setEvents] = useState<DiaperEvent[]>([]);
-  const [editing, setEditing] = useState<DiaperEvent | null>(null);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -40,51 +42,15 @@ export function DiapersPage() {
           <p className="muted">Un appui enregistre l’heure tout de suite.</p>
         ) : (
           today.map((row) => (
-            <button
+            <JournalLine
               key={row.id}
-              type="button"
-              className="line"
-              style={{ width: '100%', background: 'none', border: 0, padding: '8px 0', cursor: 'pointer' }}
-              onClick={() => setEditing(row)}>
-              <strong>{formatTime(row.occurredAt)}</strong>
-              <span className="muted">{diaperLabel[row.kind]}</span>
-            </button>
+              item={diaperEventToActivity(row)}
+              onClick={() => setEditing(diaperEventToActivity(row))}
+            />
           ))
         )}
       </Card>
-      {editing ? (
-        <div className="overlay" onClick={() => setEditing(null)}>
-          <div className="sheet" onClick={(e) => e.stopPropagation()}>
-            <h2>Modifier</h2>
-            <div className="row">
-              {(['PEE', 'POO', 'BOTH'] as const).map((kind) => (
-                <Chip
-                  key={kind}
-                  label={diaperLabel[kind]}
-                  selected={editing.kind === kind}
-                  onClick={() => {
-                    updateDiaper(editing.id, kind);
-                    setEditing({ ...editing, kind });
-                  }}
-                />
-              ))}
-            </div>
-            <Button
-              tone="danger"
-              onClick={() => {
-                if (confirm('Supprimer cette couche ?')) {
-                  deleteDiaper(editing.id);
-                  setEditing(null);
-                }
-              }}>
-              Supprimer
-            </Button>
-            <Button tone="muted" onClick={() => setEditing(null)}>
-              Fermer
-            </Button>
-          </div>
-        </div>
-      ) : null}
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

@@ -1,16 +1,20 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Field } from '@/components/ui';
 import { addSolidFood, listSolidFoods } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { SolidFood } from '@/db/types';
-import { formatTime, startOfLocalDay } from '@/lib/dates';
+import { solidFoodToActivity, type ActivityItem } from '@/lib/activity';
+import { startOfLocalDay } from '@/lib/dates';
 
 export function SolidsPage() {
   const { baby, tick } = useDb();
   const [rows, setRows] = useState<SolidFood[]>([]);
   const [food, setFood] = useState('');
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -41,13 +45,15 @@ export function SolidsPage() {
           <p className="muted">Un aliment = une ligne, datée tout de suite.</p>
         ) : (
           today.map((row) => (
-            <div className="line" key={row.id}>
-              <strong>{row.food}</strong>
-              <span className="muted">{formatTime(row.eatenAt)}</span>
-            </div>
+            <JournalLine
+              key={row.id}
+              item={solidFoodToActivity(row)}
+              onClick={() => setEditing(solidFoodToActivity(row))}
+            />
           ))
         )}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Trash2 } from 'lucide-react';
 
 import { Button, Chip, Field } from '@/components/ui';
 import {
@@ -71,6 +72,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [noteTodo, setNoteTodo] = useState(false);
   const [noteDone, setNoteDone] = useState(false);
   const [error, setError] = useState('');
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const timed = item.kind === 'feeding' || item.kind === 'sleep' || item.kind === 'pumping' || item.kind === 'exercise';
   const rangeDone = (item.kind === 'sleep' || item.kind === 'exercise') && sleepStatus === 'done';
@@ -267,6 +269,10 @@ export function ActivityEditor({ item, onClose }: Props) {
     };
   }, [item]);
 
+  useEffect(() => {
+    setConfirmDelete(false);
+  }, [item.id]);
+
   const save = async () => {
     setError('');
     const at = fromDatetimeLocalValue(when);
@@ -407,7 +413,6 @@ export function ActivityEditor({ item, onClose }: Props) {
   };
 
   const remove = async () => {
-    if (!window.confirm('Supprimer cette entrée ?')) return;
     if (item.kind === 'bottle') await deleteBottle(item.id);
     else if (item.kind === 'diaper') await deleteDiaper(item.id);
     else if (item.kind === 'bath') await deleteBath(item.id);
@@ -425,7 +430,14 @@ export function ActivityEditor({ item, onClose }: Props) {
 
   return (
     <div className="overlay" onClick={onClose}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="sheet"
+        onClick={(e) => {
+          e.stopPropagation();
+          if (!(e.target instanceof Element) || !e.target.closest('.btn-delete')) {
+            setConfirmDelete(false);
+          }
+        }}>
         <h2>
           {item.title} · {formatDateTime(item.at)}
         </h2>
@@ -654,11 +666,39 @@ export function ActivityEditor({ item, onClose }: Props) {
           </>
         ) : null}
         {error ? <p className="muted">{error}</p> : null}
-        <Button onClick={() => void save()}>Enregistrer</Button>
-        <Button tone="danger" onClick={() => void remove()}>
-          Supprimer
+        <Button
+          onClick={() => {
+            setConfirmDelete(false);
+            void save();
+          }}>
+          Enregistrer
         </Button>
-        <Button tone="muted" onClick={onClose}>
+        <button
+          type="button"
+          className={`btn btn-delete${confirmDelete ? ' is-armed' : ''}`}
+          onClick={() => {
+            if (!confirmDelete) {
+              setConfirmDelete(true);
+              return;
+            }
+            void remove();
+          }}
+          aria-label={confirmDelete ? 'Confirmer la suppression' : 'Supprimer'}>
+          {confirmDelete ? (
+            <>
+              <Trash2 size={18} strokeWidth={2.2} aria-hidden />
+              Confirmer
+            </>
+          ) : (
+            'Supprimer'
+          )}
+        </button>
+        <Button
+          tone="muted"
+          onClick={() => {
+            setConfirmDelete(false);
+            onClose();
+          }}>
           Fermer
         </Button>
       </div>

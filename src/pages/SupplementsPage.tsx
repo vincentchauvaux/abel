@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import { addSupplement, listSupplements } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Supplement } from '@/db/types';
-import { formatTime, startOfLocalDay } from '@/lib/dates';
+import { supplementToActivity, type ActivityItem } from '@/lib/activity';
+import { startOfLocalDay } from '@/lib/dates';
 
 const PRESETS = ['Vitamine D', 'Fer', 'Fluor'];
 
@@ -13,6 +16,7 @@ export function SupplementsPage() {
   const { baby, tick } = useDb();
   const [rows, setRows] = useState<Supplement[]>([]);
   const [name, setName] = useState('Vitamine D');
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -47,13 +51,15 @@ export function SupplementsPage() {
           <p className="muted">Un appui enregistre l’heure. Ce n’est pas un conseil médical.</p>
         ) : (
           today.map((row) => (
-            <div className="line" key={row.id}>
-              <strong>{row.name}</strong>
-              <span className="muted">{formatTime(row.givenAt)}</span>
-            </div>
+            <JournalLine
+              key={row.id}
+              item={supplementToActivity(row)}
+              onClick={() => setEditing(supplementToActivity(row))}
+            />
           ))
         )}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

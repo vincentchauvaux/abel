@@ -155,6 +155,20 @@ h2 {
   color: #fff;
 }
 
+.btn-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: var(--muted-bg);
+  color: var(--text);
+}
+
+.btn-delete.is-armed {
+  background: rgba(180, 35, 24, 0.14);
+  color: var(--danger);
+}
+
 .btn-muted {
   background: var(--muted-bg);
   color: var(--text);
@@ -1342,6 +1356,21 @@ h2 {
   font-size: 3rem;
   font-weight: 800;
   text-align: center;
+}
+
+button.timer-edit {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 4px 0 8px;
+  border: 0;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.timer-edit:active {
+  opacity: 0.82;
 }
 
 .line {

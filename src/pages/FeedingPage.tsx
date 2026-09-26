@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip } from '@/components/ui';
 import {
@@ -17,9 +19,10 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatMinuteCount, formatTime, isoAtLocalMinutes, localDateKey, nowIso, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
+import { feedingSessionToActivity, sidesForFeeding, type ActivityItem } from '@/lib/activity';
+import { elapsedMs, formatDuration, formatMinuteCount, formatTime, localDateKey, nowIso, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
-import { feedingSidesLabel, sideLabel } from '@/lib/labels';
+import { sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 
 const BREASTS: Side[] = ['LEFT', 'RIGHT'];
@@ -33,6 +36,7 @@ export function FeedingPage() {
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [custom, setCustom] = useState('');
   const [useTimer, setUseTimer] = useState(true);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
   const babyId = baby?.id ?? '';
 
   useEffect(() => {
@@ -83,10 +87,16 @@ export function FeedingPage() {
       <ModuleHeader title="Allaitement" toolId="feeding" />
       {active ? (
         <Card>
-          <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
-          <p className="muted" style={{ textAlign: 'center' }}>
-            Séance · début {formatTime(active.startedAt)}
-          </p>
+          <button
+            type="button"
+            className="timer-edit"
+            onClick={() => setEditing(feedingSessionToActivity(active, sidesForFeeding(segments, active.id)))}
+            aria-label="Modifier la tétée en cours">
+            <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
+            <p className="muted" style={{ textAlign: 'center' }}>
+              Séance · début {formatTime(active.startedAt)} · modifier
+            </p>
+          </button>
           <p className="muted" style={{ textAlign: 'center' }}>
             Appuie sur l’autre sein pour le lancer : celui-ci se met en pause, le chrono de séance continue.
           </p>
@@ -166,21 +176,13 @@ export function FeedingPage() {
         </p>
         {todaySpans.map((span) => {
           const session = sessions.find((row) => row.id === span.id);
-          const sides = feedingSidesLabel(
-            segments.filter((row) => row.feedingSessionId === span.id).map((row) => row.side),
-          );
+          if (!session) return null;
           return (
-            <div className="line" key={span.id}>
-              <span>{formatTime(isoAtLocalMinutes(todayKey, span.startMin))}</span>
-              <span className="muted">
-                {span.noted
-                  ? 'notée'
-                  : session && !session.endedAt
-                    ? `${formatMinuteCount(span.minutes)} · en cours`
-                    : formatMinuteCount(span.minutes)}
-                {sides ? ` · ${sides}` : ''}
-              </span>
-            </div>
+            <JournalLine
+              key={span.id}
+              item={feedingSessionToActivity(session, sidesForFeeding(segments, session.id))}
+              onClick={() => setEditing(feedingSessionToActivity(session, sidesForFeeding(segments, session.id)))}
+            />
           );
         })}
       </Card>
@@ -212,6 +214,7 @@ export function FeedingPage() {
         </Button>
       </Card>
       ) : null}
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

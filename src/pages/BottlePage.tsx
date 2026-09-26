@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import { addBottle, getReminder, listBottles, listMilkStock } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, MilkType, PumpingSession } from '@/db/types';
+import { bottleFeedToActivity, type ActivityItem } from '@/lib/activity';
 import { formatDateTime, formatTime, nowIso, parseDecimal, startOfLocalDay } from '@/lib/dates';
 import { milkLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
@@ -18,6 +21,7 @@ export function BottlePage() {
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [stockId, setStockId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -123,15 +127,14 @@ export function BottlePage() {
           Aujourd’hui · {today.length} · {todayMl} ml
         </h2>
         {today.map((row) => (
-          <div className="line" key={row.id}>
-            <strong>{formatTime(row.fedAt)}</strong>
-            <span className="muted">
-              {row.amountMl} ml · {milkLabel[row.milkType]}
-              {row.pumpingSessionId ? ' · stock' : ''}
-            </span>
-          </div>
+          <JournalLine
+            key={row.id}
+            item={bottleFeedToActivity(row)}
+            onClick={() => setEditing(bottleFeedToActivity(row))}
+          />
         ))}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }

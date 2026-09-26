@@ -1,18 +1,22 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { ActivityEditor } from '@/components/ActivityEditor';
+import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { Button, Card } from '@/components/ui';
 import { listSleep, startSleep, stopSleep } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { elapsedMs, formatDuration, formatMinuteCount, formatTime, isoAtLocalMinutes, localDateKey, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
+import { sleepSessionToActivity, type ActivityItem } from '@/lib/activity';
+import { elapsedMs, formatDuration, formatMinuteCount, formatTime, localDateKey, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
 
 export function SleepPage() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
   const [sessions, setSessions] = useState<SleepSession[]>([]);
+  const [editing, setEditing] = useState<ActivityItem | null>(null);
   const babyId = baby?.id ?? '';
 
   useEffect(() => {
@@ -32,10 +36,16 @@ export function SleepPage() {
       <Card>
         {active ? (
           <>
-            <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
-            <p className="muted" style={{ textAlign: 'center' }}>
-              Endormi depuis {formatTime(active.startedAt)}
-            </p>
+            <button
+              type="button"
+              className="timer-edit"
+              onClick={() => setEditing(sleepSessionToActivity(active))}
+              aria-label="Modifier la sieste en cours">
+              <div className="timer">{formatDuration(elapsedMs(active.startedAt, active.endedAt, now))}</div>
+              <p className="muted" style={{ textAlign: 'center' }}>
+                Endormi depuis {formatTime(active.startedAt)} · modifier
+              </p>
+            </button>
             <Button onClick={() => stopSleep(active.id)}>Réveil</Button>
           </>
         ) : (
@@ -61,18 +71,18 @@ export function SleepPage() {
         ) : (
           todaySpans.map((span) => {
             const row = sessions.find((item) => item.id === span.id);
+            if (!row) return null;
             return (
-              <div className="line" key={span.id}>
-                <span>{formatTime(isoAtLocalMinutes(todayKey, span.startMin))}</span>
-                <span className="muted">
-                  {span.minutes > 0 ? formatMinuteCount(span.minutes) : 'notée'}
-                  {row && !row.endedAt ? ' · en cours' : ''}
-                </span>
-              </div>
+              <JournalLine
+                key={span.id}
+                item={sleepSessionToActivity(row)}
+                onClick={() => setEditing(sleepSessionToActivity(row))}
+              />
             );
           })
         )}
       </Card>
+      {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}
     </div>
   );
 }
