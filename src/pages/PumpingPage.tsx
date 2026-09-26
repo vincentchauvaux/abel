@@ -3,20 +3,15 @@ import { useEffect, useState } from 'react';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
+import { MilkStockLine } from '@/components/MilkStockLine';
 import { Button, Card, Chip, Field } from '@/components/ui';
 import { addPumping, listMilkStock, listPumps, startPumping, updatePumping } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { PumpingSession, Side } from '@/db/types';
 import { pumpingSessionToActivity, type ActivityItem } from '@/lib/activity';
-import {
-  formatDateTime,
-  formatTime,
-  fromDatetimeLocalValue,
-  parseDecimal,
-  startOfLocalDay,
-  toDatetimeLocalValue,
-} from '@/lib/dates';
+import { formatTime, fromDatetimeLocalValue, parseDecimal, startOfLocalDay, toDatetimeLocalValue } from '@/lib/dates';
 import { sideLabel } from '@/lib/labels';
+import { stockIdLabel } from '@/lib/milk-stock';
 
 export function PumpingPage() {
   const { baby, tick } = useDb();
@@ -28,6 +23,7 @@ export function PumpingPage() {
   const [side, setSide] = useState<Side | null>(null);
   const [when, setWhen] = useState(toDatetimeLocalValue());
   const [editingEntry, setEditingEntry] = useState<ActivityItem | null>(null);
+  const [lastStockNo, setLastStockNo] = useState<number | null>(null);
 
   useEffect(() => {
     if (!baby) return;
@@ -55,7 +51,7 @@ export function PumpingPage() {
       <ModuleHeader title="Tire-lait" toolId="pumping" />
       <Card>
         <h2>Noter un tirage</h2>
-        <p className="muted">Quantité + date. Le lait entre en stock pour les prochains biberons.</p>
+        <p className="muted">Quantité + date. Un ID est attribué tout de suite — note-le sur le sachet.</p>
         <label className="field">
           <span>Date et heure</span>
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
@@ -75,12 +71,13 @@ export function PumpingPage() {
             const ml = parseDecimal(amount);
             if (ml === null || ml <= 0 || !when) return;
             const minutes = duration.trim() ? parseDecimal(duration) : null;
-            await addPumping(baby.id, {
+            const created = await addPumping(baby.id, {
               amountMl: Math.round(ml),
               startedAt: fromDatetimeLocalValue(when),
               durationMinutes: minutes === null ? null : Math.round(minutes),
               side,
             });
+            setLastStockNo(created.stockNo);
             resetForm();
           }}>
           Mettre en stock
@@ -101,7 +98,9 @@ export function PumpingPage() {
       </Card>
       {editing ? (
         <Card>
-          <h2>Compléter · {formatTime(editing.startedAt)}</h2>
+          <h2>
+            Compléter · {stockIdLabel(editing.stockNo)} · {formatTime(editing.startedAt)}
+          </h2>
           <Field label="Quantité (ml)" value={amount} onChange={setAmount} placeholder="145" />
           <Field label="Durée (min, facultatif)" value={duration} onChange={setDuration} placeholder="15" />
           <div className="row">
@@ -121,6 +120,7 @@ export function PumpingPage() {
                 side,
                 startedAt: when ? fromDatetimeLocalValue(when) : undefined,
               });
+              setLastStockNo(editing.stockNo);
               resetForm();
             }}>
             Enregistrer
@@ -129,15 +129,21 @@ export function PumpingPage() {
       ) : null}
       <Card>
         <h2>Stock disponible · {stockMl} ml</h2>
+        {lastStockNo != null ? (
+          <p className="muted">Dernier sachet : {stockIdLabel(lastStockNo)} — note-le sur le lait.</p>
+        ) : null}
         {stock.length === 0 ? (
           <p className="muted">Aucun lait en stock. Note un tirage ci-dessus.</p>
         ) : (
-          stock.map((row) => (
-            <div className="line" key={row.id}>
-              <strong>{formatDateTime(row.startedAt)}</strong>
-              <span className="muted">{row.remainingMl} ml restants</span>
-            </div>
-          ))
+          <div className="stock-list">
+            {stock.map((row) => (
+              <MilkStockLine
+                key={row.id}
+                row={row}
+                onClick={() => setEditingEntry(pumpingSessionToActivity(row))}
+              />
+            ))}
+          </div>
         )}
       </Card>
       <Card>

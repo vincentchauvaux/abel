@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS pumping_sessions (
   started_at TIMESTAMPTZ NOT NULL,
   amount_ml INTEGER,
   remaining_ml INTEGER,
+  stock_no INTEGER,
   duration_minutes INTEGER,
   side TEXT,
   created_at TIMESTAMPTZ NOT NULL,
@@ -162,6 +163,29 @@ ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS diaper_minutes INTEGER;
 ALTER TABLE reminder_rules ADD COLUMN IF NOT EXISTS diaper_when TEXT;
 ALTER TABLE bottle_feeds ADD COLUMN IF NOT EXISTS pumping_session_id UUID;
 ALTER TABLE pumping_sessions ADD COLUMN IF NOT EXISTS remaining_ml INTEGER;
+ALTER TABLE pumping_sessions ADD COLUMN IF NOT EXISTS stock_no INTEGER;
+
+WITH maxes AS (
+  SELECT baby_id, COALESCE(MAX(stock_no), 0) AS mx
+  FROM pumping_sessions
+  GROUP BY baby_id
+),
+missing AS (
+  SELECT
+    p.id,
+    p.baby_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY p.baby_id
+      ORDER BY p.started_at ASC, p.created_at ASC, p.id ASC
+    ) AS rn
+  FROM pumping_sessions p
+  WHERE p.stock_no IS NULL
+)
+UPDATE pumping_sessions p
+SET stock_no = m.mx + x.rn
+FROM missing x
+JOIN maxes m ON m.baby_id = x.baby_id
+WHERE p.id = x.id;
 ALTER TABLE bottle_feeds ALTER COLUMN amount_ml DROP NOT NULL;
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS is_todo BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE notes ADD COLUMN IF NOT EXISTS done_at TIMESTAMPTZ;

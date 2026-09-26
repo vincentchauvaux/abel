@@ -67,7 +67,7 @@ Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports 
 |---|---|
 | Couche | Un appui = pipi, caca ou les deux. |
 | Bain | Un appui = un bain noté (timestamp). Même flux 1 tap que les couches. |
-| Tire-lait | Quantité + date → **stock** (`remainingMl`). Consommé via Biberon lait maternel. |
+| Tire-lait | Quantité + date → **stock** (`remainingMl`, `stockNo`). Chaque sachet a un **ID** automatique à la création. Liste : **ID : date** + soleil (7 h–19 h) ou lune, **plus récent en haut**. Consommé via Biberon lait maternel. |
 | Croissance | Poids (kg), taille (cm), périmètre crânien (cm). Courbes poids/taille et IMC indicatif (pas un avis médical). |
 | Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. Depuis **Noter une entrée** : sieste terminée (début/fin/durée) ou chrono **En cours**. |
 | Température | Saisie °C uniquement ; code couleur indicatif (vert / orange / rouge). |
@@ -87,7 +87,7 @@ Cartes **Favoris** (si configurés, sinon **+** / select pour en ajouter) : racc
 
 Identité du nourrisson, séparée du compte parent : **photo** (rond au-dessus du prénom, redimensionnée localement, éditable ; `+` si vide), prénom, date de naissance (`bornOn`, jour calendaire local), âge, **album photos** (VPS chiffré, un album par bébé), **objectifs perso** (repas toutes les X h, biberon ml/cl optionnel par repas, **couche X min avant ou après le repas**), **exercices** (intitulé + durée ; tuiles dans **Outils → Exercices**, favoris, décompte, sonnerie ; séances `exercise_sessions` dans le journal), **horoscope du jour** (API via le VPS, cache local hors ligne), lectures traditionnelles occidentale et chinoise (cinq éléments), alertes. Une phrase en petit à la fin : Mimom n’est pas un avis médical.
 
-Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`) sélectionnable au biberon.
+Le rappel repas du module Allaitement et l’objectif repas de Bébé sont la même règle (`delayMinutes`). Au sein, aucune quantité n’est demandée. Le biberon **exige** les ml à la saisie ; la quantité objectif est optionnelle sur Bébé. Le rappel couche (`diaperMinutes`, `diaperWhen` : `before` | `after`) part du dernier repas (tétée terminée ou biberon), pas de la dernière couche. Le lait tiré alimente un stock (`remainingMl`, `stockNo` visible) sélectionnable au biberon.
 
 ### Album (VPS chiffré)
 
@@ -264,7 +264,7 @@ babies (name, bornOn, photoUrl)
  ├── supplements
  ├── diaper_events
  ├── bath_events
- ├── pumping_sessions (amountMl, remainingMl)
+ ├── pumping_sessions (amountMl, remainingMl, stockNo)
  ├── measurements
  ├── sleep_sessions
  ├── temperatures

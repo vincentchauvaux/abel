@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button, Chip, Field } from '@/components/ui';
+import { MilkStockLine } from '@/components/MilkStockLine';
 import {
   addBottle,
   addBath,
@@ -25,7 +26,6 @@ import {
   addMinutesIso,
   addMinutesToLocal,
   endLocalFromStartAndTime,
-  formatTime,
   fromDatetimeLocalValue,
   joinDatetimeLocal,
   minutesBetweenLocal,
@@ -272,8 +272,8 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           setError('Indique une quantité en ml.');
           return;
         }
-        await addPumping(baby.id, { amountMl: Math.round(ml), startedAt: at, side });
-        await finish(`Tirage ${Math.round(ml)} ml en stock`);
+        const created = await addPumping(baby.id, { amountMl: Math.round(ml), startedAt: at, side });
+        await finish(`Tirage ${Math.round(ml)} ml · ID ${created.stockNo} en stock`);
         return;
       }
       if (type === 'solid') {
@@ -517,20 +517,22 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
               {stock.length === 0 ? (
                 <p className="muted">Pas de stock. Note un tirage (Tire-lait) d’abord.</p>
               ) : (
-                <div className="row">
-                  {stock.map((row) => (
-                    <Chip
-                      key={row.id}
-                      label={`${row.remainingMl} ml · ${formatTime(row.startedAt)}`}
-                      selected={stockId === row.id}
-                      onClick={() => {
-                        setStockId(row.id);
-                        setAmount(String(row.remainingMl ?? ''));
-                      }}
-                    />
-                  ))}
+                <>
+                  <div className="stock-list">
+                    {stock.map((row) => (
+                      <MilkStockLine
+                        key={row.id}
+                        row={row}
+                        selected={stockId === row.id}
+                        onClick={() => {
+                          setStockId(row.id);
+                          setAmount(String(row.remainingMl ?? ''));
+                        }}
+                      />
+                    ))}
+                  </div>
                   <Chip label="Sans stock" selected={stockId === null} onClick={() => setStockId(null)} />
-                </div>
+                </>
               )}
             </>
           ) : null}

@@ -31,6 +31,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { activityAt, activityAtFromDuration, formatFeedLabel, formatMinuteCount, formatMinutes, elapsedMs } from '@/lib/dates';
+import { stockIdLabel } from '@/lib/milk-stock';
 import { formatTemperature } from '@/lib/temperature';
 import { diaperLabel, feedingSidesLabel, measurementLabel, milkLabel } from '@/lib/labels';
 
@@ -57,6 +58,7 @@ export type ActivityItem = {
   tempCelsius?: number;
   createdBy?: string | null;
   startAt?: string;
+  stockNo?: number | null;
 };
 
 export function feedingSessionToActivity(row: FeedingSession, sides: readonly Side[] = []): ActivityItem {
@@ -110,6 +112,7 @@ export function bathEventToActivity(row: BathEvent): ActivityItem {
 }
 
 export function pumpingSessionToActivity(row: PumpingSession): ActivityItem {
+  const idLabel = stockIdLabel(row.stockNo);
   return {
     id: row.id,
     kind: 'pumping',
@@ -117,10 +120,11 @@ export function pumpingSessionToActivity(row: PumpingSession): ActivityItem {
     title: 'Tire-lait',
     detail:
       row.amountMl == null
-        ? 'à compléter'
-        : `${row.durationMinutes != null && row.durationMinutes > 0 ? `${formatMinuteCount(row.durationMinutes)} · ` : ''}${row.amountMl} ml · reste ${row.remainingMl ?? 0} ml`,
+        ? `${idLabel} · à compléter`
+        : `${idLabel} · ${row.durationMinutes != null && row.durationMinutes > 0 ? `${formatMinuteCount(row.durationMinutes)} · ` : ''}${row.amountMl} ml · reste ${row.remainingMl ?? 0} ml`,
     createdBy: row.createdBy ?? null,
     startAt: row.startedAt,
+    stockNo: row.stockNo,
   };
 }
 

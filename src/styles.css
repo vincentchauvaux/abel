@@ -1379,6 +1379,64 @@ button.timer-edit:active {
   gap: 12px;
 }
 
+.stock-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.stock-line {
+  width: 100%;
+  background: none;
+  border: 0;
+  padding: 10px 0;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border);
+  color: inherit;
+  font: inherit;
+}
+
+.stock-line:last-child {
+  border-bottom: 0;
+}
+
+.stock-line.is-selected {
+  background: rgba(196, 92, 74, 0.1);
+  margin: 0 -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: 12px;
+}
+
+.stock-line-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.stock-line-period {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stock-line-period.is-day {
+  color: #c48a1a;
+}
+
+.stock-line-period.is-night {
+  color: var(--sleep);
+}
+
 .bars-wrap {
   width: 100%;
   max-width: 100%;

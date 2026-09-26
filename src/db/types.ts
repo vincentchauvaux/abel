@@ -62,6 +62,8 @@ export type PumpingSession = Stamp & {
   amountMl: number | null;
   /** Quantité encore disponible en stock (après prélèvements biberon). */
   remainingMl: number | null;
+  /** Numéro de sachet, attribué à la création (ne change pas). */
+  stockNo: number;
   durationMinutes: number | null;
   side: Side | null;
   createdBy?: string | null;

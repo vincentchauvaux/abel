@@ -439,7 +439,10 @@ export function ActivityEditor({ item, onClose }: Props) {
           }
         }}>
         <h2>
-          {item.title} · {formatDateTime(item.at)}
+          {item.title}
+          {item.kind === 'pumping' && item.stockNo != null && item.stockNo > 0 ? ` · ID ${item.stockNo}` : ''}
+          {' · '}
+          {formatDateTime(item.at)}
         </h2>
         {timed ? (
           <>

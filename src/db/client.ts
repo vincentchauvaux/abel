@@ -188,6 +188,54 @@ class AbelDB extends Dexie {
       bathEvents: 'id, babyId, occurredAt',
       exerciseSessions: 'id, babyId, exerciseItemId, startedAt',
     });
+    this.version(9)
+      .stores({
+        babies: 'id',
+        feedingSessions: 'id, babyId, startedAt',
+        feedingSegments: 'id, feedingSessionId, startedAt',
+        bottleFeeds: 'id, babyId, fedAt, pumpingSessionId',
+        diaperEvents: 'id, babyId, occurredAt',
+        pumpingSessions: 'id, babyId, startedAt',
+        measurements: 'id, babyId, type, measuredAt',
+        reminderRules: 'id, babyId',
+        solidFoods: 'id, babyId, eatenAt',
+        supplements: 'id, babyId, givenAt',
+        sleepSessions: 'id, babyId, startedAt',
+        temperatures: 'id, babyId, measuredAt',
+        notes: 'id, babyId, notedAt, isTodo, doneAt',
+        exerciseItems: 'id, babyId, createdAt',
+        bathEvents: 'id, babyId, occurredAt',
+        exerciseSessions: 'id, babyId, exerciseItemId, startedAt',
+      })
+      .upgrade(async (tx) => {
+        const rows = await tx.table('pumpingSessions').toArray();
+        const byBaby = new Map<string, typeof rows>();
+        for (const row of rows) {
+          const babyId = String(row.babyId ?? '');
+          const list = byBaby.get(babyId) ?? [];
+          list.push(row);
+          byBaby.set(babyId, list);
+        }
+        for (const list of byBaby.values()) {
+          let max = 0;
+          for (const row of list) {
+            const n = row.stockNo;
+            if (typeof n === 'number' && n > max) max = n;
+          }
+          const missing = list
+            .filter((row) => typeof row.stockNo !== 'number' || row.stockNo < 1)
+            .sort(
+              (a, b) =>
+                String(a.startedAt ?? '').localeCompare(String(b.startedAt ?? '')) ||
+                String(a.createdAt ?? '').localeCompare(String(b.createdAt ?? '')) ||
+                String(a.id).localeCompare(String(b.id)),
+            );
+          for (const row of missing) {
+            max += 1;
+            await tx.table('pumpingSessions').update(row.id, { stockNo: max });
+          }
+        }
+      });
   }
 }
 

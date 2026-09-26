@@ -23,6 +23,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { nowIso } from '@/lib/dates';
+import { sortStockNewestFirst } from '@/lib/milk-stock';
 import { exerciseEndsAt, exerciseIsDone, exerciseIsRunning } from '@/lib/exercises';
 import { readGoogleUser } from '@/lib/google';
 import { measurementUnit } from '@/lib/labels';
@@ -242,6 +243,16 @@ export async function deleteBath(id: string) {
   notifyDb();
 }
 
+async function nextStockNo(babyId: string): Promise<number> {
+  const rows = await db.pumpingSessions.where('babyId').equals(babyId).toArray();
+  let max = 0;
+  for (const row of rows) {
+    const n = row.stockNo;
+    if (typeof n === 'number' && n > max) max = n;
+  }
+  return max + 1;
+}
+
 export async function startPumping(babyId: string) {
   const open = alive(await db.pumpingSessions.where('babyId').equals(babyId).toArray()).find(
     (row) => row.amountMl == null,
@@ -251,16 +262,20 @@ export async function startPumping(babyId: string) {
     return open.id;
   }
   const id = createId();
-  await db.pumpingSessions.add({
-    id,
-    babyId,
-    startedAt: nowIso(),
-    amountMl: null,
-    remainingMl: null,
-    durationMinutes: null,
-    side: null,
-    ...actorStamp(),
-    ...stamp(),
+  await db.transaction('rw', db.pumpingSessions, async () => {
+    const stockNo = await nextStockNo(babyId);
+    await db.pumpingSessions.add({
+      id,
+      babyId,
+      startedAt: nowIso(),
+      amountMl: null,
+      remainingMl: null,
+      stockNo,
+      durationMinutes: null,
+      side: null,
+      ...actorStamp(),
+      ...stamp(),
+    });
   });
   notifyDbUrgent();
   return id;
@@ -274,21 +289,26 @@ export async function addPumping(
     durationMinutes?: number | null;
     side?: Side | null;
   },
-) {
+): Promise<{ id: string; stockNo: number }> {
   const id = createId();
-  await db.pumpingSessions.add({
-    id,
-    babyId,
-    startedAt: values.startedAt,
-    amountMl: values.amountMl,
-    remainingMl: values.amountMl,
-    durationMinutes: values.durationMinutes ?? null,
-    side: values.side ?? null,
-    ...actorStamp(),
-    ...stamp(),
+  let stockNo = 0;
+  await db.transaction('rw', db.pumpingSessions, async () => {
+    stockNo = await nextStockNo(babyId);
+    await db.pumpingSessions.add({
+      id,
+      babyId,
+      startedAt: values.startedAt,
+      amountMl: values.amountMl,
+      remainingMl: values.amountMl,
+      stockNo,
+      durationMinutes: values.durationMinutes ?? null,
+      side: values.side ?? null,
+      ...actorStamp(),
+      ...stamp(),
+    });
   });
   notifyDb();
-  return id;
+  return { id, stockNo };
 }
 
 export async function updatePumping(
@@ -330,7 +350,7 @@ export async function deletePumping(id: string) {
 }
 
 export async function listMilkStock(babyId: string): Promise<PumpingSession[]> {
-  return (await listPumps(babyId)).filter((row) => (row.remainingMl ?? 0) > 0);
+  return sortStockNewestFirst((await listPumps(babyId)).filter((row) => (row.remainingMl ?? 0) > 0));
 }
 
 export async function addBottle(

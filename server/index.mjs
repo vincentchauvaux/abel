@@ -140,6 +140,7 @@ const TABLES = {
       startedAt: 'started_at',
       amountMl: 'amount_ml',
       remainingMl: 'remaining_ml',
+      stockNo: 'stock_no',
       durationMinutes: 'duration_minutes',
       side: 'side',
       createdBy: 'created_by',
