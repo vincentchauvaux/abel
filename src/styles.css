@@ -1633,9 +1633,9 @@ button.timer-edit:active {
 }
 
 .sleep-clock-hour {
-  fill: var(--text-muted);
-  font-size: 11px;
-  font-weight: 600;
+  fill: var(--text);
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .sleep-clock-center-value {
@@ -2360,6 +2360,173 @@ button.timer-edit:active {
 
 .accordion-action {
   flex-shrink: 0;
+}
+
+.leap-calendar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.leap-title {
+  margin: 0;
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.leap-board {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  min-width: 0;
+}
+
+.leap-grid {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.leap-row {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 3px;
+  align-items: end;
+}
+
+.leap-side {
+  font-size: 0.62rem;
+  color: var(--text-muted);
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  letter-spacing: 0.08em;
+  align-self: center;
+}
+
+.leap-cell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--surface);
+  padding: 2px 0 3px;
+}
+
+.leap-cell.is-blank {
+  border: 0;
+  background: none;
+  min-height: 0;
+}
+
+.leap-cell.is-fussy {
+  background: #5a5a5a;
+  border-color: #5a5a5a;
+  color: #fff;
+}
+
+.leap-cell.is-storm {
+  background: repeating-linear-gradient(
+    -45deg,
+    #d8d2cb,
+    #d8d2cb 3px,
+    #f6f1ea 3px,
+    #f6f1ea 6px
+  );
+}
+
+.leap-cell.is-distance {
+  background: #c8c2bb;
+  border-color: #b4aea7;
+}
+
+.leap-cell.is-current {
+  box-shadow: 0 0 0 2px var(--primary);
+}
+
+.leap-cloud,
+.leap-cloud-slot {
+  width: 16px;
+  height: 9px;
+  flex-shrink: 0;
+}
+
+.leap-cloud {
+  color: currentColor;
+}
+
+.leap-cell.is-fussy .leap-cloud,
+.leap-cell.is-distance .leap-cloud {
+  color: #fff;
+}
+
+.leap-cell.is-storm .leap-cloud,
+.leap-cell.is-calm .leap-cloud {
+  color: var(--text-muted);
+}
+
+.leap-num {
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.leap-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.leap-legend li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.leap-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.leap-swatch.is-fussy {
+  background: #5a5a5a;
+  border-color: #5a5a5a;
+}
+
+.leap-swatch.is-storm {
+  background: repeating-linear-gradient(
+    -45deg,
+    #d8d2cb,
+    #d8d2cb 2px,
+    #f6f1ea 2px,
+    #f6f1ea 4px
+  );
+}
+
+.leap-swatch.is-calm {
+  background: var(--surface);
+}
+
+.leap-swatch.is-distance {
+  background: #c8c2bb;
 }
 
 .accordion-body {

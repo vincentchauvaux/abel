@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AccordionSection } from '@/components/Accordion';
 import { BabyAlbum } from '@/components/BabyAlbum';
 import { BabyExercises } from '@/components/BabyExercises';
+import { LeapCalendar } from '@/components/LeapCalendar';
 import { JournalLine } from '@/components/JournalLine';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { BabyPhoto } from '@/components/BabyPhoto';
@@ -405,6 +406,9 @@ export function BabyPage() {
       </AccordionSection>
       <AccordionSection id="exercises" title="Exercices" open={openSection === 'exercises'} onToggle={toggleSection}>
         {baby ? <BabyExercises babyId={baby.id} canEdit={canEditBaby} /> : null}
+      </AccordionSection>
+      <AccordionSection id="info" title="Info" open={openSection === 'info'} onToggle={toggleSection}>
+        <LeapCalendar bornOn={bornOn || null} />
       </AccordionSection>
       <AccordionSection
         id="horoscope"

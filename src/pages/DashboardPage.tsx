@@ -119,6 +119,7 @@ type BarDatum = {
   value: number;
   display?: string;
   above?: string;
+  tone?: BarTone;
   segments?: BarSegment[];
 };
 
@@ -133,6 +134,39 @@ function sessionBarsForDay(
     value: span.minutes,
     display: formatCompactMinutes(span.minutes),
   }));
+}
+
+/** Bâtons du jour : une tétée (minutes) ou un biberon (ml affiché, hauteur comparable). */
+function mealBarsForDay(
+  sessions: FeedingSession[],
+  bottles: BottleFeed[],
+  dayKey: string,
+  now: number,
+): BarDatum[] {
+  const feeds = spansOnLocalDay(sessions, dayKey, now).map((span) => ({
+    key: span.id,
+    label: formatTime(isoAtLocalMinutes(dayKey, span.startMin)),
+    value: span.minutes,
+    display: formatCompactMinutes(span.minutes),
+    tone: 'breast' as const,
+    at: isoAtLocalMinutes(dayKey, span.startMin),
+  }));
+  const bibs = bottles
+    .filter((row) => localDateKey(row.fedAt) === dayKey && isNotFuture(row.fedAt, now))
+    .map((row) => {
+      const ml = Number(row.amountMl) || 0;
+      return {
+        key: `b-${row.id}`,
+        label: formatTime(row.fedAt),
+        value: Math.max(8, Math.round(ml / 6) || 8),
+        display: String(ml),
+        tone: 'bottle' as const,
+        at: row.fedAt,
+      };
+    });
+  return [...feeds, ...bibs]
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .map(({ at: _at, ...bar }) => bar);
 }
 
 type FollowRow = {
@@ -662,7 +696,7 @@ export function DashboardPage() {
   const feedingMinutesToday = feedSessionBars.reduce((sum, row) => sum + row.value, 0);
   const sleepMinutesToday = sleepSessionBars.reduce((sum, row) => sum + row.value, 0);
   const mealBars: BarDatum[] = isToday
-    ? feedSessionBars
+    ? mealBarsForDay(sessions, bottles, todayKey, now)
     : mealByDay.map((row) => {
         const total = row.breastCount + row.bottleCount;
         const minLabel = formatCompactMinutes(row.breastMin);
@@ -803,21 +837,19 @@ export function DashboardPage() {
           seriesToggle
         />
         <Bars
-          title={isToday ? 'Tétées (min)' : 'Repas'}
+          title="Repas"
           data={mealBars}
           tone="meal"
           session={isToday}
           alignEnd
           wide={!isToday && isAll}
           legend={
-            isToday ? undefined : (
-              <div className="bar-legend">
-                <span className="leg-breast">Tétées</span>
-                <span className="leg-bottle">Biberons</span>
-              </div>
-            )
+            <div className="bar-legend">
+              <span className="leg-breast">Tétées</span>
+              <span className="leg-bottle">Biberons</span>
+            </div>
           }
-          empty={isToday ? 'Aucune tétée aujourd’hui.' : 'Aucun repas sur cette période.'}
+          empty={isToday ? 'Aucun repas aujourd’hui.' : 'Aucun repas sur cette période.'}
           hint={
             isToday
               ? feedingMinutesToday > 0 || bottleCount > 0
@@ -1112,7 +1144,7 @@ function Bars({
                   {hasAbove ? <span className="bar-above">{d.above || '\u00a0'}</span> : null}
                   <div className="bar-stack">
                     <div
-                      className={`bar ${tone ?? ''}${segs.length > 0 ? ' stacked' : ''}${d.value <= 0 ? ' empty' : ''}`}
+                      className={`bar ${d.tone ?? tone ?? ''}${segs.length > 0 ? ' stacked' : ''}${d.value <= 0 ? ' empty' : ''}`}
                       style={{ height: `${barHeight(d.value, max)}%` }}>
                       {shown ? <span className="bar-value">{shown}</span> : null}
                       {segs.map((seg) => (

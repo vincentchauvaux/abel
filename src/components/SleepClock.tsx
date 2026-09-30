@@ -304,7 +304,6 @@ function ClockFace({
   const sleepMax = Math.max(0, ...sleepValues);
   const mealMax = Math.max(0, ...mealValues);
   const both = showSleep && showMeals;
-  const hours = [0, 6, 12, 18];
   const mealIn = both ? 56 : R_SLEEP_IN;
   const sleepOut = both ? 80 : R_SLEEP_OUT;
   const op = both ? 0.86 : 1;
@@ -313,7 +312,7 @@ function ClockFace({
   const nowOuter = nowDeg != null ? polar(R_SLEEP_OUT + 6, nowDeg) : null;
   return (
     <div className="sleep-clock">
-      <svg className="sleep-clock-svg" viewBox="0 0 260 280" role="img" aria-label={ariaLabel}>
+      <svg className="sleep-clock-svg" viewBox="-14 -10 288 300" role="img" aria-label={ariaLabel}>
         <defs>
           <radialGradient id="sleep-clock-grad" cx="50%" cy="50%" r="50%">
             <stop offset="42%" stopColor="#a8b6d4" />
@@ -352,11 +351,12 @@ function ClockFace({
             className="sleep-clock-now"
           />
         ) : null}
-        {hours.map((hour) => {
+        {Array.from({ length: 24 }, (_, hour) => {
           const deg = -90 + hour * 15;
-          const tick0 = polar(R_SLEEP_OUT + 2, deg);
-          const tick1 = polar(R_SLEEP_OUT + 8, deg);
-          const label = polar(R_SLEEP_OUT + 18, deg);
+          const major = hour % 3 === 0;
+          const tick0 = polar(R_SLEEP_OUT + 1, deg);
+          const tick1 = polar(R_SLEEP_OUT + (major ? 9 : 5), deg);
+          const label = polar(R_SLEEP_OUT + 20, deg);
           return (
             <g key={hour}>
               <line
@@ -365,16 +365,19 @@ function ClockFace({
                 x2={tick1.x}
                 y2={tick1.y}
                 stroke="var(--text-muted)"
-                strokeWidth="1.5"
+                strokeWidth={major ? 1.6 : 1}
+                opacity={major ? 0.85 : 0.45}
               />
-              <text
-                x={label.x}
-                y={label.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                className="sleep-clock-hour">
-                {hour} h
-              </text>
+              {major ? (
+                <text
+                  x={label.x}
+                  y={label.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="sleep-clock-hour">
+                  {hour}
+                </text>
+              ) : null}
             </g>
           );
         })}

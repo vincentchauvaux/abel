@@ -435,6 +435,15 @@ export function parseDecimal(input: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Semaines d’âge révolues (jour de naissance = semaine 0). */
+export function weeksOfAge(bornOn: string, now = new Date()): number {
+  const birth = startOfLocalDay(new Date(`${bornOn}T12:00:00`));
+  const today = startOfLocalDay(now);
+  const days = Math.round((today.getTime() - birth.getTime()) / 86_400_000);
+  if (days < 0) return 0;
+  return Math.floor(days / 7);
+}
+
 export function formatAge(bornOn: string, now = new Date()): string {
   const birth = startOfLocalDay(new Date(`${bornOn}T12:00:00`));
   const today = startOfLocalDay(now);
