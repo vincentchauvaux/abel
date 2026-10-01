@@ -2415,7 +2415,7 @@ button.timer-edit:active {
   flex-direction: column;
   align-items: center;
   justify-content: flex-end;
-  min-height: 36px;
+  min-height: 40px;
   border: 1px solid var(--border);
   border-radius: 3px;
   background: var(--surface);
@@ -2434,16 +2434,6 @@ button.timer-edit:active {
   color: #fff;
 }
 
-.leap-cell.is-storm {
-  background: repeating-linear-gradient(
-    -45deg,
-    #d8d2cb,
-    #d8d2cb 3px,
-    #f6f1ea 3px,
-    #f6f1ea 6px
-  );
-}
-
 .leap-cell.is-distance {
   background: #c8c2bb;
   border-color: #b4aea7;
@@ -2453,15 +2443,21 @@ button.timer-edit:active {
   box-shadow: 0 0 0 2px var(--primary);
 }
 
-.leap-cloud,
-.leap-cloud-slot {
+.leap-mark,
+.leap-mark-slot {
   width: 16px;
-  height: 9px;
+  height: 12px;
   flex-shrink: 0;
 }
 
+.leap-sun {
+  width: 16px;
+  height: 16px;
+  color: #c48a1a;
+}
+
 .leap-cloud {
-  color: currentColor;
+  color: var(--text-muted);
 }
 
 .leap-cell.is-fussy .leap-cloud,
@@ -2469,9 +2465,8 @@ button.timer-edit:active {
   color: #fff;
 }
 
-.leap-cell.is-storm .leap-cloud,
-.leap-cell.is-calm .leap-cloud {
-  color: var(--text-muted);
+.leap-cell.is-fussy .leap-sun {
+  color: #f3d089;
 }
 
 .leap-num {
@@ -2506,19 +2501,34 @@ button.timer-edit:active {
   margin-top: 2px;
 }
 
+.leap-legend-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.leap-legend-icon.is-sun {
+  color: #c48a1a;
+}
+
+.leap-legend-icon .leap-mark {
+  width: 16px;
+  height: 12px;
+}
+
+.leap-legend-icon .leap-sun {
+  width: 16px;
+  height: 16px;
+}
+
 .leap-swatch.is-fussy {
   background: #5a5a5a;
   border-color: #5a5a5a;
-}
-
-.leap-swatch.is-storm {
-  background: repeating-linear-gradient(
-    -45deg,
-    #d8d2cb,
-    #d8d2cb 2px,
-    #f6f1ea 2px,
-    #f6f1ea 4px
-  );
 }
 
 .leap-swatch.is-calm {
