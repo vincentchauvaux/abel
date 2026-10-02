@@ -1,9 +1,11 @@
-import { leapWeekKind, leapWeekMark, LEAP_DISCLAIMER, LEAP_WEEK_MAX } from '@/lib/leaps';
+import { Link } from 'react-router-dom';
+
+import { leapWeekCaption, leapWeekKind, leapWeekMark, LEAP_DISCLAIMER, LEAP_WEEK_MAX } from '@/lib/leaps';
 import { weeksOfAge } from '@/lib/dates';
 
 const COLS = 7;
 
-function CloudMark() {
+export function CloudMark() {
   return (
     <svg className="leap-mark leap-cloud" viewBox="0 0 20 12" aria-hidden>
       <path
@@ -14,7 +16,7 @@ function CloudMark() {
   );
 }
 
-function SunMark() {
+export function SunMark() {
   return (
     <svg className="leap-mark leap-sun" viewBox="0 0 20 20" aria-hidden>
       <circle cx="10" cy="10" r="4.2" fill="currentColor" />
@@ -25,10 +27,30 @@ function SunMark() {
   );
 }
 
-function WeekMark({ mark }: { mark: ReturnType<typeof leapWeekMark> }) {
+export function WeekMark({ mark }: { mark: ReturnType<typeof leapWeekMark> }) {
   if (mark === 'sun') return <SunMark />;
   if (mark === 'cloud') return <CloudMark />;
   return <span className="leap-mark-slot" />;
+}
+
+export function LeapWeekBadge({ bornOn }: { bornOn?: string | null }) {
+  if (!bornOn) return null;
+  const week = weeksOfAge(bornOn);
+  if (week < 0 || week > LEAP_WEEK_MAX) return null;
+  const kind = leapWeekKind(week);
+  const mark = leapWeekMark(week);
+  const caption = leapWeekCaption(week);
+  const label = `Semaine ${week} — ${caption}. Ouvrir Info.`;
+  return (
+    <Link
+      to="/baby"
+      state={{ open: 'info' }}
+      className={`leap-week-badge is-${kind}${mark !== 'none' ? ` has-${mark}` : ''}`}
+      title={label}
+      aria-label={label}>
+      <WeekMark mark={mark} />
+    </Link>
+  );
 }
 
 export function LeapCalendar({ bornOn }: { bornOn: string | null }) {

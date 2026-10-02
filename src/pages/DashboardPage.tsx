@@ -6,6 +6,7 @@ import { ActiveNowPanel } from '@/components/ActiveNowPanel';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { DashSection } from '@/components/DashSection';
 import { GrowthChart } from '@/components/GrowthChart';
+import { LeapWeekBadge } from '@/components/LeapCalendar';
 import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { RatioPie } from '@/components/RatioPie';
@@ -1019,7 +1020,10 @@ export function DashboardPage() {
 
   return (
     <div className="screen dashboard-screen">
-      <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
+      <div className="dash-title-row">
+        <h1>Où en est {baby?.name ?? 'bébé'} ?</h1>
+        <LeapWeekBadge bornOn={baby?.bornOn} />
+      </div>
       <ActiveNowPanel />
       <PeriodSelector value={period} onChange={setPeriod} />
 

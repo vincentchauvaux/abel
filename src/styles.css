@@ -892,6 +892,17 @@ h2 {
   width: 100%;
 }
 
+.dash-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dash-title-row h1 {
+  flex: 1;
+  min-width: 0;
+}
+
 .dashboard-screen .period-selector {
   position: sticky;
   top: env(safe-area-inset-top, 0px);
@@ -2524,6 +2535,62 @@ button.timer-edit:active {
 .leap-legend-icon .leap-sun {
   width: 16px;
   height: 16px;
+}
+
+.leap-week-badge {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 0 0 2px var(--primary);
+  text-decoration: none;
+  color: inherit;
+}
+
+.screen a.leap-week-badge {
+  text-decoration: none;
+  color: inherit;
+}
+
+.leap-week-badge.is-fussy {
+  background: #5a5a5a;
+  border-color: #5a5a5a;
+  color: #fff;
+}
+
+.leap-week-badge.is-distance {
+  background: #c8c2bb;
+  border-color: #b4aea7;
+}
+
+.leap-week-badge .leap-mark,
+.leap-week-badge .leap-mark-slot {
+  width: 20px;
+  height: 16px;
+}
+
+.leap-week-badge .leap-sun {
+  width: 20px;
+  height: 20px;
+  color: #c48a1a;
+}
+
+.leap-week-badge .leap-cloud {
+  color: var(--text-muted);
+}
+
+.leap-week-badge.is-fussy .leap-cloud,
+.leap-week-badge.is-distance .leap-cloud {
+  color: #fff;
+}
+
+.leap-week-badge.is-fussy .leap-sun {
+  color: #f3d089;
 }
 
 .leap-swatch.is-fussy {

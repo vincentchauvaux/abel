@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
 import { BabyAlbum } from '@/components/BabyAlbum';
@@ -61,6 +62,8 @@ const JOURNAL_KIND_VALUES = JOURNAL_KIND_OPTIONS.map((o) => o.value);
 
 export function BabyPage() {
   const { baby, tick, sharingRole } = useDb();
+  const location = useLocation();
+  const requestedSection = (location.state as { open?: string } | null)?.open ?? null;
   const [name, setName] = useState(baby?.name ?? '');
   const [bornOn, setBornOn] = useState(baby?.bornOn ?? '');
   const [photoUrl, setPhotoUrl] = useState<string | null>(baby?.photoUrl ?? null);
@@ -78,7 +81,7 @@ export function BabyPage() {
   const [editGoals, setEditGoals] = useState(true);
   const [goalsReady, setGoalsReady] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>(null);
+  const [openSection, setOpenSection] = useState<string | null>(requestedSection);
   const [journalDay, setJournalDay] = useState(() => localDateKey(new Date().toISOString()));
   const [journalKinds, setJournalKinds] = useState<ActivityKind[]>(JOURNAL_KIND_VALUES);
   const guidedRef = useRef(false);
@@ -88,6 +91,10 @@ export function BabyPage() {
   const toggleSection = (id: string) => {
     setOpenSection((prev) => (prev === id ? null : id));
   };
+
+  useEffect(() => {
+    if (requestedSection) setOpenSection(requestedSection);
+  }, [requestedSection]);
 
   useEffect(() => {
     if (baby?.name) setName(baby.name);
@@ -122,8 +129,10 @@ export function BabyPage() {
       setGoalsReady(configured);
       setEditGoals(canEditBaby && !configured);
       if (!guidedRef.current) {
-        if (canEditBaby && !(baby.bornOn && baby.name)) setOpenSection('identity');
-        else if (canEditBaby && !configured) setOpenSection('goals');
+        if (!requestedSection) {
+          if (canEditBaby && !(baby.bornOn && baby.name)) setOpenSection('identity');
+          else if (canEditBaby && !configured) setOpenSection('goals');
+        }
         guidedRef.current = true;
       }
     });

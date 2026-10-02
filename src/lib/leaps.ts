@@ -25,4 +25,14 @@ export function leapWeekMark(week: number): LeapWeekMark {
   return 'none';
 }
 
+export function leapWeekCaption(week: number): string {
+  const mark = leapWeekMark(week);
+  if (mark === 'sun') return 'souvent sous son meilleur jour';
+  if (mark === 'cloud') return 'période orageuse probable';
+  const kind = leapWeekKind(week);
+  if (kind === 'fussy') return 'peut être plus agité';
+  if (kind === 'distance') return 'découverte des distances';
+  return 'phase plus calme';
+}
+
 export const LEAP_DISCLAIMER = 'Lecture traditionnelle — Mimom n’est pas un avis médical.';
