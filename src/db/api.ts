@@ -104,19 +104,18 @@ export async function updateBaby(
   notifyDb();
 }
 
-export async function startFeeding(babyId: string, side: Side) {
+export async function startFeeding(babyId: string, side: Side, startedAt = nowIso()) {
   const open = alive(await db.feedingSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
   if (open) {
     await switchFeedingSide(open.id, side);
     return open.id;
   }
-  const now = nowIso();
   const sessionId = createId();
   await db.transaction('rw', db.feedingSessions, db.feedingSegments, async () => {
     await db.feedingSessions.add({
       id: sessionId,
       babyId,
-      startedAt: now,
+      startedAt,
       endedAt: null,
       ...actorStamp(),
       ...stamp(),
@@ -125,7 +124,7 @@ export async function startFeeding(babyId: string, side: Side) {
       id: createId(),
       feedingSessionId: sessionId,
       side,
-      startedAt: now,
+      startedAt,
       endedAt: null,
       ...stamp(),
     });
@@ -135,13 +134,18 @@ export async function startFeeding(babyId: string, side: Side) {
 }
 
 export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
+  return logFeedingSpan(babyId, side, at, at);
+}
+
+/** Tétée déjà terminée (début, fin, un côté ou les deux). */
+export async function logFeedingSpan(babyId: string, side: Side, startedAt: string, endedAt: string) {
   const sessionId = createId();
   await db.transaction('rw', db.feedingSessions, db.feedingSegments, async () => {
     await db.feedingSessions.add({
       id: sessionId,
       babyId,
-      startedAt: at,
-      endedAt: at,
+      startedAt,
+      endedAt,
       ...actorStamp(),
       ...stamp(),
     });
@@ -149,8 +153,8 @@ export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
       id: createId(),
       feedingSessionId: sessionId,
       side,
-      startedAt: at,
-      endedAt: at,
+      startedAt,
+      endedAt,
       ...stamp(),
     });
   });

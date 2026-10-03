@@ -13,9 +13,9 @@ type Props = {
 };
 
 const PAD_L = 36;
-const H = 96;
-const PAD_T = 8;
-const PAD_B = 8;
+const H = 112;
+const PAD_T = 18;
+const PAD_B = 18;
 const VISIBLE_DAYS = 6;
 const SLOT_MIN = 48;
 
@@ -126,6 +126,11 @@ function YAxis({ min, max }: { min: number; max: number }) {
   );
 }
 
+function fmtPoint(n: number): string {
+  const rounded = Math.round(n * 100) / 100;
+  return String(rounded).replace('.', ',');
+}
+
 function SeriesPlot({
   values,
   slot,
@@ -168,17 +173,33 @@ function SeriesPlot({
           y2={seg.y2}
         />
       ))}
-      {values.map((value, i) =>
-        value == null ? null : (
-          <circle
-            key={`${tone}-${i}`}
-            className={`growth-dot growth-dot-${tone}`}
-            cx={xPos(i, slot)}
-            cy={yAt(value, range.min, range.max)}
-            r="4"
-          />
-        ),
-      )}
+      {values.map((value, i) => {
+        if (value == null) return null;
+        const label = fmtPoint(value);
+        const r = label.length > 4 ? 15 : 13;
+        return (
+          <g key={`${tone}-${i}`}>
+            <circle
+              className={`growth-dot growth-dot-${tone}`}
+              cx={xPos(i, slot)}
+              cy={yAt(value, range.min, range.max)}
+              r={r}
+            >
+              <title>
+                {label} {unit}
+              </title>
+            </circle>
+            <text
+              className="growth-dot-label"
+              x={xPos(i, slot)}
+              y={yAt(value, range.min, range.max)}
+              textAnchor="middle"
+              dominantBaseline="central">
+              {label}
+            </text>
+          </g>
+        );
+      })}
     </svg>
   );
 }

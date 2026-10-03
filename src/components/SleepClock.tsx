@@ -11,14 +11,12 @@ import {
   addInstantOnLocalDay,
   addLocalCoverage,
   addLocalInstant,
-  countInWindow,
   formatCompactMinutes,
   formatMinuteCount,
   isNotedSession,
   localDateKey,
   rollingWindowStart,
   spansOnLocalDay,
-  totalMinutesInWindow,
   totalMinutesOnLocalDay,
   weekdayShort,
 } from '@/lib/dates';
@@ -559,30 +557,28 @@ export function SleepClock({
   const todayKey = localDateKey(new Date(now).toISOString());
   const dayKey = days.length === 1 ? days[0] : undefined;
   const rolling = Boolean(dayKey && dayKey === todayKey);
-  const windowStart = rollingWindowStart(now);
   const nowMin = new Date(now).getHours() * 60 + new Date(now).getMinutes() + new Date(now).getSeconds() / 60;
   const sleepValues = Array.from({ length: SLOTS }, () => 0);
   const mealValues = Array.from({ length: SLOTS }, () => 0);
   fillSleep(sleepValues, sleeps, now, dayKey, rolling);
   fillMeals(mealValues, feeds, bottles, now, dayKey, rolling);
-  const sleepMinutes = rolling
-    ? totalMinutesInWindow(sleeps, windowStart, now)
-    : days.length > 0
+  const sleepMinutes =
+    days.length > 0
       ? days.reduce((sum, day) => sum + totalMinutesOnLocalDay(sleeps, day, now), 0)
       : 0;
-  const napCount = rolling
-    ? countInWindow(sleeps, windowStart, now)
-    : days.length > 0
+  const napCount =
+    days.length > 0
       ? new Set(days.flatMap((day) => spansOnLocalDay(sleeps, day, now).map((span) => span.id))).size
       : sleeps.length;
-  const mealCount = rolling
-    ? countInWindow(mealRows(feeds, bottles), windowStart, now)
-    : days.length > 0
+  const mealCount =
+    days.length > 0
       ? new Set(days.flatMap((day) => spansOnLocalDay(mealRows(feeds, bottles), day, now).map((span) => span.id)))
           .size
       : feeds.length + bottles.length;
-  const hasSleep = napCount > 0;
-  const hasMeals = mealCount > 0;
+  const ringHasSleep = Math.max(0, ...sleepValues) > 0;
+  const ringHasMeals = Math.max(0, ...mealValues) > 0;
+  const hasSleep = napCount > 0 || ringHasSleep;
+  const hasMeals = mealCount > 0 || ringHasMeals;
   const dayCount = Math.max(1, days.length);
   const avgSleepMin = Math.round(sleepMinutes / dayCount);
   const avgMeals = mealCount / dayCount;
@@ -600,8 +596,8 @@ export function SleepClock({
     days.length > 1 && mealCount > 0
       ? avgMeals.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
       : String(mealCount);
-  const sleepCenterLabel = days.length > 1 ? '/ jour' : rolling ? '24 h' : 'sommeil';
-  const mealCenterLabel = days.length > 1 && mealCount > 0 ? 'repas / j' : 'sur 24 h';
+  const sleepCenterLabel = days.length > 1 ? '/ jour' : rolling ? 'aujourd’hui' : 'sommeil';
+  const mealCenterLabel = days.length > 1 && mealCount > 0 ? 'repas / j' : rolling ? 'aujourd’hui' : 'sur 24 h';
   const sleepPeak = showSleep ? peakRange(sleepValues) : null;
   const mealPeak = showMeals ? peakRange(mealValues) : null;
   const clockEmpty =

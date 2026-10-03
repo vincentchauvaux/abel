@@ -16,7 +16,7 @@ import {
   addTemperature,
   getReminder,
   listMilkStock,
-  logFeedingNow,
+  logFeedingSpan,
   startFeeding,
   startSleep,
 } from '@/db/api';
@@ -93,7 +93,6 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [stockId, setStockId] = useState<string | null>(null);
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
-  const [useTimer, setUseTimer] = useState(true);
   const [sleepStatus, setSleepStatus] = useState<'open' | 'done'>('done');
   const [sleepMinutes, setSleepMinutes] = useState('60');
   const [endedWhen, setEndedWhen] = useState('');
@@ -104,7 +103,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const { date: startDate, time: startTime } = splitDatetimeLocal(when);
   const { date: endDate, time: endTime } = splitDatetimeLocal(endedWhen);
   const endNextDay = Boolean(startDate && endDate && endDate > startDate);
-  const showSleepEnd = type === 'sleep' && sleepStatus === 'done';
+  const showSpanEnd = (type === 'sleep' || type === 'feeding') && sleepStatus === 'done';
 
   useEffect(() => {
     const list = section === 'apports' ? APPORTS : SUIVI;
@@ -112,11 +111,13 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   }, [section, type]);
 
   useEffect(() => {
-    if (type !== 'sleep') return;
+    if (type !== 'sleep' && type !== 'feeding') return;
+    const mins = type === 'feeding' ? 10 : 60;
     setSleepStatus('done');
-    setSleepMinutes('60');
-    setEndedWhen(addMinutesToLocal(when || toDatetimeLocalValue(), 60));
-    // Ne réinitialise que lors du passage au type sommeil.
+    setSleepMinutes(String(mins));
+    setEndedWhen(addMinutesToLocal(when || toDatetimeLocalValue(), mins));
+    if (type === 'feeding') setSide('LEFT');
+    // Ne réinitialise que lors du passage au type.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [type]);
 
@@ -146,8 +147,9 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     const nextWhen = toDatetimeLocalValue();
     setWhen(nextWhen);
     setSleepStatus('done');
-    setSleepMinutes('60');
-    setEndedWhen(addMinutesToLocal(nextWhen, 60));
+    setSleepMinutes(type === 'feeding' ? '10' : '60');
+    setEndedWhen(addMinutesToLocal(nextWhen, type === 'feeding' ? 10 : 60));
+    setSide('LEFT');
     setError('');
   };
 
@@ -212,19 +214,25 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     window.setTimeout(() => setOk(''), 2500);
   };
 
-  const saveFeeding = async (chosen: Side) => {
+  const saveFeeding = async () => {
     if (!baby) return;
-    if (useTimer) {
-      await startFeeding(baby.id, chosen);
+    if (sleepStatus === 'open') {
+      const chosen: Side = side === 'BOTH' ? 'LEFT' : side;
+      await startFeeding(baby.id, chosen, atIso());
       onSaved?.();
       navigate('/');
       return;
     }
     const at = atIso();
-    await logFeedingNow(baby.id, chosen, at);
-    await notifyMealFromGoals(goals, at);
-    await notifyDiaperFromGoals(goals, at);
-    await finish(`Tétée ${sideLabel[chosen].toLowerCase()} notée`);
+    const end = endedAtFromSleepForm(at);
+    if (typeof end === 'object') {
+      setError(end.error);
+      return;
+    }
+    await logFeedingSpan(baby.id, side, at, end);
+    await notifyMealFromGoals(goals, end);
+    await notifyDiaperFromGoals(goals, end);
+    await finish(`Tétée ${sideLabel[side].toLowerCase()} notée`);
   };
 
   const saveDiaper = async (chosen: DiaperKind) => {
@@ -245,7 +253,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     const at = atIso();
     try {
       if (type === 'feeding') {
-        await saveFeeding(side);
+        await saveFeeding();
         return;
       }
       if (type === 'bottle') {
@@ -368,20 +376,20 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         ))}
       </div>
 
-      {type !== 'sleep' && (type !== 'feeding' || !useTimer) ? (
+      {type !== 'sleep' && type !== 'feeding' ? (
         <label className="field">
           <span>Date et heure</span>
           <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
       ) : null}
 
-      {type === 'sleep' ? (
+      {type === 'sleep' || type === 'feeding' ? (
         <>
           <label className="field">
             <span>Date</span>
             <input type="date" value={startDate} onChange={(e) => handleSleepDateChange(e.target.value)} />
           </label>
-          {showSleepEnd ? (
+          {showSpanEnd ? (
             <div className="grid-2">
               <label className="field">
                 <span>Début</span>
@@ -399,23 +407,66 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
             </label>
           )}
           {endNextDay ? <p className="muted">Fin le lendemain.</p> : null}
-          {showSleepEnd ? (
+          {showSpanEnd ? (
             <Field
               label="Durée (min)"
               value={sleepMinutes}
               onChange={handleSleepDurationChange}
-              placeholder="90"
+              placeholder={type === 'feeding' ? '10' : '90'}
               inputMode="decimal"
             />
           ) : null}
+          {type === 'sleep' ? (
+            <>
+              <p className="goal-label">État</p>
+              <div className="row">
+                <Chip
+                  label="En cours"
+                  selected={sleepStatus === 'open'}
+                  onClick={() => {
+                    setSleepStatus('open');
+                    if (!sleepMinutes.trim()) setSleepMinutes('1');
+                    setEndedWhen('');
+                  }}
+                />
+                <Chip
+                  label="Terminée"
+                  selected={sleepStatus === 'done'}
+                  onClick={() => {
+                    setSleepStatus('done');
+                    const mins = parseDecimal(sleepMinutes);
+                    const nextMins = mins != null && mins > 0 ? Math.round(mins) : 60;
+                    setSleepMinutes(String(nextMins));
+                    setEndedWhen((prev) => prev || addMinutesToLocal(when, nextMins));
+                  }}
+                />
+              </div>
+              {sleepStatus === 'done' ? (
+                <p className="muted">Indique l’heure de fin ou la durée — changer l’une recalcule l’autre.</p>
+              ) : (
+                <p className="muted">Démarre une sieste à l’heure choisie (à terminer depuis Outils ou le Dashboard).</p>
+              )}
+            </>
+          ) : null}
+        </>
+      ) : null}
+
+      {type === 'feeding' ? (
+        <>
+          <p className="goal-label">Sein</p>
+          <div className="row">
+            {(sleepStatus === 'done' ? (['LEFT', 'RIGHT', 'BOTH'] as const) : (['LEFT', 'RIGHT'] as const)).map((s) => (
+              <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />
+            ))}
+          </div>
           <p className="goal-label">État</p>
           <div className="row">
             <Chip
-              label="En cours"
+              label="Minuteur"
               selected={sleepStatus === 'open'}
               onClick={() => {
                 setSleepStatus('open');
-                if (!sleepMinutes.trim()) setSleepMinutes('1');
+                if (side === 'BOTH') setSide('LEFT');
                 setEndedWhen('');
               }}
             />
@@ -425,48 +476,17 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
               onClick={() => {
                 setSleepStatus('done');
                 const mins = parseDecimal(sleepMinutes);
-                const nextMins = mins != null && mins > 0 ? Math.round(mins) : 60;
+                const nextMins = mins != null && mins > 0 ? Math.round(mins) : 10;
                 setSleepMinutes(String(nextMins));
                 setEndedWhen((prev) => prev || addMinutesToLocal(when, nextMins));
               }}
             />
           </div>
-          {sleepStatus === 'done' ? (
-            <p className="muted">Indique l’heure de fin ou la durée — changer l’une recalcule l’autre.</p>
-          ) : (
-            <p className="muted">Démarre une sieste à l’heure choisie (à terminer depuis Outils ou le Dashboard).</p>
-          )}
-        </>
-      ) : null}
-
-      {type === 'feeding' ? (
-        <>
-          <div className="card-head">
-            <p className="goal-label" style={{ margin: 0 }}>
-              Noter une tétée
-            </p>
-            <label className="check-inline">
-              <input type="checkbox" checked={useTimer} onChange={(e) => setUseTimer(e.target.checked)} />
-              Minuteur
-            </label>
-          </div>
           <p className="muted">
-            {useTimer
-              ? 'Un appui démarre le minuteur sur ce sein et ouvre Allaitement. Tu pourras passer à l’autre pendant la séance.'
-              : 'Un appui = tétée notée (sans ml).'}
+            {sleepStatus === 'done'
+              ? 'Indique le sein (ou les deux), l’heure de fin ou la durée.'
+              : 'Démarre le minuteur sur ce sein. Tu pourras passer à l’autre pendant la séance.'}
           </p>
-          <div className="row">
-            {(['LEFT', 'RIGHT'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                className="btn btn-primary"
-                style={{ flex: 1 }}
-                onClick={() => void saveFeeding(s)}>
-                {sideLabel[s]}
-              </button>
-            ))}
-          </div>
         </>
       ) : null}
 
@@ -586,7 +606,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         </>
       ) : null}
 
-      {type !== 'feeding' && type !== 'diaper' && type !== 'bath' ? (
+      {type !== 'diaper' && type !== 'bath' ? (
         <Button onClick={() => void save()}>Enregistrer</Button>
       ) : null}
 

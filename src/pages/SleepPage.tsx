@@ -10,7 +10,16 @@ import { useDb } from '@/db/DbProvider';
 import type { SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
 import { sleepSessionToActivity, type ActivityItem } from '@/lib/activity';
-import { elapsedMs, formatDuration, formatMinuteCount, formatTime, localDateKey, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
+import {
+  elapsedMs,
+  formatDuration,
+  formatMinuteCount,
+  formatTime,
+  localDateKey,
+  spansNewestFirst,
+  spansOnLocalDay,
+  totalMinutesOnLocalDay,
+} from '@/lib/dates';
 
 export function SleepPage() {
   const { baby, tick } = useDb();
@@ -28,7 +37,7 @@ export function SleepPage() {
   const now = useNow(Boolean(active));
   const todayKey = localDateKey(new Date(now).toISOString());
   const todaySpans = spansNewestFirst(spansOnLocalDay(sessions, todayKey, now));
-  const todayMinutes = todaySpans.reduce((sum, span) => sum + span.minutes, 0);
+  const todayMinutes = totalMinutesOnLocalDay(sessions, todayKey, now);
 
   return (
     <div className="screen">

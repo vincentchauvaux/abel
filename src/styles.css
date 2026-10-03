@@ -2013,6 +2013,13 @@ button.timer-edit:active {
   stroke-width: 2;
 }
 
+.growth-dot-label {
+  fill: var(--text);
+  font-size: 8px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
 .growth-x-caption {
   display: none;
 }
@@ -2606,7 +2613,7 @@ button.timer-edit:active {
   margin-top: 0;
 }
 
-.entry-below-journal {
+.entry-above-journal {
   margin: 8px 0;
 }
 
@@ -2628,7 +2635,7 @@ button.timer-edit:active {
   min-width: 0;
 }
 
-.entry-below-journal .btn {
+.entry-above-journal .btn {
   width: 100%;
 }
 
