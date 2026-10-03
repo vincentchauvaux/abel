@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Check, Play, Square } from 'lucide-react';
+import { Check, ChevronDown, Play, Square } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { ActiveNowPanel } from '@/components/ActiveNowPanel';
@@ -237,6 +237,18 @@ export function DashboardPage() {
   const [exercises, setExercises] = useState<ExerciseItem[]>([]);
   const [exerciseSessions, setExerciseSessions] = useState<ExerciseSession[]>([]);
   const layout = useDashLayout();
+  const [chartCards, setChartCards] = useState(readChartCards);
+  const toggleChartCard = (id: ChartCardId) => {
+    setChartCards((prev) => {
+      const next = { ...prev, [id]: !prev[id] };
+      try {
+        localStorage.setItem(CHART_CARD_KEY, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  };
   const exerciseRunning = exercises.some((row) => exerciseIsRunning(row));
   const sleepRunning = sleeps.some((row) => !row.endedAt);
   const now = useNow(true, exerciseRunning || sleepRunning ? 1000 : 30_000);
@@ -836,9 +848,13 @@ export function DashboardPage() {
           days={days}
           agenda={isToday || period === '7d'}
           seriesToggle
+          collapsed={chartCards.resume}
+          onToggle={() => toggleChartCard('resume')}
         />
         <Bars
           title="Repas"
+          collapsed={chartCards.meals}
+          onToggle={() => toggleChartCard('meals')}
           data={mealBars}
           tone="meal"
           session={isToday}
@@ -877,6 +893,8 @@ export function DashboardPage() {
         />
         <Bars
           title={isToday ? 'Siestes (min)' : 'Sommeil (h)'}
+          collapsed={chartCards.naps}
+          onToggle={() => toggleChartCard('naps')}
           data={sleepBars}
           tone="sleep"
           session={isToday}
@@ -887,8 +905,12 @@ export function DashboardPage() {
         />
         {isToday ? (
           <Card>
-            <h2>Couches</h2>
-            {diapersToday.length === 0 ? (
+            <ChartHead
+              title="Couches"
+              collapsed={chartCards.diapers}
+              onToggle={() => toggleChartCard('diapers')}
+            />
+            {chartCards.diapers ? null : diapersToday.length === 0 ? (
               <p className="muted">Aucune couche aujourd’hui.</p>
             ) : (
               <RatioPie
@@ -911,6 +933,8 @@ export function DashboardPage() {
         ) : (
           <Bars
             title="Couches"
+            collapsed={chartCards.diapers}
+            onToggle={() => toggleChartCard('diapers')}
             data={diaperBars}
             tone="pee"
             alignEnd
@@ -1062,9 +1086,54 @@ function barHeight(value: number, max: number) {
 
 const WIDE_VISIBLE = 3;
 const WIDE_GAP = 8;
+const CHART_CARD_KEY = 'abel.dash-chart-cards';
+type ChartCardId = 'resume' | 'meals' | 'naps' | 'diapers';
+
+function readChartCards(): Record<ChartCardId, boolean> {
+  const collapsed: Record<ChartCardId, boolean> = {
+    resume: false,
+    meals: false,
+    naps: false,
+    diapers: false,
+  };
+  try {
+    const raw = JSON.parse(localStorage.getItem(CHART_CARD_KEY) || 'null') as Partial<Record<ChartCardId, boolean>> | null;
+    if (!raw || typeof raw !== 'object') return collapsed;
+    for (const id of Object.keys(collapsed) as ChartCardId[]) {
+      if (typeof raw[id] === 'boolean') collapsed[id] = raw[id];
+    }
+  } catch {
+    /* ignore */
+  }
+  return collapsed;
+}
+
+function ChartHead({
+  title,
+  collapsed,
+  onToggle,
+  extra,
+}: {
+  title: string;
+  collapsed: boolean;
+  onToggle: () => void;
+  extra?: ReactNode;
+}) {
+  return (
+    <div className="card-head">
+      <button type="button" className="accordion-trigger" aria-expanded={!collapsed} onClick={onToggle}>
+        <h2>{title}</h2>
+        <ChevronDown size={20} className={`accordion-chevron${collapsed ? '' : ' open'}`} aria-hidden />
+      </button>
+      {extra}
+    </div>
+  );
+}
 
 function Bars({
   title,
+  collapsed = false,
+  onToggle,
   data,
   tone,
   session = false,
@@ -1076,6 +1145,8 @@ function Bars({
   legend,
 }: {
   title: string;
+  collapsed?: boolean;
+  onToggle?: () => void;
   data: BarDatum[];
   tone?: BarTone;
   session?: boolean;
@@ -1129,11 +1200,8 @@ function Bars({
 
   return (
     <Card>
-      <div className="card-head">
-        <h2>{title}</h2>
-        {header}
-      </div>
-      {data.length === 0 ? (
+      <ChartHead title={title} collapsed={collapsed} onToggle={() => onToggle?.()} extra={collapsed ? null : header} />
+      {collapsed ? null : data.length === 0 ? (
         <p className="muted">{empty ?? 'Rien à afficher.'}</p>
       ) : (
         <div className={`bars-wrap${wide ? ' wide' : ''}`} ref={wrapRef}>
@@ -1168,8 +1236,8 @@ function Bars({
           </div>
         </div>
       )}
-      {legend}
-      {hint ? <p className="muted bars-hint">{hint}</p> : null}
+      {collapsed ? null : legend}
+      {collapsed || !hint ? null : <p className="muted bars-hint">{hint}</p>}
     </Card>
   );
 }

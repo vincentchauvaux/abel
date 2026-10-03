@@ -83,6 +83,8 @@ type Props = {
   days?: string[];
   agenda?: boolean;
   seriesToggle?: boolean;
+  collapsed?: boolean;
+  onToggle?: () => void;
 };
 
 function polar(r: number, deg: number) {
@@ -548,6 +550,8 @@ export function SleepClock({
   days = [],
   agenda = false,
   seriesToggle = false,
+  collapsed = false,
+  onToggle,
 }: Props) {
   const [view, setView] = useState<ViewMode>(readClockView);
   const [showSleep, setShowSleep] = useState(() => readClockLegend().sleep);
@@ -705,8 +709,15 @@ export function SleepClock({
   return (
     <Card>
       <div className="card-head">
-        <h2>{title}</h2>
-        {allowAgenda ? (
+        <button
+          type="button"
+          className="accordion-trigger"
+          aria-expanded={!collapsed}
+          onClick={onToggle}>
+          <h2>{title}</h2>
+          <ChevronDown size={20} className={`accordion-chevron${collapsed ? '' : ' open'}`} aria-hidden />
+        </button>
+        {!collapsed && allowAgenda ? (
           <SegmentedControl
             className="chart-metric-switch"
             size="sm"
@@ -720,7 +731,7 @@ export function SleepClock({
           />
         ) : null}
       </div>
-      {mode === 'agenda' ? (
+      {collapsed ? null : mode === 'agenda' ? (
         <>
           <DayAgenda sleeps={sleeps} feeds={feeds} bottles={bottles} days={days} now={now} />
           <div className="bar-legend">
