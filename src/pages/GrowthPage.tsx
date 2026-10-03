@@ -12,6 +12,7 @@ import type { Measurement, MeasurementType } from '@/db/types';
 import { measurementToActivity, type ActivityItem } from '@/lib/activity';
 import { parseDecimal } from '@/lib/dates';
 import { measurementLabel, measurementUnit } from '@/lib/labels';
+import { returnHome } from '@/lib/return-home';
 
 const TYPES: MeasurementType[] = ['WEIGHT', 'HEIGHT', 'HEAD_CIRCUMFERENCE'];
 
@@ -63,7 +64,7 @@ export function GrowthPage() {
                   onClick={() => {
                     const parsed = parseDecimal(value);
                     if (!baby || parsed === null || parsed <= 0) return;
-                    void addMeasurement(baby.id, type, parsed).then(() => navigate('/'));
+                    void addMeasurement(baby.id, type, parsed).then(() => returnHome(navigate));
                   }}>
                   Enregistrer
                 </Button>

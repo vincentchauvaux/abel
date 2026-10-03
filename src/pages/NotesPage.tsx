@@ -9,6 +9,7 @@ import { addNote, listNotes } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Note } from '@/db/types';
 import { noteToActivity, type ActivityItem } from '@/lib/activity';
+import { returnHome } from '@/lib/return-home';
 
 export function NotesPage() {
   const { baby, tick } = useDb();
@@ -45,7 +46,7 @@ export function NotesPage() {
           disabled={!body.trim()}
           onClick={() => {
             if (!baby || !body.trim()) return;
-            void addNote(baby.id, body, undefined, asTodo).then(() => navigate('/'));
+            void addNote(baby.id, body, undefined, asTodo).then(() => returnHome(navigate));
           }}>
           Enregistrer
         </Button>

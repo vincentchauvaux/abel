@@ -10,6 +10,7 @@ import { useDb } from '@/db/DbProvider';
 import type { BathEvent } from '@/db/types';
 import { bathEventToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
+import { returnHome } from '@/lib/return-home';
 
 export function BathsPage() {
   const { baby, tick } = useDb();
@@ -33,7 +34,7 @@ export function BathsPage() {
         onClick={async () => {
           if (!baby) return;
           await addBath(baby.id);
-          navigate('/');
+          returnHome(navigate);
         }}>
         Bain
       </button>

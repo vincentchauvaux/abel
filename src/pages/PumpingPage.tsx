@@ -13,6 +13,7 @@ import { pumpingSessionToActivity, type ActivityItem } from '@/lib/activity';
 import { formatTime, fromDatetimeLocalValue, parseDecimal, startOfLocalDay, toDatetimeLocalValue } from '@/lib/dates';
 import { sideLabel } from '@/lib/labels';
 import { stockIdLabel } from '@/lib/milk-stock';
+import { returnHome } from '@/lib/return-home';
 
 export function PumpingPage() {
   const { baby, tick } = useDb();
@@ -81,7 +82,7 @@ export function PumpingPage() {
             });
             setLastStockNo(created.stockNo);
             resetForm();
-            navigate('/');
+            returnHome(navigate);
           }}>
           Mettre en stock
         </Button>
@@ -125,7 +126,7 @@ export function PumpingPage() {
               });
               setLastStockNo(editing.stockNo);
               resetForm();
-              navigate('/');
+              returnHome(navigate);
             }}>
             Enregistrer
           </Button>

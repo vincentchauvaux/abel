@@ -14,6 +14,7 @@ import { formatDateTime, nowIso, parseDecimal, startOfLocalDay } from '@/lib/dat
 import { stockIdLabel } from '@/lib/milk-stock';
 import { milkLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
+import { returnHome } from '@/lib/return-home';
 
 export function BottlePage() {
   const { baby, tick } = useDb();
@@ -123,7 +124,7 @@ export function BottlePage() {
               setStockId(null);
               await notifyMealFromGoals(goals, fedAt);
               await notifyDiaperFromGoals(goals, fedAt);
-              navigate('/');
+              returnHome(navigate);
             } catch {
               window.alert('Stock insuffisant pour cette quantité.');
             }

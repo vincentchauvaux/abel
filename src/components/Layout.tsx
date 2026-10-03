@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Baby, CircleUser, Heart, Home, LayoutGrid } from 'lucide-react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
@@ -24,20 +24,37 @@ const MODULE_PREFIXES = [
 ];
 
 export function Layout() {
-  const path = useLocation().pathname;
+  const location = useLocation();
+  const path = location.pathname;
   const { pendingInvitesCount } = useDb();
   const onDashboard = path === '/' || path === '/dashboard';
   const onTools = path === '/tools';
   const onBaby = path.startsWith('/baby');
   const onProfile = path.startsWith('/profile');
   const onModule = MODULE_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+  const savedAt = (location.state as { savedAt?: number } | null)?.savedAt ?? 0;
+  const flashed = useRef(0);
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  useEffect(() => {
+    if (!onDashboard || !savedAt || flashed.current === savedAt) return;
+    flashed.current = savedAt;
+    setSavedFlash(true);
+    const timer = window.setTimeout(() => setSavedFlash(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [onDashboard, savedAt]);
 
   // Accueil = Dashboard. Depuis le dashboard, le bouton central ouvre Outils.
   const centerTo = onDashboard ? '/tools' : '/';
   const centerIsTools = onDashboard;
 
   return (
-    <div className="app">
+    <div className={`app${savedFlash ? ' is-saved' : ''}`}>
+      {savedFlash ? (
+        <span className="sr-only" role="status">
+          Enregistré
+        </span>
+      ) : null}
       <Outlet />
       <ExerciseAlarm />
       <ConsentBanner />

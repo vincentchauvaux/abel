@@ -37,6 +37,7 @@ import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/label
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { readToolsSection, writeToolsSection, TOOL_SECTION_OPTIONS, type ToolsSection } from '@/lib/tools-section';
+import { returnHome } from '@/lib/return-home';
 
 export type SmartEntryType =
   | 'feeding'
@@ -220,7 +221,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
       const chosen: Side = side === 'BOTH' ? 'LEFT' : side;
       await startFeeding(baby.id, chosen, atIso());
       onSaved?.();
-      navigate('/');
+      returnHome(navigate);
       return;
     }
     const at = atIso();
@@ -306,7 +307,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         if (sleepStatus === 'open') {
           await startSleep(baby.id, at);
           onSaved?.();
-          navigate('/');
+          returnHome(navigate);
           return;
         }
         const ended = endedAtFromSleepForm(at);

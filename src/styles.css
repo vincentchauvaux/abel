@@ -63,6 +63,32 @@ a {
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
+.app.is-saved::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  border: 5px solid #2f9e57;
+  z-index: 80;
+  animation: app-saved-blink 1.5s ease-in-out;
+}
+
+@keyframes app-saved-blink {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  12%,
+  48%,
+  84% {
+    opacity: 1;
+  }
+  30%,
+  66% {
+    opacity: 0.05;
+  }
+}
+
 @media (display-mode: standalone) {
   .app {
     padding-top: env(safe-area-inset-top);

@@ -24,6 +24,7 @@ import { elapsedMs, formatDuration, formatMinuteCount, formatTime, localDateKey,
 import { INTERVAL_PRESETS } from '@/lib/goals';
 import { sideLabel } from '@/lib/labels';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
+import { returnHome } from '@/lib/return-home';
 
 const BREASTS: Side[] = ['LEFT', 'RIGHT'];
 
@@ -124,7 +125,7 @@ export function FeedingPage() {
             onClick={async () => {
               const endedAt = await stopFeeding(active.id);
               await afterStop(endedAt);
-              navigate('/');
+              returnHome(navigate);
             }}>
             Terminer
           </Button>
@@ -154,12 +155,12 @@ export function FeedingPage() {
                   if (!babyId) return;
                   if (useTimer) {
                     await startFeeding(babyId, side);
-                    navigate('/');
+                    returnHome(navigate);
                   } else {
                     const endedAt = nowIso();
                     await logFeedingNow(babyId, side, endedAt);
                     await afterStop(endedAt);
-                    navigate('/');
+                    returnHome(navigate);
                   }
                 }}>
                 {sideLabel[side]}

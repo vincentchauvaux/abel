@@ -10,6 +10,7 @@ import { useDb } from '@/db/DbProvider';
 import type { Supplement } from '@/db/types';
 import { supplementToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
+import { returnHome } from '@/lib/return-home';
 
 const PRESETS = ['Vitamine D', 'Fer', 'Fluor'];
 
@@ -42,7 +43,7 @@ export function SupplementsPage() {
           disabled={!name.trim()}
           onClick={() => {
             if (!baby || !name.trim()) return;
-            void addSupplement(baby.id, name).then(() => navigate('/'));
+            void addSupplement(baby.id, name).then(() => returnHome(navigate));
           }}>
           Enregistrer
         </Button>

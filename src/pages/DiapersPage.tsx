@@ -10,6 +10,7 @@ import { useDb } from '@/db/DbProvider';
 import type { DiaperEvent, DiaperKind } from '@/db/types';
 import { diaperEventToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
+import { returnHome } from '@/lib/return-home';
 
 export function DiapersPage() {
   const { baby, tick } = useDb();
@@ -27,7 +28,7 @@ export function DiapersPage() {
   const note = async (kind: DiaperKind) => {
     if (!baby) return;
     await addDiaper(baby.id, kind);
-    navigate('/');
+    returnHome(navigate);
   };
 
   return (

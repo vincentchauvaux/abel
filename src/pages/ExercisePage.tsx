@@ -12,6 +12,7 @@ import { useNow } from '@/hooks/use-now';
 import { exerciseSessionToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
 import { startExerciseWithAlarm } from '@/lib/exercise-alarm';
+import { returnHome } from '@/lib/return-home';
 import {
   exerciseIsDone,
   exerciseIsRunning,
@@ -74,14 +75,14 @@ export function ExercisePage() {
           </>
         )}
         {running ? (
-          <Button tone="muted" onClick={() => void stopExerciseItem(item.id).then(() => navigate('/'))}>
+          <Button tone="muted" onClick={() => void stopExerciseItem(item.id).then(() => returnHome(navigate))}>
             Terminer
           </Button>
         ) : (
           <button
             type="button"
             className="big"
-            onClick={() => void startExerciseWithAlarm(item.id).then(() => navigate('/'))}>
+            onClick={() => void startExerciseWithAlarm(item.id).then(() => returnHome(navigate))}>
             {done ? 'Relancer' : 'Démarrer'}
           </button>
         )}

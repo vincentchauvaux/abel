@@ -11,6 +11,7 @@ import type { Temperature } from '@/db/types';
 import { temperatureToActivity, type ActivityItem } from '@/lib/activity';
 import { parseDecimal } from '@/lib/dates';
 import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
+import { returnHome } from '@/lib/return-home';
 
 export function TemperaturePage() {
   const { baby, tick } = useDb();
@@ -43,7 +44,7 @@ export function TemperaturePage() {
           onClick={() => {
             const celsius = parseDecimal(value);
             if (!baby || celsius === null) return;
-            void addTemperature(baby.id, celsius).then(() => navigate('/'));
+            void addTemperature(baby.id, celsius).then(() => returnHome(navigate));
           }}>
           Enregistrer
         </Button>

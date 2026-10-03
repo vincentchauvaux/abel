@@ -10,6 +10,7 @@ import { useDb } from '@/db/DbProvider';
 import type { SolidFood } from '@/db/types';
 import { solidFoodToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
+import { returnHome } from '@/lib/return-home';
 
 export function SolidsPage() {
   const { baby, tick } = useDb();
@@ -35,7 +36,7 @@ export function SolidsPage() {
           disabled={!food.trim()}
           onClick={() => {
             if (!baby || !food.trim()) return;
-            void addSolidFood(baby.id, food).then(() => navigate('/'));
+            void addSolidFood(baby.id, food).then(() => returnHome(navigate));
           }}>
           Enregistrer
         </Button>

@@ -20,6 +20,7 @@ import {
   spansOnLocalDay,
   totalMinutesOnLocalDay,
 } from '@/lib/dates';
+import { returnHome } from '@/lib/return-home';
 
 export function SleepPage() {
   const { baby, tick } = useDb();
@@ -57,7 +58,7 @@ export function SleepPage() {
             </button>
             <Button onClick={async () => {
               await stopSleep(active.id);
-              navigate('/');
+              returnHome(navigate);
             }}>Réveil</Button>
           </>
         ) : (
@@ -69,7 +70,7 @@ export function SleepPage() {
               onClick={async () => {
                 if (!babyId) return;
                 await startSleep(babyId);
-                navigate('/');
+                returnHome(navigate);
               }}>
               Endormi
             </Button>
