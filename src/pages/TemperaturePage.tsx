@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -13,6 +14,7 @@ import { formatTemperature, temperatureLevelClass } from '@/lib/temperature';
 
 export function TemperaturePage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Temperature[]>([]);
   const [value, setValue] = useState('');
   const [editing, setEditing] = useState<ActivityItem | null>(null);
@@ -41,8 +43,7 @@ export function TemperaturePage() {
           onClick={() => {
             const celsius = parseDecimal(value);
             if (!baby || celsius === null) return;
-            addTemperature(baby.id, celsius);
-            setValue('');
+            void addTemperature(baby.id, celsius).then(() => navigate('/'));
           }}>
           Enregistrer
         </Button>

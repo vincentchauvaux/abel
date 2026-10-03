@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -14,6 +15,7 @@ const PRESETS = ['Vitamine D', 'Fer', 'Fluor'];
 
 export function SupplementsPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Supplement[]>([]);
   const [name, setName] = useState('Vitamine D');
   const [editing, setEditing] = useState<ActivityItem | null>(null);
@@ -40,7 +42,7 @@ export function SupplementsPage() {
           disabled={!name.trim()}
           onClick={() => {
             if (!baby || !name.trim()) return;
-            addSupplement(baby.id, name);
+            void addSupplement(baby.id, name).then(() => navigate('/'));
           }}>
           Enregistrer
         </Button>

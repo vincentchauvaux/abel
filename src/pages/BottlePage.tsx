@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -16,6 +17,7 @@ import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 
 export function BottlePage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [feeds, setFeeds] = useState<BottleFeed[]>([]);
   const [stock, setStock] = useState<PumpingSession[]>([]);
   const [milkType, setMilkType] = useState<MilkType>('FORMULA');
@@ -121,6 +123,7 @@ export function BottlePage() {
               setStockId(null);
               await notifyMealFromGoals(goals, fedAt);
               await notifyDiaperFromGoals(goals, fedAt);
+              navigate('/');
             } catch {
               window.alert('Stock insuffisant pour cette quantité.');
             }

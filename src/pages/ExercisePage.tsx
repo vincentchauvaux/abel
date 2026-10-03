@@ -74,11 +74,14 @@ export function ExercisePage() {
           </>
         )}
         {running ? (
-          <Button tone="muted" onClick={() => void stopExerciseItem(item.id)}>
+          <Button tone="muted" onClick={() => void stopExerciseItem(item.id).then(() => navigate('/'))}>
             Terminer
           </Button>
         ) : (
-          <button type="button" className="big" onClick={() => void startExerciseWithAlarm(item.id)}>
+          <button
+            type="button"
+            className="big"
+            onClick={() => void startExerciseWithAlarm(item.id).then(() => navigate('/'))}>
             {done ? 'Relancer' : 'Démarrer'}
           </button>
         )}

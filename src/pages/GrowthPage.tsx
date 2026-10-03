@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -16,6 +17,7 @@ const TYPES: MeasurementType[] = ['WEIGHT', 'HEIGHT', 'HEAD_CIRCUMFERENCE'];
 
 export function GrowthPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Measurement[]>([]);
   const [adding, setAdding] = useState<MeasurementType | null>(null);
   const [value, setValue] = useState('');
@@ -61,9 +63,7 @@ export function GrowthPage() {
                   onClick={() => {
                     const parsed = parseDecimal(value);
                     if (!baby || parsed === null || parsed <= 0) return;
-                    addMeasurement(baby.id, type, parsed);
-                    setAdding(null);
-                    setValue('');
+                    void addMeasurement(baby.id, type, parsed).then(() => navigate('/'));
                   }}>
                   Enregistrer
                 </Button>

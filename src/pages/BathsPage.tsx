@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -12,6 +13,7 @@ import { startOfLocalDay } from '@/lib/dates';
 
 export function BathsPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [events, setEvents] = useState<BathEvent[]>([]);
   const [editing, setEditing] = useState<ActivityItem | null>(null);
 
@@ -25,7 +27,14 @@ export function BathsPage() {
   return (
     <div className="screen">
       <ModuleHeader title="Bain" toolId="baths" />
-      <button type="button" className="big" onClick={() => baby && addBath(baby.id)}>
+      <button
+        type="button"
+        className="big"
+        onClick={async () => {
+          if (!baby) return;
+          await addBath(baby.id);
+          navigate('/');
+        }}>
         Bain
       </button>
       <Card>

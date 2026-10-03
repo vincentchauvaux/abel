@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -11,6 +12,7 @@ import { noteToActivity, type ActivityItem } from '@/lib/activity';
 
 export function NotesPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Note[]>([]);
   const [body, setBody] = useState('');
   const [asTodo, setAsTodo] = useState(false);
@@ -43,9 +45,7 @@ export function NotesPage() {
           disabled={!body.trim()}
           onClick={() => {
             if (!baby || !body.trim()) return;
-            addNote(baby.id, body, undefined, asTodo);
-            setBody('');
-            setAsTodo(false);
+            void addNote(baby.id, body, undefined, asTodo).then(() => navigate('/'));
           }}>
           Enregistrer
         </Button>

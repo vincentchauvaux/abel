@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -12,6 +13,7 @@ import { startOfLocalDay } from '@/lib/dates';
 
 export function SolidsPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<SolidFood[]>([]);
   const [food, setFood] = useState('');
   const [editing, setEditing] = useState<ActivityItem | null>(null);
@@ -33,8 +35,7 @@ export function SolidsPage() {
           disabled={!food.trim()}
           onClick={() => {
             if (!baby || !food.trim()) return;
-            addSolidFood(baby.id, food);
-            setFood('');
+            void addSolidFood(baby.id, food).then(() => navigate('/'));
           }}>
           Enregistrer
         </Button>

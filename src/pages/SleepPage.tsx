@@ -55,7 +55,10 @@ export function SleepPage() {
                 Endormi depuis {formatTime(active.startedAt)} · modifier
               </p>
             </button>
-            <Button onClick={() => stopSleep(active.id)}>Réveil</Button>
+            <Button onClick={async () => {
+              await stopSleep(active.id);
+              navigate('/');
+            }}>Réveil</Button>
           </>
         ) : (
           <>

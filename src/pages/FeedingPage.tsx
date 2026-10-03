@@ -124,6 +124,7 @@ export function FeedingPage() {
             onClick={async () => {
               const endedAt = await stopFeeding(active.id);
               await afterStop(endedAt);
+              navigate('/');
             }}>
             Terminer
           </Button>
@@ -158,6 +159,7 @@ export function FeedingPage() {
                     const endedAt = nowIso();
                     await logFeedingNow(babyId, side, endedAt);
                     await afterStop(endedAt);
+                    navigate('/');
                   }
                 }}>
                 {sideLabel[side]}

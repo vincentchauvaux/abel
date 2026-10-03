@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
@@ -15,6 +16,7 @@ import { stockIdLabel } from '@/lib/milk-stock';
 
 export function PumpingPage() {
   const { baby, tick } = useDb();
+  const navigate = useNavigate();
   const [sessions, setSessions] = useState<PumpingSession[]>([]);
   const [stock, setStock] = useState<PumpingSession[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -79,6 +81,7 @@ export function PumpingPage() {
             });
             setLastStockNo(created.stockNo);
             resetForm();
+            navigate('/');
           }}>
           Mettre en stock
         </Button>
@@ -122,6 +125,7 @@ export function PumpingPage() {
               });
               setLastStockNo(editing.stockNo);
               resetForm();
+              navigate('/');
             }}>
             Enregistrer
           </Button>
