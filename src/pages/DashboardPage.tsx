@@ -1065,8 +1065,12 @@ export function DashboardPage() {
       ))}
 
       <Card>
-        <h2>Entrées de la période</h2>
-        {periodActivity.length === 0 ? (
+        <ChartHead
+          title="Entrées de la période"
+          collapsed={chartCards.entries}
+          onToggle={() => toggleChartCard('entries')}
+        />
+        {chartCards.entries ? null : periodActivity.length === 0 ? (
           <p className="muted">Rien de noté sur cette période.</p>
         ) : (
           periodActivity.map((row) => (
@@ -1087,7 +1091,7 @@ function barHeight(value: number, max: number) {
 const WIDE_VISIBLE = 3;
 const WIDE_GAP = 8;
 const CHART_CARD_KEY = 'abel.dash-chart-cards';
-type ChartCardId = 'resume' | 'meals' | 'naps' | 'diapers';
+type ChartCardId = 'resume' | 'meals' | 'naps' | 'diapers' | 'entries';
 
 function readChartCards(): Record<ChartCardId, boolean> {
   const collapsed: Record<ChartCardId, boolean> = {
@@ -1095,6 +1099,7 @@ function readChartCards(): Record<ChartCardId, boolean> {
     meals: false,
     naps: false,
     diapers: false,
+    entries: false,
   };
   try {
     const raw = JSON.parse(localStorage.getItem(CHART_CARD_KEY) || 'null') as Partial<Record<ChartCardId, boolean>> | null;
