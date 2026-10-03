@@ -2539,15 +2539,14 @@ button.timer-edit:active {
 
 .leap-week-badge {
   flex-shrink: 0;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 0 0 2px var(--primary);
+  border: 0;
+  background: none;
+  box-shadow: none;
   text-decoration: none;
   color: inherit;
 }
@@ -2557,26 +2556,15 @@ button.timer-edit:active {
   color: inherit;
 }
 
-.leap-week-badge.is-fussy {
-  background: #5a5a5a;
-  border-color: #5a5a5a;
-  color: #fff;
-}
-
-.leap-week-badge.is-distance {
-  background: #c8c2bb;
-  border-color: #b4aea7;
-}
-
 .leap-week-badge .leap-mark,
 .leap-week-badge .leap-mark-slot {
-  width: 20px;
-  height: 16px;
+  width: 22px;
+  height: 18px;
 }
 
 .leap-week-badge .leap-sun {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   color: #c48a1a;
 }
 
@@ -2584,13 +2572,8 @@ button.timer-edit:active {
   color: var(--text-muted);
 }
 
-.leap-week-badge.is-fussy .leap-cloud,
-.leap-week-badge.is-distance .leap-cloud {
-  color: #fff;
-}
-
-.leap-week-badge.is-fussy .leap-sun {
-  color: #f3d089;
+[id^='accordion-'] {
+  scroll-margin-top: calc(8px + env(safe-area-inset-top, 0px));
 }
 
 .leap-swatch.is-fussy {

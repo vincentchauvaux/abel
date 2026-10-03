@@ -14,7 +14,7 @@ type Props = {
 
 export function AccordionSection({ id, title, open, onToggle, action, children }: Props) {
   return (
-    <Card>
+    <Card id={`accordion-${id}`}>
       <div className="accordion-head">
         <button type="button" className="accordion-trigger" onClick={() => onToggle(id)} aria-expanded={open}>
           <h2>{title}</h2>

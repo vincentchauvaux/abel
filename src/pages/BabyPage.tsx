@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
 import { AccordionSection } from '@/components/Accordion';
@@ -95,6 +95,16 @@ export function BabyPage() {
   useEffect(() => {
     if (requestedSection) setOpenSection(requestedSection);
   }, [requestedSection]);
+
+  useLayoutEffect(() => {
+    if (!requestedSection || openSection !== requestedSection) return;
+    const el = document.getElementById(`accordion-${requestedSection}`);
+    if (!el) return;
+    const align = () => el.scrollIntoView({ block: 'start', behavior: 'auto' });
+    align();
+    const frame = requestAnimationFrame(align);
+    return () => cancelAnimationFrame(frame);
+  }, [openSection, requestedSection]);
 
   useEffect(() => {
     if (baby?.name) setName(baby.name);
