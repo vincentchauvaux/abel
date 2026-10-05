@@ -1068,7 +1068,8 @@ export async function mirrorRemoteSnapshot(records: SyncPayload, canonicalBabyId
       if (session?.babyId === canonicalBabyId) await db.feedingSegments.delete(id);
     }
   });
-  notifyDb();
+  // Toujours silencieux : un notify « normal » relancerait scheduleSync → boucle POST /sync.
+  notifyDb('normal', { silent: true });
 }
 
 export async function remapBabyId(from: string, to: string) {

@@ -43,7 +43,7 @@ location /abel/api/album {
 }
 
 location /abel/api/ {
-    limit_req zone=abel_api burst=20 nodelay;
+    limit_req zone=abel_api burst=60 nodelay;
 
     # Preflight CORS (hors rate limit Nginx — le rate limit est côté Node)
     if ($request_method = OPTIONS) {

@@ -6,7 +6,6 @@ import {
   mirrorRemoteSnapshot,
   type SyncPayload,
 } from '@/db/api';
-import { notifyDb } from '@/db/client';
 import { clearAuthToken, readGoogleToken, SYNC_URL } from '@/lib/google';
 
 export type SyncState = 'idle' | 'syncing' | 'ok' | 'auth' | 'offline' | 'error' | 'rate_limit';
@@ -14,7 +13,6 @@ export type SyncState = 'idle' | 'syncing' | 'ok' | 'auth' | 'offline' | 'error'
 let inFlight = false;
 let pullInFlight = false;
 let queued = false;
-let skipSchedule = false;
 let timer: number | null = null;
 let pullTimer: number | null = null;
 let lastState: SyncState = 'idle';
@@ -35,7 +33,6 @@ export function subscribeSync(fn: (state: SyncState) => void) {
 }
 
 export function scheduleSync(delayMs = 2500) {
-  if (skipSchedule) return;
   if (inFlight) {
     queued = true;
     return;
@@ -50,7 +47,6 @@ export function scheduleSync(delayMs = 2500) {
 
 /** Push d’abord s’il y a du pending, sinon pull. Pour le retour d’onglet / le tick co-parent. */
 export function scheduleRefresh(delayMs = 0) {
-  if (skipSchedule) return;
   if (!readGoogleToken() || !navigator.onLine) return;
   if (pullTimer) window.clearTimeout(pullTimer);
   pullTimer = window.setTimeout(() => {
@@ -125,9 +121,6 @@ export async function pullFromServer(): Promise<boolean> {
     if (!payload.babyId) return false;
 
     await mirrorRemoteSnapshot(payload.records, payload.babyId);
-    skipSchedule = true;
-    notifyDb('normal', { silent: true });
-    skipSchedule = false;
     setState('ok');
     return true;
   } finally {
@@ -184,9 +177,7 @@ export async function runSync(): Promise<SyncState> {
 
     await markPushed(changes);
     await mirrorRemoteSnapshot(payload.records, payload.babyId);
-    skipSchedule = true;
-    notifyDb('normal', { silent: !hadPending });
-    skipSchedule = false;
+    // mirrorRemoteSnapshot notifie déjà en silent ; pas de 2ᵉ sync après un push réussi.
     setState('ok');
     return lastState;
   } catch {

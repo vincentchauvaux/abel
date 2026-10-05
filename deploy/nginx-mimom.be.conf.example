@@ -56,7 +56,7 @@ server {
     }
 
     location /api/ {
-        limit_req zone=abel_api burst=20 nodelay;
+        limit_req zone=abel_api burst=60 nodelay;
 
         if ($request_method = OPTIONS) {
             add_header Access-Control-Allow-Origin $abel_cors_origin always;
