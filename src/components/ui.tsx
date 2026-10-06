@@ -1,4 +1,30 @@
-import type { ReactNode } from 'react';
+import type { InputHTMLAttributes, ReactNode } from 'react';
+
+/** Ouvre le sélecteur natif au tap partout sur le champ (Android : pas seulement l’icône). */
+export function NativePickerInput({
+  onClick,
+  className,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & {
+  type: 'time' | 'date' | 'datetime-local';
+}) {
+  return (
+    <input
+      {...props}
+      className={['native-picker', className].filter(Boolean).join(' ')}
+      onClick={(event) => {
+        onClick?.(event);
+        const el = event.currentTarget;
+        if (typeof el.showPicker !== 'function') return;
+        try {
+          el.showPicker();
+        } catch {
+          /* geste utilisateur / navigateur non supporté */
+        }
+      }}
+    />
+  );
+}
 
 export function Card({ children, id }: { children: ReactNode; id?: string }) {
   return (

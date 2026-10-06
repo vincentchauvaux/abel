@@ -9,7 +9,7 @@ import { JournalLine } from '@/components/JournalLine';
 import { ActivityEditor } from '@/components/ActivityEditor';
 import { BabyPhoto } from '@/components/BabyPhoto';
 import { SmartEntryForm } from '@/components/SmartEntryForm';
-import { Button, Card, Chip, Field, MultiSelectField } from '@/components/ui';
+import { Button, Card, Chip, Field, MultiSelectField, NativePickerInput } from '@/components/ui';
 import {
   getReminder,
   lastFeeding,
@@ -275,7 +275,7 @@ export function BabyPage() {
             </label>
             <label className="field">
               <span>Date de naissance</span>
-              <input type="date" value={bornOn} onChange={(e) => setBornOn(e.target.value)} />
+              <NativePickerInput type="date" value={bornOn} onChange={(e) => setBornOn(e.target.value)} />
             </label>
             <Button onClick={saveIdentity}>Enregistrer</Button>
             {name.trim() && bornOn ? (
@@ -495,7 +495,7 @@ export function BabyPage() {
           <div className="journal-day-filter">
             <label className="field">
               <span>Jour</span>
-              <input type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
+              <NativePickerInput type="date" value={journalDay} onChange={(e) => setJournalDay(e.target.value)} />
             </label>
             <Chip label="Tout" selected={!journalDay} onClick={() => setJournalDay('')} />
           </div>

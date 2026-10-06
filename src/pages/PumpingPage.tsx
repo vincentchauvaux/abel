@@ -5,7 +5,7 @@ import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { MilkStockLine } from '@/components/MilkStockLine';
-import { Button, Card, Chip, Field } from '@/components/ui';
+import { Button, Card, Chip, Field, NativePickerInput } from '@/components/ui';
 import { addPumping, listMilkStock, listPumps, startPumping, updatePumping } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { PumpingSession, Side } from '@/db/types';
@@ -57,7 +57,7 @@ export function PumpingPage() {
         <p className="muted">Quantité + date. Un ID est attribué tout de suite — note-le sur le sachet.</p>
         <label className="field">
           <span>Date et heure</span>
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <NativePickerInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
         <Field label="Quantité (ml)" value={amount} onChange={setAmount} placeholder="145" />
         <Field label="Durée (min, facultatif)" value={duration} onChange={setDuration} placeholder="15" />

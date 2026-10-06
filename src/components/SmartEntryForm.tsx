@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Button, Chip, Field } from '@/components/ui';
+import { Button, Chip, Field, NativePickerInput } from '@/components/ui';
 import { MilkStockLine } from '@/components/MilkStockLine';
 import {
   addBottle,
@@ -380,7 +380,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
       {type !== 'sleep' && type !== 'feeding' ? (
         <label className="field">
           <span>Date et heure</span>
-          <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <NativePickerInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
         </label>
       ) : null}
 
@@ -388,23 +388,39 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         <>
           <label className="field">
             <span>Date</span>
-            <input type="date" value={startDate} onChange={(e) => handleSleepDateChange(e.target.value)} />
+            <NativePickerInput
+              type="date"
+              value={startDate}
+              onChange={(e) => handleSleepDateChange(e.target.value)}
+            />
           </label>
           {showSpanEnd ? (
             <div className="grid-2">
               <label className="field">
                 <span>Début</span>
-                <input type="time" value={startTime} onChange={(e) => handleSleepStartTimeChange(e.target.value)} />
+                <NativePickerInput
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => handleSleepStartTimeChange(e.target.value)}
+                />
               </label>
               <label className="field">
                 <span>Fin</span>
-                <input type="time" value={endTime} onChange={(e) => handleSleepEndTimeChange(e.target.value)} />
+                <NativePickerInput
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => handleSleepEndTimeChange(e.target.value)}
+                />
               </label>
             </div>
           ) : (
             <label className="field">
               <span>Début</span>
-              <input type="time" value={startTime} onChange={(e) => handleSleepStartTimeChange(e.target.value)} />
+              <NativePickerInput
+                type="time"
+                value={startTime}
+                onChange={(e) => handleSleepStartTimeChange(e.target.value)}
+              />
             </label>
           )}
           {endNextDay ? <p className="muted">Fin le lendemain.</p> : null}

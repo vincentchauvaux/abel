@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 
-import { Button, Chip, Field } from '@/components/ui';
+import { Button, Chip, Field, NativePickerInput } from '@/components/ui';
 import {
   deleteBath,
   deleteBottle,
@@ -448,23 +448,35 @@ export function ActivityEditor({ item, onClose }: Props) {
           <>
             <label className="field">
               <span>Date</span>
-              <input type="date" value={startDate} onChange={(e) => handleDateChange(e.target.value)} />
+              <NativePickerInput type="date" value={startDate} onChange={(e) => handleDateChange(e.target.value)} />
             </label>
             {showEnd ? (
               <div className="grid-2">
                 <label className="field">
                   <span>Début</span>
-                  <input type="time" value={startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
+                  <NativePickerInput
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => handleStartTimeChange(e.target.value)}
+                  />
                 </label>
                 <label className="field">
                   <span>{item.kind === 'pumping' ? 'Fin (facultatif)' : 'Fin'}</span>
-                  <input type="time" value={endTime} onChange={(e) => handleEndTimeChange(e.target.value)} />
+                  <NativePickerInput
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => handleEndTimeChange(e.target.value)}
+                  />
                 </label>
               </div>
             ) : (
               <label className="field">
                 <span>Début</span>
-                <input type="time" value={startTime} onChange={(e) => handleStartTimeChange(e.target.value)} />
+                <NativePickerInput
+                  type="time"
+                  value={startTime}
+                  onChange={(e) => handleStartTimeChange(e.target.value)}
+                />
               </label>
             )}
             {endNextDay ? <p className="muted">Fin le lendemain.</p> : null}
@@ -472,7 +484,7 @@ export function ActivityEditor({ item, onClose }: Props) {
         ) : (
           <label className="field">
             <span>Date et heure</span>
-            <input type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+            <NativePickerInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
           </label>
         )}
         {item.kind === 'feeding' && feedStatus === 'done' ? (
