@@ -1932,6 +1932,118 @@ button.timer-edit:active {
   opacity: 0.4;
 }
 
+.growth-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.growth-head h2 {
+  margin: 0;
+}
+
+.growth-head-spacer {
+  flex: 1;
+}
+
+.growth-view-toggle {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.growth-view-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--muted-bg);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.growth-view-btn.is-on {
+  background: color-mix(in srgb, var(--primary) 18%, var(--muted-bg));
+  color: var(--primary);
+}
+
+.growth-view-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.growth-who-band-outer.growth-who-band-weight {
+  fill: color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.growth-who-band-inner.growth-who-band-weight {
+  fill: color-mix(in srgb, var(--primary) 16%, transparent);
+}
+
+.growth-who-band-outer.growth-who-band-height {
+  fill: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.growth-who-band-inner.growth-who-band-height {
+  fill: color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+.growth-who-median {
+  stroke: var(--text-muted);
+  stroke-width: 1.4;
+  stroke-dasharray: 4 3;
+  opacity: 0.75;
+}
+
+.growth-who-x {
+  position: relative;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.growth-who-x-label {
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.growth-who-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  align-items: center;
+  margin: 4px 0 2px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.growth-who-leg-band::before,
+.growth-who-leg-median::before {
+  content: '';
+  display: inline-block;
+  width: 12px;
+  height: 8px;
+  margin-right: 5px;
+  border-radius: 2px;
+  vertical-align: middle;
+}
+
+.growth-who-leg-band::before {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.growth-who-leg-median::before {
+  height: 0;
+  border-top: 2px dashed var(--text-muted);
+  background: transparent;
+  width: 14px;
+}
+
 .growth-chart,
 .growth-plot,
 .growth-y-svg {
