@@ -40,7 +40,7 @@ export function Layout() {
     if (!onDashboard || !savedAt || flashed.current === savedAt) return;
     flashed.current = savedAt;
     setSavedFlash(true);
-    const timer = window.setTimeout(() => setSavedFlash(false), 1600);
+    const timer = window.setTimeout(() => setSavedFlash(false), 900);
     return () => window.clearTimeout(timer);
   }, [onDashboard, savedAt]);
 

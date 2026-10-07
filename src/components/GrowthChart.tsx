@@ -23,12 +23,21 @@ type ChartView = 'history' | 'who';
 
 const VIEW_KEY = 'abel.growth-chart-view';
 const PAD_L = 36;
+const PAD_R_WHO = 28;
 const H = 112;
-const H_WHO = 148;
-const PAD_T = 18;
-const PAD_B = 18;
+const H_WHO = 210;
+const PAD_T = 14;
+const PAD_B = 10;
 const VISIBLE_DAYS = 6;
 const SLOT_MIN = 48;
+
+const WHO_PCT_STYLE: { key: keyof WhoPercentiles; label: string; className: string }[] = [
+  { key: 'p97', label: '97', className: 'growth-who-p97' },
+  { key: 'p85', label: '85', className: 'growth-who-p85' },
+  { key: 'p50', label: '50', className: 'growth-who-p50' },
+  { key: 'p15', label: '15', className: 'growth-who-p15' },
+  { key: 'p3', label: '3', className: 'growth-who-p3' },
+];
 
 function readView(): ChartView {
   try {
@@ -235,21 +244,11 @@ function SeriesPlot({
   );
 }
 
-function bandPath(
-  samples: { month: number; pct: WhoPercentiles }[],
-  lo: keyof WhoPercentiles,
-  hi: keyof WhoPercentiles,
-  xAtMonth: (m: number) => number,
-  min: number,
-  max: number,
-): string {
-  if (samples.length < 2) return '';
-  const top = samples.map((s) => `${xAtMonth(s.month)},${yAt(s.pct[hi], min, max, H_WHO)}`).join(' ');
-  const bottom = [...samples]
-    .reverse()
-    .map((s) => `${xAtMonth(s.month)},${yAt(s.pct[lo], min, max, H_WHO)}`)
-    .join(' ');
-  return `M ${top} L ${bottom} Z`;
+function whoRange(samples: { pct: WhoPercentiles }[], pointVals: number[]): { min: number; max: number } {
+  const lo = Math.min(...samples.map((s) => s.pct.p3), ...pointVals);
+  const hi = Math.max(...samples.map((s) => s.pct.p97), ...pointVals);
+  const span = hi - lo || 1;
+  return { min: Math.max(0, lo - span * 0.06), max: hi + span * 0.08 };
 }
 
 function WhoSeriesPlot({
@@ -267,70 +266,98 @@ function WhoSeriesPlot({
   tone: 'weight' | 'height';
   unit: string;
 }) {
-  const samples = sampleWhoCurve(kind, 0, maxMonth, 0.5);
+  const samples = sampleWhoCurve(kind, 0, maxMonth, 0.25);
   if (samples.length < 2) return null;
 
-  const bandVals = samples.flatMap((s) => [s.pct.p3, s.pct.p97]);
-  const pointVals = points.map((p) => p.value);
-  const range = niceRange([...bandVals, ...pointVals]);
-  const xAtMonth = (m: number) => (m / maxMonth) * width;
+  const plotW = Math.max(120, width - PAD_R_WHO);
+  const range = whoRange(
+    samples,
+    points.map((p) => p.value),
+  );
+  const xAtMonth = (m: number) => (m / maxMonth) * plotW;
 
-  const medianPts = samples.map((s) => `${xAtMonth(s.month)},${yAt(s.pct.p50, range.min, range.max, H_WHO)}`).join(' ');
   const babyLine = points
     .filter((p) => p.months <= maxMonth)
     .map((p) => `${xAtMonth(p.months)},${yAt(p.value, range.min, range.max, H_WHO)}`)
     .join(' ');
 
-  const monthTicks: number[] = [];
-  for (let m = 0; m <= maxMonth; m += maxMonth <= 6 ? 1 : maxMonth <= 12 ? 2 : 3) {
-    monthTicks.push(m);
-  }
-  if (monthTicks[monthTicks.length - 1] !== maxMonth) monthTicks.push(maxMonth);
+  const monthMinor: number[] = [];
+  for (let m = 0; m <= maxMonth; m += 1) monthMinor.push(m);
+  const monthMajor = monthMinor.filter((m) => m % (maxMonth <= 12 ? 1 : 3) === 0 || m === maxMonth);
+
+  const yMinorCount = 10;
+  const yMajors = ticks(range.min, range.max);
 
   return (
     <div className="growth-series-block">
       <p className={`growth-series-label growth-leg-${tone}`}>
-        {kind === 'weight' ? 'Poids (kg)' : 'Taille (cm)'} · OMS
+        {kind === 'weight' ? 'Poids (kg)' : 'Taille (cm)'} · schéma OMS
       </p>
       <div className="growth-series">
         <YAxis min={range.min} max={range.max} height={H_WHO} />
         <svg
-          className="growth-plot"
+          className="growth-plot growth-who-plot"
           viewBox={`0 0 ${width} ${H_WHO}`}
           width={width}
           height={H_WHO}
           role="img"
-          aria-label={`Courbe OMS ${unit}`}>
-          {ticks(range.min, range.max).map((tick) => {
-            const y = yAt(tick, range.min, range.max, H_WHO);
-            return <line key={`g-${tick}`} className="growth-grid" x1={0} y1={y} x2={width} y2={y} />;
+          aria-label={`Schéma OMS ${unit}, percentiles 3 à 97`}>
+          <rect className="growth-who-frame" x={0.5} y={PAD_T} width={plotW - 1} height={H_WHO - PAD_T - PAD_B} />
+          {Array.from({ length: yMinorCount + 1 }, (_, i) => {
+            const value = range.min + ((range.max - range.min) * i) / yMinorCount;
+            const y = yAt(value, range.min, range.max, H_WHO);
+            return <line key={`ym-${i}`} className="growth-who-grid-minor" x1={0} y1={y} x2={plotW} y2={y} />;
           })}
-          <path
-            className={`growth-who-band growth-who-band-outer growth-who-band-${tone}`}
-            d={bandPath(samples, 'p3', 'p97', xAtMonth, range.min, range.max)}
-          />
-          <path
-            className={`growth-who-band growth-who-band-inner growth-who-band-${tone}`}
-            d={bandPath(samples, 'p15', 'p85', xAtMonth, range.min, range.max)}
-          />
-          <polyline className="growth-who-median" points={medianPts} fill="none" />
-          {babyLine ? (
-            <polyline className={`growth-line growth-line-${tone}`} points={babyLine} fill="none" />
-          ) : null}
+          {monthMinor.map((m) => {
+            const x = xAtMonth(m);
+            const major = monthMajor.includes(m);
+            return (
+              <line
+                key={`xm-${m}`}
+                className={major ? 'growth-who-grid-major' : 'growth-who-grid-minor'}
+                x1={x}
+                y1={PAD_T}
+                x2={x}
+                y2={H_WHO - PAD_B}
+              />
+            );
+          })}
+          {yMajors.map((tick) => {
+            const y = yAt(tick, range.min, range.max, H_WHO);
+            return <line key={`yg-${tick}`} className="growth-who-grid-major" x1={0} y1={y} x2={plotW} y2={y} />;
+          })}
+          {WHO_PCT_STYLE.map(({ key, label, className }) => {
+            const pts = samples
+              .map((s) => `${xAtMonth(s.month)},${yAt(s.pct[key], range.min, range.max, H_WHO)}`)
+              .join(' ');
+            const last = samples[samples.length - 1];
+            const ly = yAt(last.pct[key], range.min, range.max, H_WHO);
+            return (
+              <g key={key}>
+                <polyline className={`growth-who-curve ${className}`} points={pts} fill="none" />
+                <text className={`growth-who-pct-label ${className}`} x={plotW + 4} y={ly + 3}>
+                  {label}
+                </text>
+              </g>
+            );
+          })}
+          {babyLine ? <polyline className="growth-who-baby-line" points={babyLine} fill="none" /> : null}
           {points.map((p, i) => {
             if (p.months > maxMonth) return null;
             const label = fmtPoint(p.value);
-            const r = label.length > 4 ? 14 : 12;
             const cx = xAtMonth(p.months);
             const cy = yAt(p.value, range.min, range.max, H_WHO);
             return (
               <g key={`${tone}-who-${i}`}>
-                <circle className={`growth-dot growth-dot-${tone}`} cx={cx} cy={cy} r={r}>
+                <circle className="growth-who-baby-dot" cx={cx} cy={cy} r={5.5}>
                   <title>
-                    {label} {unit} · {p.months < 1 ? `${Math.round(p.months * 30)} j` : `${p.months.toFixed(1).replace('.', ',')} mois`}
+                    {label} {unit} ·{' '}
+                    {p.months < 1
+                      ? `${Math.round(p.months * 30)} j`
+                      : `${p.months.toFixed(1).replace('.', ',')} mois`}
                   </title>
                 </circle>
-                <text className="growth-dot-label" x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+                <text className="growth-who-baby-label" x={cx} y={cy - 10} textAnchor="middle">
                   {label}
                 </text>
               </g>
@@ -340,8 +367,8 @@ function WhoSeriesPlot({
       </div>
       <div className="growth-x-row">
         <span className="growth-y-spacer" style={{ width: PAD_L }} />
-        <div className="growth-who-x" style={{ width }}>
-          {monthTicks.map((m) => (
+        <div className="growth-who-x" style={{ width: plotW }}>
+          {monthMajor.map((m) => (
             <span key={m} className="growth-x-label growth-who-x-label" style={{ left: `${(m / maxMonth) * 100}%` }}>
               {m}
             </span>
@@ -530,12 +557,16 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
             <p className="muted">Ajoute un poids ou une taille pour le placer sur la courbe OMS.</p>
           ) : null}
           <div className="growth-who-legend">
-            <span className="growth-who-leg-band">Zone P3–P97</span>
-            <span className="growth-who-leg-median">Médiane P50</span>
+            <span className="growth-who-leg-p97">97</span>
+            <span className="growth-who-leg-p85">85</span>
+            <span className="growth-who-leg-p50">50</span>
+            <span className="growth-who-leg-p15">15</span>
+            <span className="growth-who-leg-p3">3</span>
+            <span className="growth-who-leg-baby">tes mesures</span>
             <span className="muted">âge en mois</span>
           </div>
           <p className="muted growth-imc-note">
-            Courbes OMS indicatives (filles/garçons mélangés) — pas un avis médical.
+            Schéma type OMS (percentiles 3–97, filles/garçons mélangés) — pas un avis médical.
           </p>
         </div>
       ) : null}
