@@ -1995,9 +1995,10 @@ button.timer-edit:active {
 }
 
 .growth-who-curve {
-  stroke-width: 2.4;
+  stroke-width: 1.75;
   stroke-linejoin: round;
   stroke-linecap: round;
+  opacity: 0.92;
 }
 
 .growth-who-p97,
@@ -2024,22 +2025,36 @@ button.timer-edit:active {
 }
 
 .growth-who-baby-line {
-  stroke: #2c3e50;
-  stroke-width: 2.2;
+  stroke: #1a252f;
+  stroke-width: 2.6;
   stroke-linejoin: round;
   stroke-linecap: round;
 }
 
+.growth-who-baby-mark {
+  pointer-events: none;
+}
+
+.growth-who-baby-halo {
+  fill: #fff;
+  stroke: none;
+  opacity: 0.95;
+}
+
 .growth-who-baby-dot {
-  fill: #2c3e50;
+  fill: #1a252f;
   stroke: #fff;
-  stroke-width: 2;
+  stroke-width: 2.5;
 }
 
 .growth-who-baby-label {
-  fill: #2c3e50;
-  font-size: 9px;
+  fill: #1a252f;
+  font-size: 10px;
   font-weight: 800;
+  paint-order: stroke fill;
+  stroke: #fffdf8;
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .growth-who-x {

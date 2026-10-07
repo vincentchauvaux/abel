@@ -167,6 +167,21 @@ function YAxis({ min, max, height = H }: { min: number; max: number; height?: nu
   );
 }
 
+function WhoYAxis({ min, max, height = H_WHO }: { min: number; max: number; height?: number }) {
+  return (
+    <svg className="growth-y-svg" viewBox={`0 0 ${PAD_L} ${height}`} width={PAD_L} height={height} aria-hidden>
+      {whoYTicks(min, max).map((tick) => {
+        const y = yAt(tick, min, max, height);
+        return (
+          <text key={tick} className="growth-axis growth-axis-left" x={PAD_L - 4} y={y + 3}>
+            {fmtTick(tick)}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
 function fmtPoint(n: number): string {
   const rounded = Math.round(n * 100) / 100;
   return String(rounded).replace('.', ',');
@@ -244,11 +259,69 @@ function SeriesPlot({
   );
 }
 
-function whoRange(samples: { pct: WhoPercentiles }[], pointVals: number[]): { min: number; max: number } {
-  const lo = Math.min(...samples.map((s) => s.pct.p3), ...pointVals);
-  const hi = Math.max(...samples.map((s) => s.pct.p97), ...pointVals);
-  const span = hi - lo || 1;
-  return { min: Math.max(0, lo - span * 0.06), max: hi + span * 0.08 };
+/** Fenêtre d’âge affichée : évite un axe 0–6 mois quand le bébé n’a que quelques semaines. */
+function whoDisplayMonthMax(
+  weightPts: { months: number }[],
+  heightPts: { months: number }[],
+  babyAgeMonths: number | null,
+): number {
+  const lastMeasure = Math.max(0, ...weightPts.map((p) => p.months), ...heightPts.map((p) => p.months));
+  const ref = Math.max(lastMeasure, babyAgeMonths ?? 0);
+  const target = Math.ceil(ref + 1.5);
+  if (ref < 4) return Math.min(WHO_MAX_MONTHS, Math.max(3, target));
+  return Math.min(WHO_MAX_MONTHS, Math.max(6, target));
+}
+
+/** Échelle Y : percentiles seulement sur la fenêtre d’âge visible (pas tout le 0–24 mois). */
+function whoRange(
+  samples: { month: number; pct: WhoPercentiles }[],
+  maxMonth: number,
+  pointVals: number[],
+): { min: number; max: number } {
+  const windowSamples = samples.filter((s) => s.month <= maxMonth + 0.01);
+  if (windowSamples.length === 0) return { min: 0, max: 1 };
+  const band = windowSamples.flatMap((s) => [s.pct.p3, s.pct.p97]);
+  const lo = Math.min(...band, ...(pointVals.length ? pointVals : band));
+  const hi = Math.max(...band, ...(pointVals.length ? pointVals : band));
+  const span = hi - lo || 0.5;
+  return { min: Math.max(0, lo - span * 0.14), max: hi + span * 0.12 };
+}
+
+function whoYTicks(min: number, max: number): number[] {
+  const span = max - min;
+  if (span <= 0) return [min];
+  const count = 5;
+  const rough = span / (count - 1);
+  const pow = 10 ** Math.floor(Math.log10(Math.max(rough, 1e-6)));
+  const step = Math.max(pow / 2, Math.ceil(rough / pow) * pow);
+  const start = Math.floor(min / step) * step;
+  const out: number[] = [];
+  for (let v = start; v <= max + step * 0.001; v += step) {
+    if (v >= min - step * 0.001 && v <= max + step * 0.001) out.push(v);
+  }
+  return out.length >= 2 ? out : ticks(min, max);
+}
+
+type BabyPlotPoint = { cx: number; cy: number; label: string; months: number; unit: string };
+
+function placeBabyLabels(items: BabyPlotPoint[]): (BabyPlotPoint & { labelY: number })[] {
+  const sorted = [...items].sort((a, b) => a.cx - b.cx || a.cy - b.cy);
+  const placed: (BabyPlotPoint & { labelY: number })[] = [];
+  for (const item of sorted) {
+    const candidates = [item.cy - 16, item.cy + 18, item.cy - 30, item.cy + 32];
+    let labelY = candidates[0];
+    for (const y of candidates) {
+      const clash = placed.some(
+        (prev) => Math.abs(prev.cx - item.cx) < 32 && Math.abs(prev.labelY - y) < 13,
+      );
+      if (!clash) {
+        labelY = y;
+        break;
+      }
+    }
+    placed.push({ ...item, labelY });
+  }
+  return placed;
 }
 
 function WhoSeriesPlot({
@@ -266,27 +339,41 @@ function WhoSeriesPlot({
   tone: 'weight' | 'height';
   unit: string;
 }) {
-  const samples = sampleWhoCurve(kind, 0, maxMonth, 0.25);
+  const samples = sampleWhoCurve(kind, 0, maxMonth, 0.2);
   if (samples.length < 2) return null;
 
   const plotW = Math.max(120, width - PAD_R_WHO);
+  const visiblePoints = points.filter((p) => p.months <= maxMonth);
   const range = whoRange(
     samples,
-    points.map((p) => p.value),
+    maxMonth,
+    visiblePoints.map((p) => p.value),
   );
   const xAtMonth = (m: number) => (m / maxMonth) * plotW;
 
-  const babyLine = points
-    .filter((p) => p.months <= maxMonth)
+  const babyLine = visiblePoints
     .map((p) => `${xAtMonth(p.months)},${yAt(p.value, range.min, range.max, H_WHO)}`)
     .join(' ');
 
+  const monthStep = maxMonth <= 4 ? 1 : maxMonth <= 12 ? 1 : 2;
   const monthMinor: number[] = [];
-  for (let m = 0; m <= maxMonth; m += 1) monthMinor.push(m);
-  const monthMajor = monthMinor.filter((m) => m % (maxMonth <= 12 ? 1 : 3) === 0 || m === maxMonth);
+  for (let m = 0; m <= maxMonth; m += monthStep) monthMinor.push(m);
+  if (monthMinor[monthMinor.length - 1] !== maxMonth) monthMinor.push(maxMonth);
+  const monthMajor = monthMinor;
 
-  const yMinorCount = 10;
-  const yMajors = ticks(range.min, range.max);
+  const yMajors = whoYTicks(range.min, range.max);
+  const babyPlot = placeBabyLabels(
+    visiblePoints.map((p) => {
+      const label = fmtPoint(p.value);
+      return {
+        cx: xAtMonth(p.months),
+        cy: yAt(p.value, range.min, range.max, H_WHO),
+        label,
+        months: p.months,
+        unit,
+      };
+    }),
+  );
 
   return (
     <div className="growth-series-block">
@@ -294,7 +381,7 @@ function WhoSeriesPlot({
         {kind === 'weight' ? 'Poids (kg)' : 'Taille (cm)'} · schéma OMS
       </p>
       <div className="growth-series">
-        <YAxis min={range.min} max={range.max} height={H_WHO} />
+        <WhoYAxis min={range.min} max={range.max} height={H_WHO} />
         <svg
           className="growth-plot growth-who-plot"
           viewBox={`0 0 ${width} ${H_WHO}`}
@@ -303,10 +390,9 @@ function WhoSeriesPlot({
           role="img"
           aria-label={`Schéma OMS ${unit}, percentiles 3 à 97`}>
           <rect className="growth-who-frame" x={0.5} y={PAD_T} width={plotW - 1} height={H_WHO - PAD_T - PAD_B} />
-          {Array.from({ length: yMinorCount + 1 }, (_, i) => {
-            const value = range.min + ((range.max - range.min) * i) / yMinorCount;
-            const y = yAt(value, range.min, range.max, H_WHO);
-            return <line key={`ym-${i}`} className="growth-who-grid-minor" x1={0} y1={y} x2={plotW} y2={y} />;
+          {yMajors.map((tick) => {
+            const y = yAt(tick, range.min, range.max, H_WHO);
+            return <line key={`ym-${tick}`} className="growth-who-grid-minor" x1={0} y1={y} x2={plotW} y2={y} />;
           })}
           {monthMinor.map((m) => {
             const x = xAtMonth(m);
@@ -321,10 +407,6 @@ function WhoSeriesPlot({
                 y2={H_WHO - PAD_B}
               />
             );
-          })}
-          {yMajors.map((tick) => {
-            const y = yAt(tick, range.min, range.max, H_WHO);
-            return <line key={`yg-${tick}`} className="growth-who-grid-major" x1={0} y1={y} x2={plotW} y2={y} />;
           })}
           {WHO_PCT_STYLE.map(({ key, label, className }) => {
             const pts = samples
@@ -342,27 +424,22 @@ function WhoSeriesPlot({
             );
           })}
           {babyLine ? <polyline className="growth-who-baby-line" points={babyLine} fill="none" /> : null}
-          {points.map((p, i) => {
-            if (p.months > maxMonth) return null;
-            const label = fmtPoint(p.value);
-            const cx = xAtMonth(p.months);
-            const cy = yAt(p.value, range.min, range.max, H_WHO);
-            return (
-              <g key={`${tone}-who-${i}`}>
-                <circle className="growth-who-baby-dot" cx={cx} cy={cy} r={5.5}>
-                  <title>
-                    {label} {unit} ·{' '}
-                    {p.months < 1
-                      ? `${Math.round(p.months * 30)} j`
-                      : `${p.months.toFixed(1).replace('.', ',')} mois`}
-                  </title>
-                </circle>
-                <text className="growth-who-baby-label" x={cx} y={cy - 10} textAnchor="middle">
-                  {label}
-                </text>
-              </g>
-            );
-          })}
+          {babyPlot.map((p, i) => (
+            <g key={`${tone}-who-${i}`} className="growth-who-baby-mark">
+              <circle className="growth-who-baby-halo" cx={p.cx} cy={p.cy} r={9} />
+              <circle className="growth-who-baby-dot" cx={p.cx} cy={p.cy} r={6.5}>
+                <title>
+                  {p.label} {p.unit} ·{' '}
+                  {p.months < 1
+                    ? `${Math.round(p.months * 30)} j`
+                    : `${p.months.toFixed(1).replace('.', ',')} mois`}
+                </title>
+              </circle>
+              <text className="growth-who-baby-label" x={p.cx} y={p.labelY} textAnchor="middle">
+                {p.label}
+              </text>
+            </g>
+          ))}
         </svg>
       </div>
       <div className="growth-x-row">
@@ -469,15 +546,7 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
   const babyAgeMonths = bornOn ? ageMonthsExact(bornOn, new Date()) : null;
   const weightWhoPts = bornOn ? measurePoints(weights, bornOn) : [];
   const heightWhoPts = bornOn ? measurePoints(heights, bornOn) : [];
-  const whoMaxMonth = Math.min(
-    WHO_MAX_MONTHS,
-    Math.max(
-      6,
-      Math.ceil((babyAgeMonths ?? 6) + 1),
-      ...weightWhoPts.map((p) => Math.ceil(p.months)),
-      ...heightWhoPts.map((p) => Math.ceil(p.months)),
-    ),
-  );
+  const whoMaxMonth = whoDisplayMonthMax(weightWhoPts, heightWhoPts, babyAgeMonths);
 
   return (
     <Card>
