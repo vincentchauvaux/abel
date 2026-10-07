@@ -285,7 +285,7 @@ function SeriesPlot({
   );
 }
 
-/** Fenêtre d’âge zoomée : autour de l’âge actuel / des mesures. */
+/** Fenêtre d’âge zoomée : 1 mois (ou un peu plus si les mesures dépassent). */
 function whoDisplayMonthMax(
   weightPts: { months: number }[],
   heightPts: { months: number }[],
@@ -295,9 +295,8 @@ function whoDisplayMonthMax(
   if (!zoomed) return WHO_MAX_MONTHS;
   const lastMeasure = Math.max(0, ...weightPts.map((p) => p.months), ...heightPts.map((p) => p.months));
   const ref = Math.max(lastMeasure, babyAgeMonths ?? 0);
-  const target = Math.ceil(ref + 1.5);
-  if (ref < 4) return Math.min(WHO_MAX_MONTHS, Math.max(3, target));
-  return Math.min(WHO_MAX_MONTHS, Math.max(6, target));
+  // Zoom = 1 mois ; on élargit seulement si l’âge / les mesures vont au-delà.
+  return Math.min(WHO_MAX_MONTHS, Math.max(1, Math.ceil((ref + 0.1) * 10) / 10));
 }
 
 /** Échelle Y : zoom = zone autour des mesures ; dézoom = bande P3–P97 sur toute la fenêtre. */
@@ -415,9 +414,9 @@ function WhoSeriesPlot({
     .map((p) => `${xAtMonth(p.months)},${yAt(p.value, range.min, range.max, H_WHO)}`)
     .join(' ');
 
-  const monthStep = maxMonth <= 4 ? 1 : maxMonth <= 12 ? 2 : 3;
+  const monthStep = maxMonth <= 1.01 ? 0.25 : maxMonth <= 4 ? 0.5 : maxMonth <= 12 ? 2 : 3;
   const monthMajor: number[] = [];
-  for (let m = 0; m <= maxMonth; m += monthStep) monthMajor.push(m);
+  for (let m = 0; m <= maxMonth + 1e-9; m += monthStep) monthMajor.push(Math.round(m * 100) / 100);
   if (monthMajor[monthMajor.length - 1] !== maxMonth) monthMajor.push(maxMonth);
 
   const yMajors = whoYTicks(range.min, range.max);
@@ -489,22 +488,27 @@ function WhoSeriesPlot({
             );
           })}
           {babyLine ? <polyline className="growth-who-baby-line" points={babyLine} fill="none" /> : null}
-          {babyPlot.map((p, i) => (
-            <g key={`${tone}-who-${i}`} className="growth-who-baby-mark">
-              <circle className="growth-who-baby-halo" cx={p.cx} cy={p.cy} r={9} />
-              <circle className="growth-who-baby-dot" cx={p.cx} cy={p.cy} r={6.5}>
-                <title>
-                  {p.label} {p.unit} ·{' '}
-                  {p.months < 1
-                    ? `${Math.round(p.months * 30)} j`
-                    : `${p.months.toFixed(1).replace('.', ',')} mois`}
-                </title>
-              </circle>
-              <text className="growth-who-baby-label" x={p.cx} y={p.labelY} textAnchor="middle">
-                {p.label}
-              </text>
-            </g>
-          ))}
+          {babyPlot.map((p, i) => {
+            const isLast = i === babyPlot.length - 1;
+            return (
+              <g key={`${tone}-who-${i}`} className="growth-who-baby-mark">
+                <circle className="growth-who-baby-halo" cx={p.cx} cy={p.cy} r={isLast ? 9 : 6} />
+                <circle className="growth-who-baby-dot" cx={p.cx} cy={p.cy} r={isLast ? 6.5 : 4.5}>
+                  <title>
+                    {p.label} {p.unit} ·{' '}
+                    {p.months < 1
+                      ? `${Math.round(p.months * 30)} j`
+                      : `${p.months.toFixed(1).replace('.', ',')} mois`}
+                  </title>
+                </circle>
+                {isLast ? (
+                  <text className="growth-who-baby-label" x={p.cx} y={p.labelY} textAnchor="middle">
+                    {p.label}
+                  </text>
+                ) : null}
+              </g>
+            );
+          })}
         </svg>
       </div>
       <div className="growth-x-row">
@@ -512,7 +516,7 @@ function WhoSeriesPlot({
         <div className="growth-who-x" style={{ width: plotW }}>
           {monthMajor.map((m) => (
             <span key={m} className="growth-x-label growth-who-x-label" style={{ left: `${(m / maxMonth) * 100}%` }}>
-              {m}
+              {maxMonth <= 1.01 ? String(m).replace('.', ',') : m}
             </span>
           ))}
         </div>
@@ -628,8 +632,8 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
             <button
               type="button"
               className="growth-view-btn"
-              title={whoZoomed ? 'Dézoomer (0–24 mois)' : 'Zoomer sur la zone actuelle'}
-              aria-label={whoZoomed ? 'Dézoomer' : 'Zoomer'}
+              title={whoZoomed ? 'Dézoomer (0–24 mois)' : 'Zoomer sur 1 mois'}
+              aria-label={whoZoomed ? 'Dézoomer' : 'Zoomer sur 1 mois'}
               onClick={() => setZoomed(!whoZoomed)}>
               {whoZoomed ? <ZoomOut size={18} strokeWidth={2.2} aria-hidden /> : <ZoomIn size={18} strokeWidth={2.2} aria-hidden />}
             </button>
@@ -713,7 +717,7 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
             <span className="growth-who-leg-zone-orange">P85–P97</span>
             <span className="growth-who-leg-zone-red">P3–P15</span>
             <span className="growth-who-leg-baby">tes mesures</span>
-            <span className="muted">{whoZoomed ? 'zoom zone actuelle' : '0–24 mois'}</span>
+            <span className="muted">{whoZoomed ? 'zoom 1 mois' : '0–24 mois'}</span>
           </div>
           <p className="muted growth-imc-note">
             Schéma type OMS (lignes 3–97, filles/garçons mélangés) — pas un avis médical.
