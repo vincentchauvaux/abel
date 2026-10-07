@@ -521,7 +521,7 @@ function WhoSeriesPlot({
                   className={`growth-who-baby-dot growth-who-baby-dot-${p.zone}`}
                   cx={p.cx}
                   cy={p.cy}
-                  r={isLast ? 5.5 : 4}>
+                  r={isLast ? 3.5 : 2.75}>
                   <title>
                     {p.label} {p.unit} ·{' '}
                     {p.months < 1
