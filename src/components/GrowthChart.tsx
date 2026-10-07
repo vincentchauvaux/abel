@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
-import { ChartColumn, ChartSpline } from 'lucide-react';
+import { ChartColumn, ChartSpline, ZoomIn, ZoomOut } from 'lucide-react';
 
 import { Card } from '@/components/ui';
 import type { Measurement } from '@/db/types';
@@ -22,6 +22,7 @@ type Props = {
 type ChartView = 'history' | 'who';
 
 const VIEW_KEY = 'abel.growth-chart-view';
+const ZOOM_KEY = 'abel.growth-who-zoom';
 const PAD_L = 36;
 const PAD_R_WHO = 28;
 const H = 112;
@@ -39,6 +40,13 @@ const WHO_PCT_STYLE: { key: keyof WhoPercentiles; label: string; className: stri
   { key: 'p3', label: '3', className: 'growth-who-p3' },
 ];
 
+/** Zones colorées transparentes entre percentiles (rouge / orange / vert). */
+const WHO_ZONES: { lo: keyof WhoPercentiles; hi: keyof WhoPercentiles; className: string }[] = [
+  { lo: 'p3', hi: 'p15', className: 'growth-who-zone-red' },
+  { lo: 'p15', hi: 'p85', className: 'growth-who-zone-green' },
+  { lo: 'p85', hi: 'p97', className: 'growth-who-zone-orange' },
+];
+
 function readView(): ChartView {
   try {
     return localStorage.getItem(VIEW_KEY) === 'who' ? 'who' : 'history';
@@ -50,6 +58,24 @@ function readView(): ChartView {
 function writeView(view: ChartView) {
   try {
     localStorage.setItem(VIEW_KEY, view);
+  } catch {
+    /* ignore */
+  }
+}
+
+function readWhoZoomed(): boolean {
+  try {
+    const v = localStorage.getItem(ZOOM_KEY);
+    if (v === '0' || v === 'full') return false;
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+function writeWhoZoomed(zoomed: boolean) {
+  try {
+    localStorage.setItem(ZOOM_KEY, zoomed ? '1' : '0');
   } catch {
     /* ignore */
   }
@@ -259,12 +285,14 @@ function SeriesPlot({
   );
 }
 
-/** Fenêtre d’âge affichée : évite un axe 0–6 mois quand le bébé n’a que quelques semaines. */
+/** Fenêtre d’âge zoomée : autour de l’âge actuel / des mesures. */
 function whoDisplayMonthMax(
   weightPts: { months: number }[],
   heightPts: { months: number }[],
   babyAgeMonths: number | null,
+  zoomed: boolean,
 ): number {
+  if (!zoomed) return WHO_MAX_MONTHS;
   const lastMeasure = Math.max(0, ...weightPts.map((p) => p.months), ...heightPts.map((p) => p.months));
   const ref = Math.max(lastMeasure, babyAgeMonths ?? 0);
   const target = Math.ceil(ref + 1.5);
@@ -272,19 +300,53 @@ function whoDisplayMonthMax(
   return Math.min(WHO_MAX_MONTHS, Math.max(6, target));
 }
 
-/** Échelle Y : percentiles seulement sur la fenêtre d’âge visible (pas tout le 0–24 mois). */
+/** Échelle Y : zoom = zone autour des mesures ; dézoom = bande P3–P97 sur toute la fenêtre. */
 function whoRange(
   samples: { month: number; pct: WhoPercentiles }[],
   maxMonth: number,
-  pointVals: number[],
+  points: { months: number; value: number }[],
+  zoomed: boolean,
 ): { min: number; max: number } {
   const windowSamples = samples.filter((s) => s.month <= maxMonth + 0.01);
   if (windowSamples.length === 0) return { min: 0, max: 1 };
+  const pointVals = points.map((p) => p.value);
+
+  if (zoomed && points.length > 0) {
+    const ageMin = Math.min(...points.map((p) => p.months));
+    const ageMax = Math.max(...points.map((p) => p.months));
+    const nearby = windowSamples.filter(
+      (s) => s.month >= Math.max(0, ageMin - 0.75) && s.month <= ageMax + 1.25,
+    );
+    const local = nearby.length ? nearby : windowSamples.slice(-6);
+    const band = local.flatMap((s) => [s.pct.p3, s.pct.p97]);
+    const lo = Math.min(...pointVals, ...band);
+    const hi = Math.max(...pointVals, ...band);
+    const span = hi - lo || 0.5;
+    return { min: Math.max(0, lo - span * 0.18), max: hi + span * 0.16 };
+  }
+
   const band = windowSamples.flatMap((s) => [s.pct.p3, s.pct.p97]);
   const lo = Math.min(...band, ...(pointVals.length ? pointVals : band));
   const hi = Math.max(...band, ...(pointVals.length ? pointVals : band));
   const span = hi - lo || 0.5;
-  return { min: Math.max(0, lo - span * 0.14), max: hi + span * 0.12 };
+  return { min: Math.max(0, lo - span * 0.08), max: hi + span * 0.06 };
+}
+
+function bandPath(
+  samples: { month: number; pct: WhoPercentiles }[],
+  lo: keyof WhoPercentiles,
+  hi: keyof WhoPercentiles,
+  xAtMonth: (m: number) => number,
+  min: number,
+  max: number,
+): string {
+  if (samples.length < 2) return '';
+  const top = samples.map((s) => `${xAtMonth(s.month)},${yAt(s.pct[hi], min, max, H_WHO)}`).join(' L ');
+  const bottom = [...samples]
+    .reverse()
+    .map((s) => `${xAtMonth(s.month)},${yAt(s.pct[lo], min, max, H_WHO)}`)
+    .join(' L ');
+  return `M ${top} L ${bottom} Z`;
 }
 
 function whoYTicks(min: number, max: number): number[] {
@@ -331,6 +393,7 @@ function WhoSeriesPlot({
   width,
   tone,
   unit,
+  zoomed,
 }: {
   kind: 'weight' | 'length';
   points: { months: number; value: number }[];
@@ -338,28 +401,24 @@ function WhoSeriesPlot({
   width: number;
   tone: 'weight' | 'height';
   unit: string;
+  zoomed: boolean;
 }) {
   const samples = sampleWhoCurve(kind, 0, maxMonth, 0.2);
   if (samples.length < 2) return null;
 
   const plotW = Math.max(120, width - PAD_R_WHO);
   const visiblePoints = points.filter((p) => p.months <= maxMonth);
-  const range = whoRange(
-    samples,
-    maxMonth,
-    visiblePoints.map((p) => p.value),
-  );
+  const range = whoRange(samples, maxMonth, visiblePoints, zoomed);
   const xAtMonth = (m: number) => (m / maxMonth) * plotW;
 
   const babyLine = visiblePoints
     .map((p) => `${xAtMonth(p.months)},${yAt(p.value, range.min, range.max, H_WHO)}`)
     .join(' ');
 
-  const monthStep = maxMonth <= 4 ? 1 : maxMonth <= 12 ? 1 : 2;
-  const monthMinor: number[] = [];
-  for (let m = 0; m <= maxMonth; m += monthStep) monthMinor.push(m);
-  if (monthMinor[monthMinor.length - 1] !== maxMonth) monthMinor.push(maxMonth);
-  const monthMajor = monthMinor;
+  const monthStep = maxMonth <= 4 ? 1 : maxMonth <= 12 ? 2 : 3;
+  const monthMajor: number[] = [];
+  for (let m = 0; m <= maxMonth; m += monthStep) monthMajor.push(m);
+  if (monthMajor[monthMajor.length - 1] !== maxMonth) monthMajor.push(maxMonth);
 
   const yMajors = whoYTicks(range.min, range.max);
   const babyPlot = placeBabyLabels(
@@ -394,13 +453,12 @@ function WhoSeriesPlot({
             const y = yAt(tick, range.min, range.max, H_WHO);
             return <line key={`ym-${tick}`} className="growth-who-grid-minor" x1={0} y1={y} x2={plotW} y2={y} />;
           })}
-          {monthMinor.map((m) => {
+          {monthMajor.map((m) => {
             const x = xAtMonth(m);
-            const major = monthMajor.includes(m);
             return (
               <line
                 key={`xm-${m}`}
-                className={major ? 'growth-who-grid-major' : 'growth-who-grid-minor'}
+                className="growth-who-grid-major"
                 x1={x}
                 y1={PAD_T}
                 x2={x}
@@ -408,6 +466,13 @@ function WhoSeriesPlot({
               />
             );
           })}
+          {WHO_ZONES.map(({ lo, hi, className }) => (
+            <path
+              key={`${lo}-${hi}`}
+              className={`growth-who-zone ${className}`}
+              d={bandPath(samples, lo, hi, xAtMonth, range.min, range.max)}
+            />
+          ))}
           {WHO_PCT_STYLE.map(({ key, label, className }) => {
             const pts = samples
               .map((s) => `${xAtMonth(s.month)},${yAt(s.pct[key], range.min, range.max, H_WHO)}`)
@@ -476,6 +541,7 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
   const [slot, setSlot] = useState(SLOT_MIN);
   const [whoWidth, setWhoWidth] = useState(280);
   const [view, setView] = useState<ChartView>(() => readView());
+  const [whoZoomed, setWhoZoomed] = useState(() => readWhoZoomed());
 
   const weightPts = byTimeAsc(weights);
   const heightPts = byTimeAsc(heights);
@@ -546,13 +612,28 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
   const babyAgeMonths = bornOn ? ageMonthsExact(bornOn, new Date()) : null;
   const weightWhoPts = bornOn ? measurePoints(weights, bornOn) : [];
   const heightWhoPts = bornOn ? measurePoints(heights, bornOn) : [];
-  const whoMaxMonth = whoDisplayMonthMax(weightWhoPts, heightWhoPts, babyAgeMonths);
+  const whoMaxMonth = whoDisplayMonthMax(weightWhoPts, heightWhoPts, babyAgeMonths, whoZoomed);
+
+  const setZoomed = (next: boolean) => {
+    setWhoZoomed(next);
+    writeWhoZoomed(next);
+  };
 
   return (
     <Card>
       <div className="growth-head">
         {hideTitle ? <span className="growth-head-spacer" /> : <h2>Poids et taille</h2>}
         <div className="growth-view-toggle" role="group" aria-label="Type de courbe">
+          {activeView === 'who' ? (
+            <button
+              type="button"
+              className="growth-view-btn"
+              title={whoZoomed ? 'Dézoomer (0–24 mois)' : 'Zoomer sur la zone actuelle'}
+              aria-label={whoZoomed ? 'Dézoomer' : 'Zoomer'}
+              onClick={() => setZoomed(!whoZoomed)}>
+              {whoZoomed ? <ZoomOut size={18} strokeWidth={2.2} aria-hidden /> : <ZoomIn size={18} strokeWidth={2.2} aria-hidden />}
+            </button>
+          ) : null}
           <button
             type="button"
             className={`growth-view-btn${activeView === 'history' ? ' is-on' : ''}`}
@@ -613,6 +694,7 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
             width={whoWidth}
             tone="weight"
             unit="kg"
+            zoomed={whoZoomed}
           />
           <WhoSeriesPlot
             kind="length"
@@ -621,21 +703,20 @@ export function GrowthChart({ weights, heights, bornOn, hideTitle }: Props) {
             width={whoWidth}
             tone="height"
             unit="cm"
+            zoomed={whoZoomed}
           />
           {weightWhoPts.length === 0 && heightWhoPts.length === 0 ? (
             <p className="muted">Ajoute un poids ou une taille pour le placer sur la courbe OMS.</p>
           ) : null}
           <div className="growth-who-legend">
-            <span className="growth-who-leg-p97">97</span>
-            <span className="growth-who-leg-p85">85</span>
-            <span className="growth-who-leg-p50">50</span>
-            <span className="growth-who-leg-p15">15</span>
-            <span className="growth-who-leg-p3">3</span>
+            <span className="growth-who-leg-zone-green">P15–P85</span>
+            <span className="growth-who-leg-zone-orange">P85–P97</span>
+            <span className="growth-who-leg-zone-red">P3–P15</span>
             <span className="growth-who-leg-baby">tes mesures</span>
-            <span className="muted">âge en mois</span>
+            <span className="muted">{whoZoomed ? 'zoom zone actuelle' : '0–24 mois'}</span>
           </div>
           <p className="muted growth-imc-note">
-            Schéma type OMS (percentiles 3–97, filles/garçons mélangés) — pas un avis médical.
+            Schéma type OMS (lignes 3–97, filles/garçons mélangés) — pas un avis médical.
           </p>
         </div>
       ) : null}
