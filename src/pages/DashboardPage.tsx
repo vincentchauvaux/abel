@@ -457,17 +457,6 @@ export function DashboardPage() {
         : undefined,
     },
     {
-      label: 'Tire-lait',
-      value: `${stockMl} ml`,
-      sub:
-        pumpedMl > 0
-          ? `${pumpedMl} ml tiré sur la période`
-          : pumps.length
-            ? `${pumps.length} lot(s)`
-            : '—',
-      to: '/pumping',
-    },
-    {
       label: 'Poids',
       value: lastWeight ? `${weightFmt.value} kg` : '—',
       sub: lastWeight ? weightFmt.sub : undefined,
@@ -512,6 +501,17 @@ export function DashboardPage() {
       value: supplementsCount > 0 ? supplementsCount : '—',
       sub: lastSupplement ? lastSupplement.name : '—',
       to: '/supplements',
+    },
+    {
+      label: TOOLS.pumping.label,
+      value: `${stockMl} ml`,
+      sub:
+        pumpedMl > 0
+          ? `${pumpedMl} ml tiré sur la période`
+          : pumps.length
+            ? `${pumps.length} lot(s)`
+            : '—',
+      to: TOOLS.pumping.route,
     },
   ];
 

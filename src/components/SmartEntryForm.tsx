@@ -17,6 +17,7 @@ import {
   getReminder,
   listMilkStock,
   logFeedingSpan,
+  peekNextStockNo,
   startFeeding,
   startSleep,
 } from '@/db/api';
@@ -34,6 +35,7 @@ import {
   toDatetimeLocalValue,
 } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
+import { stockIdLabel } from '@/lib/milk-stock';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { readToolsSection, writeToolsSection, TOOL_SECTION_OPTIONS, type ToolsSection } from '@/lib/tools-section';
@@ -57,12 +59,12 @@ const APPORTS: { key: SmartEntryType; label: string }[] = [
   { key: 'bottle', label: 'Biberon' },
   { key: 'solid', label: 'Diversif.' },
   { key: 'supplement', label: 'Complément' },
+  { key: 'pumping', label: 'Tire-lait' },
 ];
 
 const SUIVI: { key: SmartEntryType; label: string }[] = [
   { key: 'diaper', label: 'Couche' },
   { key: 'bath', label: 'Bain' },
-  { key: 'pumping', label: 'Tire-lait' },
   { key: 'sleep', label: 'Sommeil' },
   { key: 'temperature', label: 'Température' },
   { key: 'measurement', label: 'Croissance' },
@@ -92,6 +94,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [measureValue, setMeasureValue] = useState('');
   const [stock, setStock] = useState<PumpingSession[]>([]);
   const [stockId, setStockId] = useState<string | null>(null);
+  const [nextPumpStockNo, setNextPumpStockNo] = useState<number | null>(null);
   const [goalMl, setGoalMl] = useState<number | null>(null);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const [sleepStatus, setSleepStatus] = useState<'open' | 'done'>('done');
@@ -124,11 +127,14 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
 
   useEffect(() => {
     if (!baby) return;
-    Promise.all([listMilkStock(baby.id), getReminder(baby.id)]).then(([available, goals]) => {
-      setStock(available);
-      setGoalMl(goals?.bottleMl ?? null);
-      setGoals(goals);
-    });
+    Promise.all([listMilkStock(baby.id), getReminder(baby.id), peekNextStockNo(baby.id)]).then(
+      ([available, goals, nextNo]) => {
+        setStock(available);
+        setGoalMl(goals?.bottleMl ?? null);
+        setNextPumpStockNo(nextNo);
+        setGoals(goals);
+      },
+    );
   }, [baby, tick]);
 
   const chooseSection = (next: ToolsSection) => {
@@ -584,6 +590,9 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
 
       {type === 'pumping' ? (
         <>
+          <p className="muted">
+            Prochain sachet : <strong>{stockIdLabel(nextPumpStockNo)}</strong> — note-le à l’avance.
+          </p>
           <div className="row">
             {(['LEFT', 'RIGHT', 'BOTH'] as const).map((s) => (
               <Chip key={s} label={sideLabel[s]} selected={side === s} onClick={() => setSide(s)} />

@@ -6,7 +6,7 @@ import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { MilkStockLine } from '@/components/MilkStockLine';
 import { Button, Card, Chip, Field, NativePickerInput } from '@/components/ui';
-import { addPumping, listMilkStock, listPumps, startPumping, updatePumping } from '@/db/api';
+import { addPumping, listMilkStock, listPumps, peekNextStockNo, startPumping, updatePumping } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { PumpingSession, Side } from '@/db/types';
 import { pumpingSessionToActivity, type ActivityItem } from '@/lib/activity';
@@ -27,13 +27,17 @@ export function PumpingPage() {
   const [when, setWhen] = useState(toDatetimeLocalValue());
   const [editingEntry, setEditingEntry] = useState<ActivityItem | null>(null);
   const [lastStockNo, setLastStockNo] = useState<number | null>(null);
+  const [nextStockNo, setNextStockNo] = useState<number | null>(null);
 
   useEffect(() => {
     if (!baby) return;
-    Promise.all([listPumps(baby.id), listMilkStock(baby.id)]).then(([rows, available]) => {
-      setSessions(rows);
-      setStock(available);
-    });
+    Promise.all([listPumps(baby.id), listMilkStock(baby.id), peekNextStockNo(baby.id)]).then(
+      ([rows, available, nextNo]) => {
+        setSessions(rows);
+        setStock(available);
+        setNextStockNo(nextNo);
+      },
+    );
   }, [baby, tick]);
 
   const today = sessions.filter((row) => row.startedAt >= startOfLocalDay().toISOString());
@@ -54,7 +58,9 @@ export function PumpingPage() {
       <ModuleHeader title="Tire-lait" toolId="pumping" />
       <Card>
         <h2>Noter un tirage</h2>
-        <p className="muted">Quantité + date. Un ID est attribué tout de suite — note-le sur le sachet.</p>
+        <p className="muted">
+          Prochain sachet : <strong>{stockIdLabel(nextStockNo)}</strong> — note-le avant de mettre en stock.
+        </p>
         <label className="field">
           <span>Date et heure</span>
           <NativePickerInput type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />

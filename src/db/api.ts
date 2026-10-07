@@ -257,6 +257,11 @@ async function nextStockNo(babyId: string): Promise<number> {
   return max + 1;
 }
 
+/** Prochain ID de sachet qui sera attribué au prochain tirage. */
+export async function peekNextStockNo(babyId: string): Promise<number> {
+  return nextStockNo(babyId);
+}
+
 export async function startPumping(babyId: string) {
   const open = alive(await db.pumpingSessions.where('babyId').equals(babyId).toArray()).find(
     (row) => row.amountMl == null,
