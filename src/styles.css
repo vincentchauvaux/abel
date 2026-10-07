@@ -2064,16 +2064,21 @@ button.timer-edit:active {
   pointer-events: none;
 }
 
-.growth-who-baby-halo {
-  fill: #fff;
-  stroke: none;
-  opacity: 0.95;
-}
-
 .growth-who-baby-dot {
   fill: #1a252f;
-  stroke: #fff;
-  stroke-width: 2.5;
+  stroke-width: 1;
+}
+
+.growth-who-baby-dot-green {
+  stroke: #27ae60;
+}
+
+.growth-who-baby-dot-orange {
+  stroke: #e67e22;
+}
+
+.growth-who-baby-dot-red {
+  stroke: #c0392b;
 }
 
 .growth-who-baby-label {

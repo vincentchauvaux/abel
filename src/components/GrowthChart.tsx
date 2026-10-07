@@ -8,6 +8,8 @@ import { computeImc, formatImc, imcLevel, imcLevelClass, imcToneLabel } from '@/
 import {
   ageMonthsExact,
   sampleWhoCurve,
+  whoLengthAt,
+  whoWeightAt,
   WHO_MAX_MONTHS,
   type WhoPercentiles,
 } from '@/lib/who-growth';
@@ -363,7 +365,29 @@ function whoYTicks(min: number, max: number): number[] {
   return out.length >= 2 ? out : ticks(min, max);
 }
 
-type BabyPlotPoint = { cx: number; cy: number; label: string; months: number; unit: string };
+type WhoZone = 'green' | 'orange' | 'red';
+
+type BabyPlotPoint = {
+  cx: number;
+  cy: number;
+  label: string;
+  months: number;
+  unit: string;
+  zone: WhoZone;
+};
+
+/** Zone OMS d’une mesure (vert P15–P85, orange P85–P97, rouge P3–P15 ou hors P3–P97). */
+function whoZoneAt(
+  kind: 'weight' | 'length',
+  months: number,
+  value: number,
+): WhoZone {
+  const pct = kind === 'weight' ? whoWeightAt(months) : whoLengthAt(months);
+  if (!pct) return 'green';
+  if (value < pct.p15) return 'red';
+  if (value <= pct.p85) return 'green';
+  return 'orange';
+}
 
 function placeBabyLabels(items: BabyPlotPoint[]): (BabyPlotPoint & { labelY: number })[] {
   const sorted = [...items].sort((a, b) => a.cx - b.cx || a.cy - b.cy);
@@ -429,6 +453,7 @@ function WhoSeriesPlot({
         label,
         months: p.months,
         unit,
+        zone: whoZoneAt(kind, p.months, p.value),
       };
     }),
   );
@@ -492,8 +517,11 @@ function WhoSeriesPlot({
             const isLast = i === babyPlot.length - 1;
             return (
               <g key={`${tone}-who-${i}`} className="growth-who-baby-mark">
-                <circle className="growth-who-baby-halo" cx={p.cx} cy={p.cy} r={isLast ? 9 : 6} />
-                <circle className="growth-who-baby-dot" cx={p.cx} cy={p.cy} r={isLast ? 6.5 : 4.5}>
+                <circle
+                  className={`growth-who-baby-dot growth-who-baby-dot-${p.zone}`}
+                  cx={p.cx}
+                  cy={p.cy}
+                  r={isLast ? 5.5 : 4}>
                   <title>
                     {p.label} {p.unit} ·{' '}
                     {p.months < 1
