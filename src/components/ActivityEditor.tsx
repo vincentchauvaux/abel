@@ -270,7 +270,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   }, [item]);
 
   useEffect(() => {
-    setConfirmDelete(false);
+    setDeleteReset((n) => n + 1);
   }, [item.id]);
 
   const save = async () => {
