@@ -1453,6 +1453,7 @@ button.timer-edit:active {
   position: relative;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
+  border-radius: 12px;
 }
 
 .swipe-delete:last-child {
@@ -1461,8 +1462,8 @@ button.timer-edit:active {
 
 .swipe-delete-actions {
   position: absolute;
-  inset: 0 0 0 auto;
-  width: 96px;
+  inset: 4px 4px 4px auto;
+  width: 88px;
   display: flex;
   align-items: stretch;
   justify-content: stretch;
@@ -1477,8 +1478,9 @@ button.timer-edit:active {
   justify-content: center;
   gap: 4px;
   border: 0;
-  background: var(--muted-bg);
-  color: var(--text);
+  border-radius: 12px;
+  background: var(--danger);
+  color: #fff;
   font: inherit;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1487,14 +1489,15 @@ button.timer-edit:active {
 }
 
 .swipe-delete-btn.is-armed {
-  background: rgba(180, 35, 24, 0.9);
-  color: #fff;
+  background: rgba(180, 35, 24, 0.14);
+  color: var(--danger);
 }
 
 .swipe-delete-content {
   position: relative;
   z-index: 1;
   background: var(--surface);
+  border-radius: 12px;
   touch-action: pan-y;
   transition: transform 0.18s ease-out;
   will-change: transform;
