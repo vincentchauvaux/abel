@@ -1,6 +1,7 @@
 import { Plus } from 'lucide-react';
 import { useRef } from 'react';
 
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton';
 import { prepareBabyPhoto } from '@/lib/baby-photo';
 
 type Props = {
@@ -51,9 +52,13 @@ export function BabyPhoto({ photoUrl, editable, onChange }: Props) {
             }}
           />
           {photoUrl ? (
-            <button type="button" className="linkish baby-photo-remove" onClick={() => onChange(null)}>
-              Retirer la photo
-            </button>
+            <ConfirmDeleteButton
+              className="linkish baby-photo-remove"
+              idleLabel="Retirer la photo"
+              confirmLabel="Confirmer"
+              showTrashOnConfirm={false}
+              onConfirm={() => onChange(null)}
+            />
           ) : null}
         </>
       ) : null}

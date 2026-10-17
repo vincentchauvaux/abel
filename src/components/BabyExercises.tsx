@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton';
 import { Button, Chip, Field } from '@/components/ui';
 import {
   addExerciseItem,
@@ -55,9 +56,14 @@ export function BabyExercises({ babyId, canEdit }: Props) {
           <span className="muted">{formatExerciseDuration(item.durationMinutes)}</span>
           <strong>{item.title}</strong>
           {canEdit ? (
-            <button type="button" className="linkish" onClick={() => void deleteExerciseItem(item.id)}>
-              Retirer
-            </button>
+            <ConfirmDeleteButton
+              className="linkish"
+              resetKey={item.id}
+              idleLabel="Retirer"
+              confirmLabel="Confirmer"
+              showTrashOnConfirm={false}
+              onConfirm={() => deleteExerciseItem(item.id)}
+            />
           ) : null}
         </div>
       ))}

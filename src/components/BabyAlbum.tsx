@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton';
 import { Button } from '@/components/ui';
 import {
   ALBUM_THUMB_MAX,
@@ -444,9 +445,12 @@ export function BabyAlbum({ open }: Props) {
               <div className="album-lightbox-footer">
                 <p>{formatLongDate(localDateKey(lightboxPhoto.takenAt))}</p>
                 {lightboxPhoto.canDelete ? (
-                  <Button tone="danger" disabled={Boolean(busy)} onClick={() => void onDelete(lightboxPhoto)}>
-                    {busy === 'delete' ? 'Suppression…' : 'Supprimer'}
-                  </Button>
+                  <ConfirmDeleteButton
+                    resetKey={lightboxPhoto.id}
+                    disabled={Boolean(busy)}
+                    idleLabel={busy === 'delete' ? 'Suppression…' : 'Supprimer'}
+                    onConfirm={() => onDelete(lightboxPhoto)}
+                  />
                 ) : null}
               </div>
             </div>,

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { X } from 'lucide-react';
 
 import { AccordionSection } from '@/components/Accordion';
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton';
 import { LegalFooter } from '@/components/LegalFooter';
 import { Button, Field } from '@/components/ui';
 import { ensureBaby, linkBabyUser } from '@/db/api';
@@ -92,14 +93,15 @@ function SharingPerson({
         <p className="muted sharing-member-role">{memberRoleTitle(member.role)}</p>
       </div>
       {onRemove ? (
-        <button
-          type="button"
+        <ConfirmDeleteButton
           className="icon-btn"
           aria-label="Retirer le gardien"
           disabled={busy}
-          onClick={onRemove}>
-          <X size={18} aria-hidden />
-        </button>
+          idleLabel={<X size={18} aria-hidden />}
+          confirmLabel={<X size={18} aria-hidden />}
+          showTrashOnConfirm={false}
+          onConfirm={() => onRemove()}
+        />
       ) : null}
     </div>
   );
@@ -573,19 +575,21 @@ export function ProfilePage() {
                     {pendingCoparentInvites.map((invite) => (
                       <div key={invite.id} className="sharing-invite-row">
                         <span className="muted sharing-invite-email">{invite.email}</span>
-                        <button
-                          type="button"
+                        <ConfirmDeleteButton
                           className="icon-btn"
+                          resetKey={invite.id}
                           aria-label="Annuler l’invitation"
                           disabled={busy !== ''}
-                          onClick={async () => {
+                          idleLabel={<X size={18} aria-hidden />}
+                          confirmLabel={<X size={18} aria-hidden />}
+                          showTrashOnConfirm={false}
+                          onConfirm={async () => {
                             setBusy('cancel');
                             await cancelInvite(invite.id);
                             await loadSharing();
                             setBusy('');
-                          }}>
-                          <X size={18} aria-hidden />
-                        </button>
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
@@ -687,19 +691,21 @@ export function ProfilePage() {
                     {pendingGuardianInvites.map((invite) => (
                       <div key={invite.id} className="sharing-invite-row">
                         <span className="muted sharing-invite-email">{invite.email}</span>
-                        <button
-                          type="button"
+                        <ConfirmDeleteButton
                           className="icon-btn"
+                          resetKey={invite.id}
                           aria-label="Annuler l’invitation"
                           disabled={busy !== ''}
-                          onClick={async () => {
+                          idleLabel={<X size={18} aria-hidden />}
+                          confirmLabel={<X size={18} aria-hidden />}
+                          showTrashOnConfirm={false}
+                          onConfirm={async () => {
                             setBusy('cancel');
                             await cancelInvite(invite.id);
                             await loadSharing();
                             setBusy('');
-                          }}>
-                          <X size={18} aria-hidden />
-                        </button>
+                          }}
+                        />
                       </div>
                     ))}
                   </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Trash2 } from 'lucide-react';
 
+import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton';
 import { Button, Chip, Field, NativePickerInput } from '@/components/ui';
 import {
   deleteBath,
@@ -72,7 +72,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [noteTodo, setNoteTodo] = useState(false);
   const [noteDone, setNoteDone] = useState(false);
   const [error, setError] = useState('');
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteReset, setDeleteReset] = useState(0);
 
   const timed = item.kind === 'feeding' || item.kind === 'sleep' || item.kind === 'pumping' || item.kind === 'exercise';
   const rangeDone = (item.kind === 'sleep' || item.kind === 'exercise') && sleepStatus === 'done';
@@ -435,7 +435,7 @@ export function ActivityEditor({ item, onClose }: Props) {
         onClick={(e) => {
           e.stopPropagation();
           if (!(e.target instanceof Element) || !e.target.closest('.btn-delete')) {
-            setConfirmDelete(false);
+            setDeleteReset((n) => n + 1);
           }
         }}>
         <h2>
@@ -683,35 +683,16 @@ export function ActivityEditor({ item, onClose }: Props) {
         {error ? <p className="muted">{error}</p> : null}
         <Button
           onClick={() => {
-            setConfirmDelete(false);
+            setDeleteReset((n) => n + 1);
             void save();
           }}>
           Enregistrer
         </Button>
-        <button
-          type="button"
-          className={`btn btn-delete${confirmDelete ? ' is-armed' : ''}`}
-          onClick={() => {
-            if (!confirmDelete) {
-              setConfirmDelete(true);
-              return;
-            }
-            void remove();
-          }}
-          aria-label={confirmDelete ? 'Confirmer la suppression' : 'Supprimer'}>
-          {confirmDelete ? (
-            <>
-              <Trash2 size={18} strokeWidth={2.2} aria-hidden />
-              Confirmer
-            </>
-          ) : (
-            'Supprimer'
-          )}
-        </button>
+        <ConfirmDeleteButton resetKey={`${item.id}-${deleteReset}`} onConfirm={() => remove()} />
         <Button
           tone="muted"
           onClick={() => {
-            setConfirmDelete(false);
+            setDeleteReset((n) => n + 1);
             onClose();
           }}>
           Fermer

@@ -2493,6 +2493,11 @@ button.timer-edit:active {
   cursor: not-allowed;
 }
 
+.icon-btn.is-armed {
+  background: rgba(180, 35, 24, 0.14);
+  color: var(--danger);
+}
+
 .sharing-invite-email {
   min-width: 0;
   overflow: hidden;
@@ -2998,6 +3003,14 @@ button.timer-edit:active {
   padding: 0;
 }
 
+.linkish.is-armed {
+  color: var(--danger);
+  background: rgba(180, 35, 24, 0.14);
+  border-radius: 8px;
+  padding: 2px 8px;
+  text-decoration: none;
+}
+
 .baby-photo-wrap {
   display: flex;
   flex-direction: column;
@@ -3326,6 +3339,16 @@ button.timer-edit:active {
 
 .album-lightbox-footer .btn {
   width: 100%;
+}
+
+.album-lightbox-footer .btn-delete {
+  background: rgba(246, 241, 234, 0.14);
+  color: #f6f1ea;
+}
+
+.album-lightbox-footer .btn-delete.is-armed {
+  background: rgba(180, 35, 24, 0.35);
+  color: #ffc9c4;
 }
 
 .album-lightbox .muted {
