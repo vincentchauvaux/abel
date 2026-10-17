@@ -39,6 +39,7 @@ import { stockIdLabel } from '@/lib/milk-stock';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { readToolsSection, writeToolsSection, TOOL_SECTION_OPTIONS, type ToolsSection } from '@/lib/tools-section';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { returnHome } from '@/lib/return-home';
 
 export type SmartEntryType =
@@ -79,6 +80,7 @@ type Props = {
 export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [section, setSection] = useState<ToolsSection>(() => {
     if (SUIVI.some((t) => t.key === defaultType)) return 'suivi';
     return readToolsSection();
@@ -242,16 +244,20 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
     await finish(`Tétée ${sideLabel[side].toLowerCase()} notée`);
   };
 
-  const saveDiaper = async (chosen: DiaperKind) => {
+  const saveDiaper = (chosen: DiaperKind) => {
     if (!baby) return;
-    await addDiaper(baby.id, chosen, atIso());
-    await finish(`Couche ${diaperLabel[chosen].toLowerCase()} notée`);
+    void run(async () => {
+      await addDiaper(baby.id, chosen, atIso());
+      await finish(`Couche ${diaperLabel[chosen].toLowerCase()} notée`);
+    }, { releaseOnSuccess: true });
   };
 
-  const saveBath = async () => {
+  const saveBath = () => {
     if (!baby) return;
-    await addBath(baby.id, atIso());
-    await finish('Bain noté');
+    void run(async () => {
+      await addBath(baby.id, atIso());
+      await finish('Bain noté');
+    }, { releaseOnSuccess: true });
   };
 
   const save = async () => {
@@ -517,14 +523,14 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
         <>
           <p className="muted">Un appui = couche notée tout de suite.</p>
           <div className="grid-2">
-            <button type="button" className="big pee" onClick={() => void saveDiaper('PEE')}>
+            <button type="button" className="big pee" disabled={busy} onClick={() => saveDiaper('PEE')}>
               Pipi
             </button>
-            <button type="button" className="big poo" onClick={() => void saveDiaper('POO')}>
+            <button type="button" className="big poo" disabled={busy} onClick={() => saveDiaper('POO')}>
               Caca
             </button>
           </div>
-          <button type="button" className="big" onClick={() => void saveDiaper('BOTH')}>
+          <button type="button" className="big" disabled={busy} onClick={() => saveDiaper('BOTH')}>
             Les deux
           </button>
         </>
@@ -533,7 +539,7 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
       {type === 'bath' ? (
         <>
           <p className="muted">Un appui = bain noté tout de suite.</p>
-          <button type="button" className="big" onClick={() => void saveBath()}>
+          <button type="button" className="big" disabled={busy} onClick={() => saveBath()}>
             Bain
           </button>
         </>

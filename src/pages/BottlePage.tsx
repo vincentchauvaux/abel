@@ -5,8 +5,9 @@ import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { MilkStockLine } from '@/components/MilkStockLine';
+import { SwipeDeleteRow } from '@/components/SwipeDeleteRow';
 import { Button, Card, Chip, Field } from '@/components/ui';
-import { addBottle, getReminder, listBottles, listMilkStock } from '@/db/api';
+import { addBottle, deleteBottle, deletePumping, getReminder, listBottles, listMilkStock } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { BottleFeed, MilkType, PumpingSession } from '@/db/types';
 import { bottleFeedToActivity, type ActivityItem } from '@/lib/activity';
@@ -78,12 +79,19 @@ export function BottlePage() {
               <>
                 <div className="stock-list">
                   {stock.map((row) => (
-                    <MilkStockLine
+                    <SwipeDeleteRow
                       key={row.id}
-                      row={row}
-                      selected={stockId === row.id}
-                      onClick={() => pickStock(row)}
-                    />
+                      label={`le sachet ${row.stockNo > 0 ? `ID ${row.stockNo}` : 'lait'}`}
+                      onDelete={async () => {
+                        await deletePumping(row.id);
+                        if (stockId === row.id) setStockId(null);
+                      }}>
+                      <MilkStockLine
+                        row={row}
+                        selected={stockId === row.id}
+                        onClick={() => pickStock(row)}
+                      />
+                    </SwipeDeleteRow>
                   ))}
                 </div>
                 <Chip
@@ -137,11 +145,18 @@ export function BottlePage() {
           Aujourd’hui · {today.length} · {todayMl} ml
         </h2>
         {today.map((row) => (
-          <JournalLine
+          <SwipeDeleteRow
             key={row.id}
-            item={bottleFeedToActivity(row)}
-            onClick={() => setEditing(bottleFeedToActivity(row))}
-          />
+            label="ce biberon"
+            onDelete={async () => {
+              await deleteBottle(row.id);
+              if (editing?.id === row.id) setEditing(null);
+            }}>
+            <JournalLine
+              item={bottleFeedToActivity(row)}
+              onClick={() => setEditing(bottleFeedToActivity(row))}
+            />
+          </SwipeDeleteRow>
         ))}
       </Card>
       {editing ? <ActivityEditor item={editing} onClose={() => setEditing(null)} /> : null}

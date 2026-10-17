@@ -9,6 +9,7 @@ import { addSupplement, listSupplements } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { Supplement } from '@/db/types';
 import { supplementToActivity, type ActivityItem } from '@/lib/activity';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { startOfLocalDay } from '@/lib/dates';
 import { returnHome } from '@/lib/return-home';
 
@@ -17,6 +18,7 @@ const PRESETS = ['Vitamine D', 'Fer', 'Fluor'];
 export function SupplementsPage() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [rows, setRows] = useState<Supplement[]>([]);
   const [name, setName] = useState('Vitamine D');
   const [editing, setEditing] = useState<ActivityItem | null>(null);
@@ -40,10 +42,13 @@ export function SupplementsPage() {
         </div>
         <Field label="Autre" value={name} onChange={setName} placeholder="Vitamine D" inputMode="text" />
         <Button
-          disabled={!name.trim()}
+          disabled={!name.trim() || busy}
           onClick={() => {
             if (!baby || !name.trim()) return;
-            void addSupplement(baby.id, name).then(() => returnHome(navigate));
+            void run(async () => {
+              await addSupplement(baby.id, name);
+              returnHome(navigate);
+            });
           }}>
           Enregistrer
         </Button>

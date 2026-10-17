@@ -9,12 +9,14 @@ import { addSolidFood, listSolidFoods } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { SolidFood } from '@/db/types';
 import { solidFoodToActivity, type ActivityItem } from '@/lib/activity';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { startOfLocalDay } from '@/lib/dates';
 import { returnHome } from '@/lib/return-home';
 
 export function SolidsPage() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [rows, setRows] = useState<SolidFood[]>([]);
   const [food, setFood] = useState('');
   const [editing, setEditing] = useState<ActivityItem | null>(null);
@@ -33,10 +35,13 @@ export function SolidsPage() {
         <h2>Nouvel aliment</h2>
         <Field label="Aliment" value={food} onChange={setFood} placeholder="Carotte" inputMode="text" />
         <Button
-          disabled={!food.trim()}
+          disabled={!food.trim() || busy}
           onClick={() => {
             if (!baby || !food.trim()) return;
-            void addSolidFood(baby.id, food).then(() => returnHome(navigate));
+            void run(async () => {
+              await addSolidFood(baby.id, food);
+              returnHome(navigate);
+            });
           }}>
           Enregistrer
         </Button>

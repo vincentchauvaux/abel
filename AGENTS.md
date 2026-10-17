@@ -55,10 +55,10 @@ En local : `npm install && npm run dev` puis ouvrir `http://localhost:5173/abel/
 | Module | Rôle |
 |---|---|
 | Allaitement | Une carte « Noter une tétée » + case **Minuteur** : sans case = notée immédiatement (Gauche ou Droit) ; avec case = démarre le timer sur ce sein. Pendant le chrono : **Gauche** et **Droit** restent tous deux cliquables (un seul sein à la fois) ; le chrono de séance continue, l’autre sein se met en pause et reprend au tap. Pas de bouton « Les deux » à la saisie ; si les deux seins ont servi, le journal affiche **Les deux** + durée totale. |
-| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. |
+| Biberon | Type + heure + **quantité ml obligatoire**. Peut consommer du **stock** de lait tiré. Historique et sachets : **swipe gauche** → Supprimer → **Confirmer**. |
 | Diversification | Aliment + timestamp immédiat. |
 | Compléments | Vitamine D / fer / autre, timestamp immédiat. Pas un conseil médical. |
-| Tire-lait | Quantité + date → **stock** (`remainingMl`, `stockNo`). L’**ID du prochain sachet** est affiché avant l’ajout. Liste : **ID : date** + soleil (7 h–19 h) ou lune, **plus récent en haut**. Consommé via Biberon lait maternel. |
+| Tire-lait | Quantité + date → **stock** (`remainingMl`, `stockNo`). L’**ID du prochain sachet** est affiché avant l’ajout. Liste : **ID : date** + soleil (7 h–19 h) ou lune, **plus récent en haut**. Consommé via Biberon lait maternel. Stock et historique : **swipe gauche** → Supprimer → **Confirmer**. |
 
 Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports | Suivi) est placé juste au-dessus du journal. Tétée : **Terminée** par défaut (date, début, fin, durée ; **Gauche**, **Droit** ou **Les deux** ; fin après minuit = lendemain) ; **Minuteur** démarre le chrono sur un sein. Sommeil : même saisie que l’éditeur du journal (date, début, fin, durée ; sieste qui dépasse minuit = fin le lendemain), **Terminée** par défaut ; **En cours** démarre le timer. Les modules Outils gardent le flux 1 tap dédié.
 
@@ -286,7 +286,7 @@ Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois)
 - Répondre **en français**.
 - Mettre à jour **ce fichier** après chaque changement structurel.
 - Ne pas inventer de conseils médicaux.
-- 1 tap = 1 donnée.
+- 1 tap = 1 donnée. Les actions immédiates (couche, bain, etc.) ignorent un 2ᵉ appui tant que le 1er n’a pas fini (`useOnceLock`).
 - Dates UTC en base.
 - Ne pas committer sauf demande explicite.
 - Abel n’utilise que le VPS OVH `vps-e09ed6db.vps.ovh.net` (quand un backend existera). Aucun autre serveur.

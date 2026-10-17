@@ -8,6 +8,7 @@ import { Card } from '@/components/ui';
 import { addDiaper, listDiapers } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { DiaperEvent, DiaperKind } from '@/db/types';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { diaperEventToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
 import { returnHome } from '@/lib/return-home';
@@ -15,6 +16,7 @@ import { returnHome } from '@/lib/return-home';
 export function DiapersPage() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [events, setEvents] = useState<DiaperEvent[]>([]);
   const [editing, setEditing] = useState<ActivityItem | null>(null);
 
@@ -25,24 +27,26 @@ export function DiapersPage() {
 
   const today = events.filter((row) => row.occurredAt >= startOfLocalDay().toISOString());
 
-  const note = async (kind: DiaperKind) => {
+  const note = (kind: DiaperKind) => {
     if (!baby) return;
-    await addDiaper(baby.id, kind);
-    returnHome(navigate);
+    void run(async () => {
+      await addDiaper(baby.id, kind);
+      returnHome(navigate);
+    });
   };
 
   return (
     <div className="screen">
       <ModuleHeader title="Couche" toolId="diapers" />
       <div className="grid-2">
-        <button type="button" className="big pee" onClick={() => void note('PEE')}>
+        <button type="button" className="big pee" disabled={busy} onClick={() => note('PEE')}>
           Pipi
         </button>
-        <button type="button" className="big poo" onClick={() => void note('POO')}>
+        <button type="button" className="big poo" disabled={busy} onClick={() => note('POO')}>
           Caca
         </button>
       </div>
-      <button type="button" className="big" onClick={() => void note('BOTH')}>
+      <button type="button" className="big" disabled={busy} onClick={() => note('BOTH')}>
         Les deux
       </button>
       <Card>

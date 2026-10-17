@@ -19,6 +19,7 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { FeedingSegment, FeedingSession, Side } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { feedingSessionToActivity, sidesForFeeding, type ActivityItem } from '@/lib/activity';
 import { elapsedMs, formatDuration, formatMinuteCount, formatTime, localDateKey, nowIso, spansNewestFirst, spansOnLocalDay } from '@/lib/dates';
 import { INTERVAL_PRESETS } from '@/lib/goals';
@@ -31,6 +32,7 @@ const BREASTS: Side[] = ['LEFT', 'RIGHT'];
 export function FeedingPage() {
   const { baby, tick, sharingRole } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [sessions, setSessions] = useState<FeedingSession[]>([]);
   const [segments, setSegments] = useState<FeedingSegment[]>([]);
   const [delay, setDelay] = useState(0);
@@ -122,10 +124,13 @@ export function FeedingPage() {
             })}
           </div>
           <Button
-            onClick={async () => {
-              const endedAt = await stopFeeding(active.id);
-              await afterStop(endedAt);
-              returnHome(navigate);
+            disabled={busy}
+            onClick={() => {
+              void run(async () => {
+                const endedAt = await stopFeeding(active.id);
+                await afterStop(endedAt);
+                returnHome(navigate);
+              });
             }}>
             Terminer
           </Button>
@@ -151,17 +156,20 @@ export function FeedingPage() {
                 type="button"
                 className="btn btn-primary"
                 style={{ flex: 1 }}
-                onClick={async () => {
+                disabled={busy}
+                onClick={() => {
                   if (!babyId) return;
-                  if (useTimer) {
-                    await startFeeding(babyId, side);
-                    returnHome(navigate);
-                  } else {
-                    const endedAt = nowIso();
-                    await logFeedingNow(babyId, side, endedAt);
-                    await afterStop(endedAt);
-                    returnHome(navigate);
-                  }
+                  void run(async () => {
+                    if (useTimer) {
+                      await startFeeding(babyId, side);
+                      returnHome(navigate);
+                    } else {
+                      const endedAt = nowIso();
+                      await logFeedingNow(babyId, side, endedAt);
+                      await afterStop(endedAt);
+                      returnHome(navigate);
+                    }
+                  });
                 }}>
                 {sideLabel[side]}
               </button>

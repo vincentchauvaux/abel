@@ -5,8 +5,17 @@ import { ActivityEditor } from '@/components/ActivityEditor';
 import { JournalLine } from '@/components/JournalLine';
 import { ModuleHeader } from '@/components/Layout';
 import { MilkStockLine } from '@/components/MilkStockLine';
+import { SwipeDeleteRow } from '@/components/SwipeDeleteRow';
 import { Button, Card, Chip, Field, NativePickerInput } from '@/components/ui';
-import { addPumping, listMilkStock, listPumps, peekNextStockNo, startPumping, updatePumping } from '@/db/api';
+import {
+  addPumping,
+  deletePumping,
+  listMilkStock,
+  listPumps,
+  peekNextStockNo,
+  startPumping,
+  updatePumping,
+} from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { PumpingSession, Side } from '@/db/types';
 import { pumpingSessionToActivity, type ActivityItem } from '@/lib/activity';
@@ -148,11 +157,19 @@ export function PumpingPage() {
         ) : (
           <div className="stock-list">
             {stock.map((row) => (
-              <MilkStockLine
+              <SwipeDeleteRow
                 key={row.id}
-                row={row}
-                onClick={() => setEditingEntry(pumpingSessionToActivity(row))}
-              />
+                label={`le sachet ${row.stockNo > 0 ? `ID ${row.stockNo}` : 'lait'}`}
+                onDelete={async () => {
+                  await deletePumping(row.id);
+                  if (editingEntry?.id === row.id) setEditingEntry(null);
+                  if (editingId === row.id) setEditingId(null);
+                }}>
+                <MilkStockLine
+                  row={row}
+                  onClick={() => setEditingEntry(pumpingSessionToActivity(row))}
+                />
+              </SwipeDeleteRow>
             ))}
           </div>
         )}
@@ -160,11 +177,19 @@ export function PumpingPage() {
       <Card>
         <h2>Aujourd’hui · {todayMl} ml tirés</h2>
         {today.map((row) => (
-          <JournalLine
+          <SwipeDeleteRow
             key={row.id}
-            item={pumpingSessionToActivity(row)}
-            onClick={() => setEditingEntry(pumpingSessionToActivity(row))}
-          />
+            label="ce tirage"
+            onDelete={async () => {
+              await deletePumping(row.id);
+              if (editingEntry?.id === row.id) setEditingEntry(null);
+              if (editingId === row.id) setEditingId(null);
+            }}>
+            <JournalLine
+              item={pumpingSessionToActivity(row)}
+              onClick={() => setEditingEntry(pumpingSessionToActivity(row))}
+            />
+          </SwipeDeleteRow>
         ))}
       </Card>
       {editingEntry ? <ActivityEditor item={editingEntry} onClose={() => setEditingEntry(null)} /> : null}

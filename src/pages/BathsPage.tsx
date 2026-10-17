@@ -8,6 +8,7 @@ import { Card } from '@/components/ui';
 import { addBath, listBaths } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { BathEvent } from '@/db/types';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { bathEventToActivity, type ActivityItem } from '@/lib/activity';
 import { startOfLocalDay } from '@/lib/dates';
 import { returnHome } from '@/lib/return-home';
@@ -15,6 +16,7 @@ import { returnHome } from '@/lib/return-home';
 export function BathsPage() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [events, setEvents] = useState<BathEvent[]>([]);
   const [editing, setEditing] = useState<ActivityItem | null>(null);
 
@@ -31,10 +33,13 @@ export function BathsPage() {
       <button
         type="button"
         className="big"
-        onClick={async () => {
+        disabled={busy}
+        onClick={() => {
           if (!baby) return;
-          await addBath(baby.id);
-          returnHome(navigate);
+          void run(async () => {
+            await addBath(baby.id);
+            returnHome(navigate);
+          });
         }}>
         Bain
       </button>
