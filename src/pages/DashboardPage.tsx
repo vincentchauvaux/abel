@@ -11,6 +11,7 @@ import { JournalLine } from '@/components/JournalLine';
 import { PeriodSelector } from '@/components/PeriodSelector';
 import { RatioPie } from '@/components/RatioPie';
 import { SleepClock } from '@/components/SleepClock';
+import { SwipeDeleteRow } from '@/components/SwipeDeleteRow';
 import { Card } from '@/components/ui';
 import {
   getReminder,
@@ -51,7 +52,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
-import { listActivity, type ActivityItem } from '@/lib/activity';
+import { deleteActivityItem, listActivity, type ActivityItem } from '@/lib/activity';
 import {
   DASH_SECTION_TITLES,
   useDashLayout,
@@ -1074,7 +1075,15 @@ export function DashboardPage() {
           <p className="muted">Rien de noté sur cette période.</p>
         ) : (
           periodActivity.map((row) => (
-            <JournalLine key={`${row.kind}-${row.id}`} item={row} onClick={() => setEditing(row)} />
+            <SwipeDeleteRow
+              key={`${row.kind}-${row.id}`}
+              label={row.title.toLowerCase()}
+              onDelete={async () => {
+                await deleteActivityItem(row);
+                if (editing?.id === row.id && editing.kind === row.kind) setEditing(null);
+              }}>
+              <JournalLine item={row} onClick={() => setEditing(row)} />
+            </SwipeDeleteRow>
           ))
         )}
       </Card>

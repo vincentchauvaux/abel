@@ -1,4 +1,16 @@
 import {
+  deleteBath,
+  deleteBottle,
+  deleteDiaper,
+  deleteExerciseSession,
+  deleteFeeding,
+  deleteMeasurement,
+  deleteNote,
+  deletePumping,
+  deleteSleep,
+  deleteSolidFood,
+  deleteSupplement,
+  deleteTemperature,
   listBaths,
   listBottles,
   listDiapers,
@@ -274,3 +286,19 @@ export type ActivityRecord =
   | { kind: 'temperature'; row: Temperature }
   | { kind: 'note'; row: Note }
   | { kind: 'measurement'; row: Measurement };
+
+/** Soft-delete d’une entrée journal / dashboard (même logique que l’éditeur). */
+export async function deleteActivityItem(item: Pick<ActivityItem, 'id' | 'kind'>) {
+  if (item.kind === 'bottle') await deleteBottle(item.id);
+  else if (item.kind === 'diaper') await deleteDiaper(item.id);
+  else if (item.kind === 'bath') await deleteBath(item.id);
+  else if (item.kind === 'pumping') await deletePumping(item.id);
+  else if (item.kind === 'feeding') await deleteFeeding(item.id);
+  else if (item.kind === 'solid') await deleteSolidFood(item.id);
+  else if (item.kind === 'supplement') await deleteSupplement(item.id);
+  else if (item.kind === 'sleep') await deleteSleep(item.id);
+  else if (item.kind === 'exercise') await deleteExerciseSession(item.id);
+  else if (item.kind === 'temperature') await deleteTemperature(item.id);
+  else if (item.kind === 'note') await deleteNote(item.id);
+  else if (item.kind === 'measurement') await deleteMeasurement(item.id);
+}

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
+import { SwipeDeleteRow } from '@/components/SwipeDeleteRow';
 import { Button } from '@/components/ui';
 import {
+  deleteSleep,
   getReminder,
   listExerciseItems,
   listPumps,
@@ -91,16 +93,23 @@ export function ActiveNowPanel() {
         }
         if (item.kind === 'sleep') {
           return (
-            <div className="active-now-row" key={`sleep-${item.row.id}`}>
-              <button type="button" className="active-now-open" onClick={() => openModule('sleep')}>
-                <strong>Sommeil en cours</strong>
-                <p className="muted active-now-meta">
-                  Depuis {formatTime(item.row.startedAt)} ·{' '}
-                  {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
-                </p>
-              </button>
-              <Button onClick={() => void stopSleep(item.row.id)}>Réveil</Button>
-            </div>
+            <SwipeDeleteRow
+              key={`sleep-${item.row.id}`}
+              label="ce sommeil"
+              idleLabel="Annuler"
+              confirmLabel="Confirmer"
+              onDelete={() => deleteSleep(item.row.id)}>
+              <div className="active-now-row">
+                <button type="button" className="active-now-open" onClick={() => openModule('sleep')}>
+                  <strong>Sommeil en cours</strong>
+                  <p className="muted active-now-meta">
+                    Depuis {formatTime(item.row.startedAt)} ·{' '}
+                    {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
+                  </p>
+                </button>
+                <Button onClick={() => void stopSleep(item.row.id)}>Réveil</Button>
+              </div>
+            </SwipeDeleteRow>
           );
         }
         if (item.kind === 'exercise') {

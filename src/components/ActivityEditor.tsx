@@ -3,18 +3,6 @@ import { useEffect, useState } from 'react';
 import { ConfirmDeleteButton } from '@/components/ConfirmDeleteButton';
 import { Button, Chip, Field, NativePickerInput } from '@/components/ui';
 import {
-  deleteBath,
-  deleteBottle,
-  deleteDiaper,
-  deleteExerciseSession,
-  deleteFeeding,
-  deleteMeasurement,
-  deleteNote,
-  deletePumping,
-  deleteSleep,
-  deleteSolidFood,
-  deleteSupplement,
-  deleteTemperature,
   listSessionSides,
   setFeedingSide,
   updateBath,
@@ -32,7 +20,7 @@ import {
 } from '@/db/api';
 import { db } from '@/db/client';
 import type { Side } from '@/db/types';
-import type { ActivityItem } from '@/lib/activity';
+import { deleteActivityItem, type ActivityItem } from '@/lib/activity';
 import {
   addMinutesIso,
   addMinutesToLocal,
@@ -413,18 +401,7 @@ export function ActivityEditor({ item, onClose }: Props) {
   };
 
   const remove = async () => {
-    if (item.kind === 'bottle') await deleteBottle(item.id);
-    else if (item.kind === 'diaper') await deleteDiaper(item.id);
-    else if (item.kind === 'bath') await deleteBath(item.id);
-    else if (item.kind === 'pumping') await deletePumping(item.id);
-    else if (item.kind === 'feeding') await deleteFeeding(item.id);
-    else if (item.kind === 'solid') await deleteSolidFood(item.id);
-    else if (item.kind === 'supplement') await deleteSupplement(item.id);
-    else if (item.kind === 'sleep') await deleteSleep(item.id);
-    else if (item.kind === 'exercise') await deleteExerciseSession(item.id);
-    else if (item.kind === 'temperature') await deleteTemperature(item.id);
-    else if (item.kind === 'note') await deleteNote(item.id);
-    else if (item.kind === 'measurement') await deleteMeasurement(item.id);
+    await deleteActivityItem(item);
     onClose();
   };
 

@@ -9,13 +9,23 @@ type Props = {
   onDelete: () => void | Promise<void>;
   /** Libellé accessible (ex. « ce biberon »). */
   label?: string;
+  /** Texte du 1er tap (défaut : Supprimer). */
+  idleLabel?: string;
+  /** Texte du 2e tap (défaut : Confirmer). */
+  confirmLabel?: string;
 };
 
 /**
- * Swipe gauche → corbeille ; 1er tap = Confirmer (fond rouge), 2e tap = supprimer.
+ * Swipe gauche → action danger ; 1er tap = Confirmer (fond rouge), 2e tap = exécuter.
  * Comme l’éditeur journal : 2 gestes pour éviter les fausses manips.
  */
-export function SwipeDeleteRow({ children, onDelete, label = 'cette entrée' }: Props) {
+export function SwipeDeleteRow({
+  children,
+  onDelete,
+  label = 'cette entrée',
+  idleLabel = 'Supprimer',
+  confirmLabel = 'Confirmer',
+}: Props) {
   const [offset, setOffset] = useState(0);
   const [armed, setArmed] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -112,10 +122,12 @@ export function SwipeDeleteRow({ children, onDelete, label = 'cette entrée' }: 
           className={`swipe-delete-btn${armed ? ' is-armed' : ''}`}
           disabled={busy || !open}
           tabIndex={open ? 0 : -1}
-          aria-label={armed ? `Confirmer la suppression de ${label}` : `Supprimer ${label}`}
+          aria-label={
+            armed ? `Confirmer : ${idleLabel.toLowerCase()} ${label}` : `${idleLabel} ${label}`
+          }
           onClick={() => void onActionClick()}>
           <Trash2 size={18} strokeWidth={2.2} aria-hidden />
-          <span>{armed ? 'Confirmer' : 'Supprimer'}</span>
+          <span>{armed ? confirmLabel : idleLabel}</span>
         </button>
       </div>
       <div
