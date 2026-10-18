@@ -134,12 +134,37 @@ export function DbProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    let cancelled = false;
+    let finished = false;
+
+    const finish = async (fromLocal: boolean) => {
+      if (cancelled || finished) return;
+      finished = true;
+      try {
+        const row = fromLocal ? await ensureBaby() : ((await getBaby()) ?? (await ensureBaby()));
+        if (cancelled) return;
+        setBaby(row);
+        setReady(true);
+      } catch {
+        if (!cancelled) setReady(true);
+      }
+    };
+
+    // Ne jamais laisser le splash tourner si session/sync reste en attente réseau.
+    const watchdog = window.setTimeout(() => {
+      void finish(true);
+    }, 8_000);
+
     void (async () => {
       try {
         if (navigator.onLine) await ensureAbelSession();
+        if (cancelled || finished) return;
         if (readGoogleToken() && navigator.onLine) {
           const pulled = await pullFromServer();
+          if (cancelled || finished) return;
           if (pulled) {
+            window.clearTimeout(watchdog);
+            finished = true;
             setBaby((await getBaby()) ?? null);
             setReady(true);
             await refreshSharing();
@@ -147,17 +172,23 @@ export function DbProvider({ children }: { children: ReactNode }) {
             return;
           }
         }
-        const row = await ensureBaby();
-        setBaby(row);
-        setReady(true);
-        await refreshSharing();
-        scheduleSync(400);
+        if (cancelled || finished) return;
+        window.clearTimeout(watchdog);
+        await finish(true);
+        if (!cancelled) {
+          await refreshSharing();
+          scheduleSync(400);
+        }
       } catch {
-        const row = await ensureBaby();
-        setBaby(row);
-        setReady(true);
+        window.clearTimeout(watchdog);
+        await finish(true);
       }
     })();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(watchdog);
+    };
   }, []);
 
   useEffect(() => {

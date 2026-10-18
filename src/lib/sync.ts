@@ -73,26 +73,40 @@ type SyncResponse = {
 
 type FetchResult = SyncResponse | 'auth' | 'error' | 'rate_limit';
 
+function abortAfter(ms: number): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  window.setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}
+
 async function fetchRemoteSnapshot(
   token: string,
   method: 'GET' | 'POST',
   body?: unknown,
 ): Promise<FetchResult> {
-  const res = await fetch(`${SYNC_URL}/sync`, {
-    method,
-    headers: {
-      Authorization: `Bearer ${token}`,
-      ...(body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  if (res.status === 401) {
-    clearAuthToken();
-    return 'auth';
+  try {
+    const res = await fetch(`${SYNC_URL}/sync`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: abortAfter(12_000),
+    });
+    if (res.status === 401) {
+      clearAuthToken();
+      return 'auth';
+    }
+    if (res.status === 429) return 'rate_limit';
+    if (!res.ok) return 'error';
+    return (await res.json()) as SyncResponse;
+  } catch {
+    return 'error';
   }
-  if (res.status === 429) return 'rate_limit';
-  if (!res.ok) return 'error';
-  return (await res.json()) as SyncResponse;
 }
 
 function handleRateLimit() {

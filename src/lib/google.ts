@@ -132,6 +132,15 @@ export function readGoogleToken(): string | null {
 }
 
 /** Échange un jeton Google (1 h) contre une session Abel (90 jours, renouvelée à l’usage). */
+function abortAfter(ms: number): AbortSignal {
+  if (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function') {
+    return AbortSignal.timeout(ms);
+  }
+  const ctrl = new AbortController();
+  window.setTimeout(() => ctrl.abort(), ms);
+  return ctrl.signal;
+}
+
 export async function exchangeGoogleSession(credential: string): Promise<boolean> {
   if (!credential || !navigator.onLine) return false;
   try {
@@ -139,6 +148,7 @@ export async function exchangeGoogleSession(credential: string): Promise<boolean
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ credential }),
+      signal: abortAfter(12_000),
     });
     if (!res.ok) return false;
     const body = (await res.json()) as { token?: string };

@@ -42,6 +42,11 @@ function Ready({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (ready) hideBootSplash();
   }, [ready]);
+  // Filet de sécurité : si IndexedDB / sync bloque, on retire quand même le splash.
+  useEffect(() => {
+    const id = window.setTimeout(() => hideBootSplash(), 10_000);
+    return () => window.clearTimeout(id);
+  }, []);
   if (!ready) return null;
   return children;
 }
