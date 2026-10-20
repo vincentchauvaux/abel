@@ -36,6 +36,7 @@ import {
 } from '@/lib/dates';
 import { diaperLabel, measurementLabel, milkLabel, sideLabel } from '@/lib/labels';
 import { stockIdLabel } from '@/lib/milk-stock';
+import { ensureNoteNotifyPermission } from '@/lib/note-reminders';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { readToolsSection, writeToolsSection, TOOL_SECTION_OPTIONS, type ToolsSection } from '@/lib/tools-section';
@@ -102,6 +103,8 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
   const [sleepStatus, setSleepStatus] = useState<'open' | 'done'>('done');
   const [sleepMinutes, setSleepMinutes] = useState('60');
   const [endedWhen, setEndedWhen] = useState('');
+  const [noteMode, setNoteMode] = useState<'note' | 'todo' | 'remind'>('note');
+  const [remindWhen, setRemindWhen] = useState(() => addMinutesToLocal(toDatetimeLocalValue(), 60));
   const [error, setError] = useState('');
   const [ok, setOk] = useState('');
 
@@ -346,8 +349,18 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           setError('Écris une note.');
           return;
         }
-        await addNote(baby.id, text, at);
-        await finish('Note enregistrée');
+        if (noteMode === 'remind') {
+          if (!remindWhen.trim()) {
+            setError('Indique l’heure du rappel.');
+            return;
+          }
+          await ensureNoteNotifyPermission();
+          await addNote(baby.id, text, at, true, fromDatetimeLocalValue(remindWhen));
+          await finish('Rappel noté');
+          return;
+        }
+        await addNote(baby.id, text, at, noteMode === 'todo', null);
+        await finish(noteMode === 'todo' ? 'À faire noté' : 'Note enregistrée');
         return;
       }
       if (type === 'measurement') {
@@ -616,6 +629,31 @@ export function SmartEntryForm({ defaultType = 'feeding', onSaved }: Props) {
           inputMode="text"
           multiline={type === 'note'}
         />
+      ) : null}
+
+      {type === 'note' ? (
+        <>
+          <div className="row">
+            <Chip label="Note" selected={noteMode === 'note'} onClick={() => setNoteMode('note')} />
+            <Chip label="À faire" selected={noteMode === 'todo'} onClick={() => setNoteMode('todo')} />
+            <Chip label="Rappel" selected={noteMode === 'remind'} onClick={() => setNoteMode('remind')} />
+          </div>
+          {noteMode === 'remind' ? (
+            <>
+              <label className="field">
+                <span>Rappeler à</span>
+                <NativePickerInput
+                  type="datetime-local"
+                  value={remindWhen}
+                  onChange={(e) => setRemindWhen(e.target.value)}
+                />
+              </label>
+              <p className="muted">
+                Notification si Mimom reste ouvert (onglet ou PWA). Sinon visible dans Notes / À faire.
+              </p>
+            </>
+          ) : null}
+        </>
       ) : null}
 
       {type === 'temperature' ? (

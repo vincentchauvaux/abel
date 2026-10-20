@@ -992,7 +992,11 @@ export function DashboardPage() {
                   type="button"
                   className="dash-note-item dash-note-todo-btn"
                   onClick={() => void completeNoteTodo(row.id)}>
-                  <span className="muted">{formatDateTime(row.notedAt)}</span>
+                  <span className="muted">
+                    {row.remindAt
+                      ? `Rappel · ${formatDateTime(row.remindAt)}`
+                      : formatDateTime(row.notedAt)}
+                  </span>
                   <p>{row.body}</p>
                 </button>
               ) : (

@@ -201,12 +201,15 @@ export function temperatureToActivity(row: Temperature): ActivityItem {
 export function noteToActivity(row: Note): ActivityItem {
   const done = row.isTodo && row.doneAt;
   const openTodo = row.isTodo && !row.doneAt;
+  const remind = Boolean(row.remindAt);
+  const title = done ? 'Note · fait' : remind ? 'Note · rappel' : openTodo ? 'Note · à faire' : 'Note';
+  const suffix = done ? '' : remind ? ' · rappel' : openTodo ? ' · à faire' : '';
   return {
     id: row.id,
     kind: 'note',
     at: done ? row.doneAt! : row.notedAt,
-    title: done ? 'Note · fait' : 'Note',
-    detail: `${row.body.slice(0, 80)}${openTodo ? ' · à faire' : ''}`,
+    title,
+    detail: `${row.body.slice(0, 80)}${suffix}`,
     createdBy: row.createdBy ?? null,
   };
 }

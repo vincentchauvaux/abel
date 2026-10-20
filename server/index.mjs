@@ -241,6 +241,7 @@ const TABLES = {
       notedAt: 'noted_at',
       isTodo: 'is_todo',
       doneAt: 'done_at',
+      remindAt: 'remind_at',
       createdBy: 'created_by',
       createdAt: 'created_at',
       updatedAt: 'updated_at',

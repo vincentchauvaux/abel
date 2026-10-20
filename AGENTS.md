@@ -71,7 +71,7 @@ Sur **Bébé**, le bouton **Noter une entrée** (formulaire intelligent Apports 
 | Croissance | Poids (kg), taille (cm), périmètre crânien (cm). Courbes poids/taille (historique ou **OMS** P3–P97 / P50) et IMC indicatif (pas un avis médical). |
 | Sommeil | Start / stop, durée depuis `startedAt` / `endedAt`. Depuis **Noter une entrée** : sieste terminée (début/fin/durée) ou chrono **En cours**. |
 | Température | Saisie °C uniquement ; code couleur indicatif (vert / orange / rouge). |
-| Notes | Texte libre. Case **À faire** = rappel sur le dashboard (accordéon Notes : liste complète, tap pour marquer fait ; dans le journal, classée à la date `doneAt` avec libellé « fait » ; réouvrable depuis le journal). |
+| Notes | Texte libre. Modes **Note** / **À faire** / **Rappel** (`remindAt`). À faire et Rappel restent sur le dashboard jusqu’à « fait » (tap) ; Rappel = notification navigateur à l’heure choisie si l’onglet ou la PWA reste ouverte (comme les rappels repas — pas de push distant). Journal : libellé « à faire » / « rappel » / « fait ». |
 
 ### Rappels repas
 
@@ -270,7 +270,7 @@ babies (name, bornOn, photoUrl)
  ├── measurements
  ├── sleep_sessions
  ├── temperatures
- ├── notes
+ ├── notes (isTodo, doneAt, remindAt)
  ├── reminder_rules (delayMinutes, bottleMl, bottleMinutes, diaperMinutes, diaperWhen)
  ├── exercise_items (title, durationMinutes, startedAt)
  ├── exercise_sessions (exerciseItemId, title, durationMinutes, startedAt, endedAt)

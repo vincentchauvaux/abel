@@ -236,6 +236,33 @@ class AbelDB extends Dexie {
           }
         }
       });
+    this.version(10)
+      .stores({
+        babies: 'id',
+        feedingSessions: 'id, babyId, startedAt',
+        feedingSegments: 'id, feedingSessionId, startedAt',
+        bottleFeeds: 'id, babyId, fedAt, pumpingSessionId',
+        diaperEvents: 'id, babyId, occurredAt',
+        pumpingSessions: 'id, babyId, startedAt',
+        measurements: 'id, babyId, type, measuredAt',
+        reminderRules: 'id, babyId',
+        solidFoods: 'id, babyId, eatenAt',
+        supplements: 'id, babyId, givenAt',
+        sleepSessions: 'id, babyId, startedAt',
+        temperatures: 'id, babyId, measuredAt',
+        notes: 'id, babyId, notedAt, isTodo, doneAt, remindAt',
+        exerciseItems: 'id, babyId, createdAt',
+        bathEvents: 'id, babyId, occurredAt',
+        exerciseSessions: 'id, babyId, exerciseItemId, startedAt',
+      })
+      .upgrade(async (tx) => {
+        await tx
+          .table('notes')
+          .toCollection()
+          .modify((row: { remindAt?: string | null }) => {
+            if (row.remindAt === undefined) row.remindAt = null;
+          });
+      });
   }
 }
 

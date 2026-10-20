@@ -5,6 +5,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ConsentBanner } from '@/components/ConsentBanner';
 import { useDb } from '@/db/DbProvider';
 import { ExerciseAlarm } from '@/components/ExerciseAlarm';
+import { NoteReminders } from '@/components/NoteReminders';
 import { isToolFavorite, toggleToolFavorite, type FavoriteId } from '@/lib/tools';
 
 const MODULE_PREFIXES = [
@@ -57,6 +58,7 @@ export function Layout() {
       ) : null}
       <Outlet />
       <ExerciseAlarm />
+      <NoteReminders />
       <ConsentBanner />
       <nav className="tabbar">
         <Link to="/baby" className={`tab ${onBaby ? 'on' : ''}`}>

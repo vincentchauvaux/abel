@@ -711,30 +711,42 @@ export async function addNote(
   body: string,
   notedAt = nowIso(),
   isTodo = false,
+  remindAt: string | null = null,
 ) {
+  const remind = remindAt || null;
   await db.notes.add({
     id: createId(),
     babyId,
     body: body.trim(),
     notedAt,
-    isTodo,
+    isTodo: Boolean(isTodo || remind),
     doneAt: null,
+    remindAt: remind,
     ...actorStamp(),
     ...stamp(),
   });
   notifyDb();
 }
 
+function normalizeNote(row: Note): Note {
+  return { ...row, remindAt: row.remindAt ?? null };
+}
+
 export async function listNotes(babyId: string): Promise<Note[]> {
-  return alive(await db.notes.where('babyId').equals(babyId).toArray()).sort((a, b) =>
-    b.notedAt.localeCompare(a.notedAt),
-  );
+  return alive(await db.notes.where('babyId').equals(babyId).toArray())
+    .map(normalizeNote)
+    .sort((a, b) => b.notedAt.localeCompare(a.notedAt));
 }
 
 export async function listOpenNoteTodos(babyId: string): Promise<Note[]> {
   return alive(await db.notes.where('babyId').equals(babyId).toArray())
+    .map(normalizeNote)
     .filter((row) => row.isTodo && !row.doneAt)
-    .sort((a, b) => b.notedAt.localeCompare(a.notedAt));
+    .sort((a, b) => {
+      const aAt = a.remindAt ?? a.notedAt;
+      const bAt = b.remindAt ?? b.notedAt;
+      return aAt.localeCompare(bAt);
+    });
 }
 
 export async function completeNoteTodo(id: string) {
@@ -744,16 +756,29 @@ export async function completeNoteTodo(id: string) {
 
 export async function updateNote(
   id: string,
-  values: { body?: string; notedAt?: string; isTodo?: boolean; doneAt?: string | null },
+  values: {
+    body?: string;
+    notedAt?: string;
+    isTodo?: boolean;
+    doneAt?: string | null;
+    remindAt?: string | null;
+  },
 ) {
   const patch: Record<string, unknown> = { ...touch() };
   if (values.body !== undefined) patch.body = values.body.trim();
   if (values.notedAt !== undefined) patch.notedAt = values.notedAt;
   if (values.isTodo !== undefined) {
     patch.isTodo = values.isTodo;
-    if (!values.isTodo) patch.doneAt = null;
+    if (!values.isTodo) {
+      patch.doneAt = null;
+      patch.remindAt = null;
+    }
   }
   if (values.doneAt !== undefined) patch.doneAt = values.doneAt;
+  if (values.remindAt !== undefined) {
+    patch.remindAt = values.remindAt;
+    if (values.remindAt) patch.isTodo = true;
+  }
   await db.notes.update(id, patch);
   notifyDb();
 }

@@ -35,6 +35,9 @@ import {
   toDatetimeLocalValue,
 } from '@/lib/dates';
 import { diaperLabel, feedingSidesLabel, milkLabel, sideLabel } from '@/lib/labels';
+import { ensureNoteNotifyPermission } from '@/lib/note-reminders';
+
+type NoteMode = 'note' | 'todo' | 'remind';
 
 type Props = {
   item: ActivityItem;
@@ -57,8 +60,9 @@ export function ActivityEditor({ item, onClose }: Props) {
   const [sleepStatus, setSleepStatus] = useState<SleepStatus>('done');
   const [sleepMinutes, setSleepMinutes] = useState('');
   const [pumpDuration, setPumpDuration] = useState('');
-  const [noteTodo, setNoteTodo] = useState(false);
+  const [noteMode, setNoteMode] = useState<NoteMode>('note');
   const [noteDone, setNoteDone] = useState(false);
+  const [remindWhen, setRemindWhen] = useState(() => addMinutesToLocal(toDatetimeLocalValue(), 60));
   const [error, setError] = useState('');
   const [deleteReset, setDeleteReset] = useState(0);
 
@@ -241,8 +245,13 @@ export function ActivityEditor({ item, onClose }: Props) {
         if (!cancelled && row) {
           setText(row.body);
           setWhen(toDatetimeLocalValue(row.notedAt));
-          setNoteTodo(row.isTodo);
+          setNoteMode(row.remindAt ? 'remind' : row.isTodo ? 'todo' : 'note');
           setNoteDone(!!row.doneAt);
+          setRemindWhen(
+            row.remindAt
+              ? toDatetimeLocalValue(row.remindAt)
+              : addMinutesToLocal(toDatetimeLocalValue(), 60),
+          );
         }
       } else if (item.kind === 'measurement') {
         const row = await db.measurements.get(item.id);
@@ -381,11 +390,21 @@ export function ActivityEditor({ item, onClose }: Props) {
         await updateTemperature(item.id, { celsius: n, measuredAt: at });
       } else if (item.kind === 'note') {
         const existing = await db.notes.get(item.id);
+        const isTodo = noteMode !== 'note';
         let doneAt: string | null = null;
-        if (noteTodo && noteDone) {
+        if (isTodo && noteDone) {
           doneAt = existing?.doneAt ?? new Date().toISOString();
         }
-        await updateNote(item.id, { body: text, notedAt: at, isTodo: noteTodo, doneAt });
+        let remindAt: string | null = null;
+        if (noteMode === 'remind') {
+          if (!remindWhen.trim()) {
+            setError('Indique l’heure du rappel.');
+            return;
+          }
+          await ensureNoteNotifyPermission();
+          remindAt = fromDatetimeLocalValue(remindWhen);
+        }
+        await updateNote(item.id, { body: text, notedAt: at, isTodo, doneAt, remindAt });
       } else if (item.kind === 'measurement') {
         const n = parseDecimal(amount);
         if (n === null) {
@@ -632,18 +651,33 @@ export function ActivityEditor({ item, onClose }: Props) {
             />
             {item.kind === 'note' ? (
               <>
-                <label className="check-inline">
-                  <input
-                    type="checkbox"
-                    checked={noteTodo}
-                    onChange={(e) => {
-                      setNoteTodo(e.target.checked);
-                      if (!e.target.checked) setNoteDone(false);
+                <div className="row">
+                  <Chip
+                    label="Note"
+                    selected={noteMode === 'note'}
+                    onClick={() => {
+                      setNoteMode('note');
+                      setNoteDone(false);
                     }}
                   />
-                  À faire sur le dashboard
-                </label>
-                {noteTodo ? (
+                  <Chip label="À faire" selected={noteMode === 'todo'} onClick={() => setNoteMode('todo')} />
+                  <Chip
+                    label="Rappel"
+                    selected={noteMode === 'remind'}
+                    onClick={() => setNoteMode('remind')}
+                  />
+                </div>
+                {noteMode === 'remind' ? (
+                  <label className="field">
+                    <span>Rappeler à</span>
+                    <NativePickerInput
+                      type="datetime-local"
+                      value={remindWhen}
+                      onChange={(e) => setRemindWhen(e.target.value)}
+                    />
+                  </label>
+                ) : null}
+                {noteMode !== 'note' ? (
                   <label className="check-inline">
                     <input
                       type="checkbox"

@@ -125,6 +125,8 @@ export type Note = Stamp & {
   /** Afficher sur le dashboard jusqu’à marquage fait. */
   isTodo: boolean;
   doneAt: string | null;
+  /** Si défini : rappel notifié (onglet / PWA ouverte) à cette heure UTC ISO ; implique `isTodo`. */
+  remindAt: string | null;
   createdBy?: string | null;
 };
 /** Exercice paramétré sur Bébé : intitulé + durée. `startedAt` = compte à rebours en cours. */
