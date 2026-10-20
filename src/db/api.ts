@@ -51,6 +51,19 @@ function alive<T extends { deletedAt: string | null }>(rows: T[]): T[] {
   return rows.filter((row) => !row.deletedAt);
 }
 
+/** File d’attente par clé : empêche deux startSleep/startFeeding en parallèle (double tap). */
+const actionChains = new Map<string, Promise<unknown>>();
+
+function serializeByKey<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const prev = actionChains.get(key) ?? Promise.resolve();
+  const next = prev.catch(() => undefined).then(fn);
+  actionChains.set(key, next);
+  void next.finally(() => {
+    if (actionChains.get(key) === next) actionChains.delete(key);
+  });
+  return next;
+}
+
 export async function ensureBaby(): Promise<Baby> {
   const existing = alive(await db.babies.toArray())[0];
   if (existing) return existing;
@@ -105,32 +118,34 @@ export async function updateBaby(
 }
 
 export async function startFeeding(babyId: string, side: Side, startedAt = nowIso()) {
-  const open = alive(await db.feedingSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
-  if (open) {
-    await switchFeedingSide(open.id, side);
-    return open.id;
-  }
-  const sessionId = createId();
-  await db.transaction('rw', db.feedingSessions, db.feedingSegments, async () => {
-    await db.feedingSessions.add({
-      id: sessionId,
-      babyId,
-      startedAt,
-      endedAt: null,
-      ...actorStamp(),
-      ...stamp(),
+  return serializeByKey(`feeding:${babyId}`, async () => {
+    const open = alive(await db.feedingSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
+    if (open) {
+      await switchFeedingSide(open.id, side);
+      return open.id;
+    }
+    const sessionId = createId();
+    await db.transaction('rw', db.feedingSessions, db.feedingSegments, async () => {
+      await db.feedingSessions.add({
+        id: sessionId,
+        babyId,
+        startedAt,
+        endedAt: null,
+        ...actorStamp(),
+        ...stamp(),
+      });
+      await db.feedingSegments.add({
+        id: createId(),
+        feedingSessionId: sessionId,
+        side,
+        startedAt,
+        endedAt: null,
+        ...stamp(),
+      });
     });
-    await db.feedingSegments.add({
-      id: createId(),
-      feedingSessionId: sessionId,
-      side,
-      startedAt,
-      endedAt: null,
-      ...stamp(),
-    });
+    notifyDbUrgent();
+    return sessionId;
   });
-  notifyDbUrgent();
-  return sessionId;
 }
 
 export async function logFeedingNow(babyId: string, side: Side, at = nowIso()) {
@@ -263,31 +278,33 @@ export async function peekNextStockNo(babyId: string): Promise<number> {
 }
 
 export async function startPumping(babyId: string) {
-  const open = alive(await db.pumpingSessions.where('babyId').equals(babyId).toArray()).find(
-    (row) => row.amountMl == null,
-  );
-  if (open) {
-    notifyDbUrgent();
-    return open.id;
-  }
-  const id = createId();
-  await db.transaction('rw', db.pumpingSessions, async () => {
-    const stockNo = await nextStockNo(babyId);
-    await db.pumpingSessions.add({
-      id,
-      babyId,
-      startedAt: nowIso(),
-      amountMl: null,
-      remainingMl: null,
-      stockNo,
-      durationMinutes: null,
-      side: null,
-      ...actorStamp(),
-      ...stamp(),
+  return serializeByKey(`pumping:${babyId}`, async () => {
+    const open = alive(await db.pumpingSessions.where('babyId').equals(babyId).toArray()).find(
+      (row) => row.amountMl == null,
+    );
+    if (open) {
+      notifyDbUrgent();
+      return open.id;
+    }
+    const id = createId();
+    await db.transaction('rw', db.pumpingSessions, async () => {
+      const stockNo = await nextStockNo(babyId);
+      await db.pumpingSessions.add({
+        id,
+        babyId,
+        startedAt: nowIso(),
+        amountMl: null,
+        remainingMl: null,
+        stockNo,
+        durationMinutes: null,
+        side: null,
+        ...actorStamp(),
+        ...stamp(),
+      });
     });
+    notifyDbUrgent();
+    return id;
   });
-  notifyDbUrgent();
-  return id;
 }
 
 export async function addPumping(
@@ -615,22 +632,24 @@ export async function deleteSupplement(id: string) {
 }
 
 export async function startSleep(babyId: string, startedAt = nowIso()) {
-  const open = alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
-  if (open) {
+  return serializeByKey(`sleep:${babyId}`, async () => {
+    const open = alive(await db.sleepSessions.where('babyId').equals(babyId).toArray()).find((row) => !row.endedAt);
+    if (open) {
+      notifyDbUrgent();
+      return open.id;
+    }
+    const id = createId();
+    await db.sleepSessions.add({
+      id,
+      babyId,
+      startedAt,
+      endedAt: null,
+      ...actorStamp(),
+      ...stamp(),
+    });
     notifyDbUrgent();
-    return open.id;
-  }
-  const id = createId();
-  await db.sleepSessions.add({
-    id,
-    babyId,
-    startedAt,
-    endedAt: null,
-    ...actorStamp(),
-    ...stamp(),
+    return id;
   });
-  notifyDbUrgent();
-  return id;
 }
 
 /** Sieste déjà terminée (journal) — n’interfère pas avec un chrono en cours. */
@@ -793,29 +812,31 @@ export async function sealDueExerciseSessions(babyId: string, now = Date.now()) 
 }
 
 export async function startExerciseItem(id: string) {
-  const item = await db.exerciseItems.get(id);
-  if (!item || item.deletedAt) return;
-  if (exerciseIsRunning(item)) return;
-  if (exerciseIsDone(item)) {
-    const ends = exerciseEndsAt(item);
-    if (ends) await closeOpenExerciseSession(item, new Date(ends).toISOString());
-  } else {
-    await closeOpenExerciseSession(item, nowIso());
-  }
-  const startedAt = nowIso();
-  await db.exerciseSessions.add({
-    id: createId(),
-    babyId: item.babyId,
-    exerciseItemId: item.id,
-    title: item.title,
-    durationMinutes: item.durationMinutes,
-    startedAt,
-    endedAt: null,
-    ...actorStamp(),
-    ...stamp(),
+  return serializeByKey(`exercise:${id}`, async () => {
+    const item = await db.exerciseItems.get(id);
+    if (!item || item.deletedAt) return;
+    if (exerciseIsRunning(item)) return;
+    if (exerciseIsDone(item)) {
+      const ends = exerciseEndsAt(item);
+      if (ends) await closeOpenExerciseSession(item, new Date(ends).toISOString());
+    } else {
+      await closeOpenExerciseSession(item, nowIso());
+    }
+    const startedAt = nowIso();
+    await db.exerciseSessions.add({
+      id: createId(),
+      babyId: item.babyId,
+      exerciseItemId: item.id,
+      title: item.title,
+      durationMinutes: item.durationMinutes,
+      startedAt,
+      endedAt: null,
+      ...actorStamp(),
+      ...stamp(),
+    });
+    await db.exerciseItems.update(id, { startedAt, ...touch() });
+    notifyDbUrgent();
   });
-  await db.exerciseItems.update(id, { startedAt, ...touch() });
-  notifyDbUrgent();
 }
 
 export async function stopExerciseItem(id: string) {

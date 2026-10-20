@@ -17,6 +17,7 @@ import {
 import { useDb } from '@/db/DbProvider';
 import type { ExerciseItem, FeedingSession, PumpingSession, SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { elapsedMs, formatDuration, formatTime } from '@/lib/dates';
 import { exerciseIsRunning, formatExerciseCountdown } from '@/lib/exercises';
 import { notifyDiaperFromGoals, notifyMealFromGoals } from '@/lib/reminders';
@@ -31,6 +32,7 @@ type ActiveItem =
 export function ActiveNowPanel() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [items, setItems] = useState<ActiveItem[]>([]);
   const [goals, setGoals] = useState<Awaited<ReturnType<typeof getReminder>>>();
   const now = useNow(items.length > 0);
@@ -64,11 +66,15 @@ export function ActiveNowPanel() {
 
   if (items.length === 0) return null;
 
-  const stopFeed = async (id: string) => {
-    const endedAt = await stopFeeding(id);
-    await notifyMealFromGoals(goals, endedAt);
-    await notifyDiaperFromGoals(goals, endedAt);
-  };
+  const stopFeed = (id: string) =>
+    run(
+      async () => {
+        const endedAt = await stopFeeding(id);
+        await notifyMealFromGoals(goals, endedAt);
+        await notifyDiaperFromGoals(goals, endedAt);
+      },
+      { releaseOnSuccess: true },
+    );
 
   const openModule = (kind: 'feeding' | 'sleep' | 'pumping') => {
     navigate(TOOLS[kind].route);
@@ -87,7 +93,9 @@ export function ActiveNowPanel() {
                   {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
                 </p>
               </button>
-              <Button onClick={() => void stopFeed(item.row.id)}>Terminer</Button>
+              <Button disabled={busy} onClick={() => void stopFeed(item.row.id)}>
+                Terminer
+              </Button>
             </div>
           );
         }
@@ -107,7 +115,15 @@ export function ActiveNowPanel() {
                     {formatDuration(elapsedMs(item.row.startedAt, item.row.endedAt, now))}
                   </p>
                 </button>
-                <Button onClick={() => void stopSleep(item.row.id)}>Réveil</Button>
+                <Button
+                  disabled={busy}
+                  onClick={() =>
+                    void run(async () => {
+                      await stopSleep(item.row.id);
+                    }, { releaseOnSuccess: true })
+                  }>
+                  Réveil
+                </Button>
               </div>
             </SwipeDeleteRow>
           );
@@ -119,7 +135,14 @@ export function ActiveNowPanel() {
                 <strong>{item.row.title}</strong>
                 <p className="muted active-now-meta">{formatExerciseCountdown(item.row, now)}</p>
               </button>
-              <Button tone="muted" onClick={() => void stopExerciseItem(item.row.id)}>
+              <Button
+                tone="muted"
+                disabled={busy}
+                onClick={() =>
+                  void run(async () => {
+                    await stopExerciseItem(item.row.id);
+                  }, { releaseOnSuccess: true })
+                }>
                 Terminer
               </Button>
             </div>

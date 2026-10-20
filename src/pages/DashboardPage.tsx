@@ -52,6 +52,7 @@ import type {
   Temperature,
 } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { deleteActivityItem, listActivity, type ActivityItem } from '@/lib/activity';
 import {
   DASH_SECTION_TITLES,
@@ -179,9 +180,10 @@ type FollowRow = {
   valueClassName?: string;
   onToggle?: () => void;
   running?: boolean;
+  toggleBusy?: boolean;
 };
 
-function FollowRowItem({ label, value, sub, to, valueClassName, onToggle, running }: FollowRow) {
+function FollowRowItem({ label, value, sub, to, valueClassName, onToggle, running, toggleBusy }: FollowRow) {
   const main = (
     <>
       <span className="muted">{label}</span>
@@ -200,6 +202,7 @@ function FollowRowItem({ label, value, sub, to, valueClassName, onToggle, runnin
         <button
           type="button"
           className="dash-follow-add"
+          disabled={toggleBusy}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
@@ -219,6 +222,7 @@ function FollowRowItem({ label, value, sub, to, valueClassName, onToggle, runnin
 
 export function DashboardPage() {
   const { baby, tick } = useDb();
+  const { busy: toggleBusy, run: runToggle } = useOnceLock();
   const [period, setPeriod] = useState<Period>('today');
   const [sessions, setSessions] = useState<FeedingSession[]>([]);
   const [bottles, setBottles] = useState<BottleFeed[]>([]);
@@ -450,10 +454,13 @@ export function DashboardPage() {
       sub: activeSleep ? 'en cours' : '—',
       to: '/sleep',
       running: Boolean(activeSleep),
+      toggleBusy,
       onToggle: baby
         ? () => {
-            if (activeSleep) void stopSleep(activeSleep.id);
-            else void startSleep(baby.id);
+            void runToggle(async () => {
+              if (activeSleep) await stopSleep(activeSleep.id);
+              else await startSleep(baby.id);
+            }, { releaseOnSuccess: true });
           }
         : undefined,
     },
@@ -582,10 +589,13 @@ export function DashboardPage() {
         sub: activeSleep ? 'en cours' : '—',
         to: TOOLS.sleep.route,
         running: Boolean(activeSleep),
+        toggleBusy,
         onToggle: baby
           ? () => {
-              if (activeSleep) void stopSleep(activeSleep.id);
-              else void startSleep(baby.id);
+              void runToggle(async () => {
+                if (activeSleep) await stopSleep(activeSleep.id);
+                else await startSleep(baby.id);
+              }, { releaseOnSuccess: true });
             }
           : undefined,
       },
@@ -632,6 +642,8 @@ export function DashboardPage() {
     openNoteTodos.length,
     notes.length,
     baby,
+    toggleBusy,
+    runToggle,
   ]);
 
   const favoriteRows = useMemo(() => {
@@ -650,9 +662,12 @@ export function DashboardPage() {
             sub: done ? 'Terminé' : running ? 'en cours' : undefined,
             to: exerciseRoute(item.id),
             running,
+            toggleBusy,
             onToggle: () => {
-              if (running) void stopExerciseItem(item.id);
-              else void startExerciseWithAlarm(item.id);
+              void runToggle(async () => {
+                if (running) await stopExerciseItem(item.id);
+                else await startExerciseWithAlarm(item.id);
+              }, { releaseOnSuccess: true });
             },
           } satisfies FollowRow & { favoriteId: FavoriteId };
         }
@@ -660,7 +675,7 @@ export function DashboardPage() {
         return row ? { ...row, favoriteId: id } : null;
       })
       .filter((row): row is FollowRow & { favoriteId: FavoriteId } => row != null);
-  }, [favorites, toolRows, exercises, now]);
+  }, [favorites, toolRows, exercises, now, toggleBusy, runToggle]);
 
   const isAll = period === 'all';
   const isToday = period === 'today';
@@ -788,9 +803,12 @@ export function DashboardPage() {
             : formatExerciseDuration(item.durationMinutes),
       to: exerciseRoute(item.id),
       running,
+      toggleBusy,
       onToggle: () => {
-        if (running) void stopExerciseItem(item.id);
-        else void startExerciseWithAlarm(item.id);
+        void runToggle(async () => {
+          if (running) await stopExerciseItem(item.id);
+          else await startExerciseWithAlarm(item.id);
+        }, { releaseOnSuccess: true });
       },
     };
   });

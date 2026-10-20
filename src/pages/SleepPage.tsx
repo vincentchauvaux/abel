@@ -9,6 +9,7 @@ import { listSleep, startSleep, stopSleep } from '@/db/api';
 import { useDb } from '@/db/DbProvider';
 import type { SleepSession } from '@/db/types';
 import { useNow } from '@/hooks/use-now';
+import { useOnceLock } from '@/hooks/use-once-lock';
 import { sleepSessionToActivity, type ActivityItem } from '@/lib/activity';
 import {
   elapsedMs,
@@ -25,6 +26,7 @@ import { returnHome } from '@/lib/return-home';
 export function SleepPage() {
   const { baby, tick } = useDb();
   const navigate = useNavigate();
+  const { busy, run } = useOnceLock();
   const [sessions, setSessions] = useState<SleepSession[]>([]);
   const [editing, setEditing] = useState<ActivityItem | null>(null);
   const babyId = baby?.id ?? '';
@@ -56,10 +58,16 @@ export function SleepPage() {
                 Endormi depuis {formatTime(active.startedAt)} · modifier
               </p>
             </button>
-            <Button onClick={async () => {
-              await stopSleep(active.id);
-              returnHome(navigate);
-            }}>Réveil</Button>
+            <Button
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  await stopSleep(active.id);
+                  returnHome(navigate);
+                })
+              }>
+              Réveil
+            </Button>
           </>
         ) : (
           <>
@@ -67,10 +75,13 @@ export function SleepPage() {
               Un appui démarre le timer. La durée vient de l’heure de début, pas d’un compteur interne.
             </p>
             <Button
-              onClick={async () => {
+              disabled={busy}
+              onClick={() => {
                 if (!babyId) return;
-                await startSleep(babyId);
-                returnHome(navigate);
+                void run(async () => {
+                  await startSleep(babyId);
+                  returnHome(navigate);
+                });
               }}>
               Endormi
             </Button>

@@ -286,7 +286,7 @@ Page **Bébé** : sections en **accordéon** (un seul panneau ouvert à la fois)
 - Répondre **en français**.
 - Mettre à jour **ce fichier** après chaque changement structurel.
 - Ne pas inventer de conseils médicaux.
-- 1 tap = 1 donnée. Les actions immédiates (couche, bain, etc.) ignorent un 2ᵉ appui tant que le 1er n’a pas fini (`useOnceLock`).
+- 1 tap = 1 donnée. Les actions immédiates (couche, bain, etc.) ignorent un 2ᵉ appui tant que le 1er n’a pas fini (`useOnceLock`). Les démarrages chrono (sommeil, tétée, tire-lait, exercice) sont aussi sérialisés en base (`serializeByKey` dans `api.ts`) pour qu’un double tap ne crée pas deux entrées — y compris depuis Favoris / Suivi sur le dashboard.
 - Dates UTC en base.
 - Ne pas committer sauf demande explicite.
 - Abel n’utilise que le VPS OVH `vps-e09ed6db.vps.ovh.net` (quand un backend existera). Aucun autre serveur.
