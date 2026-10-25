@@ -36,6 +36,12 @@ import {
 import { fetchDailyHoroscope } from '@/lib/horoscope-api';
 import { HOROSCOPE_DISCLAIMER, horoscopeFor } from '@/lib/horoscope';
 import {
+  BABY_SECTION_IDS,
+  readBabyOpenSection,
+  writeBabyOpenSection,
+  type BabySectionId,
+} from '@/lib/baby-sections';
+import {
   bottleMlAlertLine,
   diaperAlertLine,
   lastMealAt,
@@ -43,6 +49,8 @@ import {
   notifyDiaperFromGoals,
   sleepAlertLine,
 } from '@/lib/reminders';
+
+const BABY_SECTION_IDS_SET = new Set<string>(BABY_SECTION_IDS);
 
 const JOURNAL_KIND_OPTIONS: { value: ActivityKind; label: string }[] = [
   { value: 'feeding', label: 'Tétée' },
@@ -81,19 +89,36 @@ export function BabyPage() {
   const [editGoals, setEditGoals] = useState(true);
   const [goalsReady, setGoalsReady] = useState(false);
   const [showEntry, setShowEntry] = useState(false);
-  const [openSection, setOpenSection] = useState<string | null>(requestedSection);
+  const [openSection, setOpenSection] = useState<string | null>(() => {
+    if (requestedSection) return requestedSection;
+    const saved = readBabyOpenSection();
+    return saved === undefined ? null : saved;
+  });
   const [journalDay, setJournalDay] = useState(() => localDateKey(new Date().toISOString()));
   const [journalKinds, setJournalKinds] = useState<ActivityKind[]>(JOURNAL_KIND_VALUES);
   const guidedRef = useRef(false);
   const now = useNow(true, 30_000);
   const canEditBaby = sharingRole !== 'guardian';
 
+  const rememberSection = (id: string | null) => {
+    const open: BabySectionId | null =
+      id != null && BABY_SECTION_IDS_SET.has(id) ? (id as BabySectionId) : null;
+    setOpenSection(open);
+    writeBabyOpenSection(open);
+  };
+
   const toggleSection = (id: string) => {
-    setOpenSection((prev) => (prev === id ? null : id));
+    setOpenSection((prev) => {
+      const next: BabySectionId | null =
+        prev === id ? null : BABY_SECTION_IDS_SET.has(id) ? (id as BabySectionId) : null;
+      writeBabyOpenSection(next);
+      return next;
+    });
   };
 
   useEffect(() => {
-    if (requestedSection) setOpenSection(requestedSection);
+    if (!requestedSection) return;
+    rememberSection(requestedSection);
   }, [requestedSection]);
 
   useLayoutEffect(() => {
@@ -139,9 +164,11 @@ export function BabyPage() {
       setGoalsReady(configured);
       setEditGoals(canEditBaby && !configured);
       if (!guidedRef.current) {
-        if (!requestedSection) {
-          if (canEditBaby && !(baby.bornOn && baby.name)) setOpenSection('identity');
-          else if (canEditBaby && !configured) setOpenSection('goals');
+        // Guidage 1ʳᵉ visite seulement si aucune préférence locale.
+        if (!requestedSection && readBabyOpenSection() === undefined) {
+          if (canEditBaby && !(baby.bornOn && baby.name)) rememberSection('identity');
+          else if (canEditBaby && !configured) rememberSection('goals');
+          else writeBabyOpenSection(null);
         }
         guidedRef.current = true;
       }
@@ -259,7 +286,7 @@ export function BabyPage() {
               type="button"
               className="linkish"
               onClick={() => {
-                setOpenSection('identity');
+                rememberSection('identity');
                 setEditIdentity(true);
               }}>
               Modifier
@@ -312,7 +339,7 @@ export function BabyPage() {
               type="button"
               className="linkish"
               onClick={() => {
-                setOpenSection('goals');
+                rememberSection('goals');
                 setEditGoals(true);
               }}>
               Modifier
